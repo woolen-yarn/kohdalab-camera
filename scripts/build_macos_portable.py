@@ -3,8 +3,11 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 import hashlib,json,os,platform,shutil,subprocess,sys
 
+from portable_notices import collect_notices
+
 ROOT=Path(__file__).resolve().parents[1]
-if sys.platform!='darwin':raise SystemExit('Build on macOS.')
+if sys.platform!='darwin' or platform.machine()!='arm64':
+ raise SystemExit('Build this release on Apple Silicon macOS (arm64).')
 work=ROOT/'build/macos-portable';work.mkdir(parents=True,exist_ok=True)
 renderer=ROOT/'build/camera-render/libcamera_render.dylib'
 if not renderer.is_file():raise RuntimeError('Build the native renderer first: scripts/build_camera_renderer.py')
@@ -27,8 +30,7 @@ if '--package-only' not in sys.argv:
 app=ROOT/'dist/KohdaLab Camera.app';support=app/'Contents/Resources/support';support.mkdir(parents=True,exist_ok=True)
 shutil.copytree(ROOT/'docs',support/'docs',dirs_exist_ok=True)
 licenses=support/'licenses';licenses.mkdir(parents=True,exist_ok=True)
-shutil.copy2(ROOT/'LICENSE',licenses/'LICENSE')
-shutil.copy2(ROOT/'portable/licenses/THIRD_PARTY.md',licenses/'THIRD_PARTY.md')
+collect_notices(ROOT,licenses)
 with ZipFile(support/'SOURCE.zip','w',ZIP_DEFLATED) as archive:
  for name in ['src','scripts','tests','native','docs','portable','.github','README.md','LICENSE','CHANGELOG.md','CONTRIBUTING.md','ROADMAP.md','pyproject.toml','uv.lock']:
   path=ROOT/name

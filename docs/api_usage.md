@@ -31,3 +31,5 @@ A `Camera` implements `open()`, `read() -> Frame`, `set_control(name, value) -> 
 List adapters without accessing devices with `available_backends()` or `kohdalab-camera backends`. Factories are lazy. Duplicate backend IDs are rejected; extensions cannot silently replace a built-in driver.
 
 Test a new adapter's acquisition, control metadata, invalid requests, disconnects, timeouts, cleanup and pixel ownership. Then record real-device validation separately. A generic integration or successful simulated test is not evidence that a particular camera works.
+
+A separate installed package is not discovered automatically. A custom launcher must register the factory before calling `kohdalab_camera.cli.main()` or `kohdalab_camera.gui.main()` in that same process. Frozen portable adapters must be included during rebuilding.

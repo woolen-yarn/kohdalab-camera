@@ -13,7 +13,7 @@ KohdaLab Camera is a camera toolkit, not a GR300-specific application. Its initi
 
 ## Adding a camera
 
-Register a factory and support description through the public API. New registrations automatically appear in CLI choices and GUI backend selection. Implement the common open/read/set_control/close contract and test it with a fake transport before accessing hardware. A factory must not open hardware; `open()` is the boundary for active access.
+Register a factory and support description through the public API. Registrations appear in CLI choices and GUI backend selection within the same process. A custom launcher must register the adapter before calling `kohdalab_camera.cli.main()` or `kohdalab_camera.gui.main()`. Installing a separate package alone does not extend the stock executable. Implement the common open/read/set_control/close contract and test it with a fake transport before accessing hardware. A factory must not open hardware; `open()` is the boundary for active access.
 
 Controls may retain backend-native units. A readback is not a physical calibration. Record the exact device identity and capture-time settings in each frame. Optional hooks such as interruptible reads, batched controls, white balance and full-sensor capture may be implemented by an adapter; they are not mandatory capabilities of all cameras.
 

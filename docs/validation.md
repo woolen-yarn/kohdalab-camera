@@ -181,3 +181,12 @@ The user chose 10–13fps over the experimental ~6fps clock. Alternating same-hu
 The application was then relaunched at its existing stable defaults: 128 exposure rows, 1x analog gain, software brightness +1.5EV, fixed 180° rotation, 1024x768 preview, same Fresco Logic hub. Native Qt validation at 60.794s recorded 766 complete frames, 12.60fps including startup, **zero endpoint recoveries and zero bus resets**. Exposure/gain readbacks matched 128/8. Exported RGB exactly matched the displayed frame and reconstructed sensor image with 180° rotation. Mean displayed RGB was 128.20. Results and screenshots: `captures/smooth-stable-final/launch.json`, `live.png`, and `format-menu.png`. The GUI remains open at these settings.
 
 This short run verifies a usable low-control profile, not indefinite stability or a correction of the underlying high-control transfer error. Software brightness changes preview/RGB export, not captured sensor data or optical signal. High exposure/gain remain available in Advanced; the fast-clock recovery rate at those settings has not been reliably reduced. The new opt-in `scripts/compare_usb_queues.py` records future alternating trials without changing application defaults; its command-line import/help was checked with the frozen uv environment.
+
+## Public project portable verification — 2026-10-06
+
+The initial `woolen-yarn/kohdalab-camera` project passed all 89 source tests on real Windows and Mac hosts, and its GitHub Actions Windows/macOS/Linux matrix passed. Both freshly rebuilt portable ZIPs were extracted into separate directories before testing.
+
+- Windows x64 frozen GUI/worker/native renderer smoke: passed. The real GR300 test ran for 90.013866 steady seconds: 3,178 complete captures and 3,178 application preview updates, both **35.3057 fps** at 1024×768. USB recoveries and preview drops were zero. 31 incomplete USB frames were discarded rather than displayed. Exposure/gain register readbacks, lossless RGB PNG/TIFF and original sensor TIFF checks passed; the GUI exited with code 0.
+- Mac arm64 extracted application: simulated acquisition, export, native renderer correctness and worker shutdown passed; strict deep ad-hoc signature verification passed. No new Mac real-camera FPS measurement was performed.
+
+This check measures application preview updates, not RustDesk delivery or a physical monitor refresh. Packaging-only notice/source refreshes preserve the tested executable bytes.

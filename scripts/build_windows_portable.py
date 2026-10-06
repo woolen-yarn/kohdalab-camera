@@ -3,6 +3,8 @@ from pathlib import Path
 import subprocess, sys, shutil, hashlib, json
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from portable_notices import collect_notices
+
 ROOT=Path(__file__).resolve().parents[1]
 if sys.platform != 'win32':
     raise SystemExit('Build this portable on Windows x64.')
@@ -36,8 +38,7 @@ for name in ['Camera-USB-Setup.exe', 'libwdi.dll']:
 subprocess.run([str(folder/'support/Camera-USB-Setup.exe'), '--self-test'], check=True)
 shutil.copytree(ROOT/'docs',folder/'support/docs',dirs_exist_ok=True)
 licenses=folder/'support/licenses';licenses.mkdir(parents=True,exist_ok=True)
-shutil.copy2(ROOT/'LICENSE',licenses/'LICENSE')
-shutil.copy2(ROOT/'portable/licenses/THIRD_PARTY.md',licenses/'THIRD_PARTY.md')
+collect_notices(ROOT,licenses)
 with ZipFile(folder/'support/SOURCE.zip','w',ZIP_DEFLATED) as z:
     for name in ['src','scripts','tests','native','docs','portable','.github','README.md','LICENSE','CHANGELOG.md','CONTRIBUTING.md','ROADMAP.md','pyproject.toml','uv.lock']:
         p=ROOT/name
