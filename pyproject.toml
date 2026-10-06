@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kohdalab-camera"
+version = "0.1.0"
+description = "Extensible laboratory camera capture toolkit"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "KohdaLab"}]
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "Pillow>=10"]
+
+[project.optional-dependencies]
+uvc = ["opencv-python>=4.10"]
+gui = ["PySide6>=6.7", "opencv-python>=4.10"]
+usb = ["pyusb>=1.2", "libusb-package>=1.0"]
+mac = ["pyobjc-framework-AVFoundation>=10; sys_platform == 'darwin'"]
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/woolen-yarn/kohdalab-camera"
+Issues = "https://github.com/woolen-yarn/kohdalab-camera/issues"
+
+[project.scripts]
+kohdalab-camera = "kohdalab_camera.cli:main"
+kohdalab-camera-gui = "kohdalab_camera.gui:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+captures/
+local-diagnostics*.json
+
+.venv-runtime/
+support/*.exe
+support/*.dll
+
+.DS_Store
+releases/
+*.log
