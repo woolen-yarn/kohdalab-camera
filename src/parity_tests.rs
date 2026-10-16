@@ -82,3 +82,43 @@ fn frozen_recipe_primary_png_tiff_literal_pixels_and_raw_unchanged() {
     }
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn image_zoom_is_presentation_only_and_panel_wheel_does_not_zoom() {
+    let ctx=egui::Context::default();let mut app=App::without_scan(&ctx);app.picker=false;app.tab=usize::MAX;
+    let frame=camera_lab::CameraAdapter::next_frame(&mut camera_lab::Simulation{sequence:1}).unwrap();
+    let raw=frame.raw.clone();let meta=frame.metadata.clone();app.show_frame(&ctx,frame);let recipe=app.recipe;
+    let size=egui::vec2(1100.,760.);draw(&mut app,&ctx,size);
+    let pointer=egui::pos2(800.,400.);
+    let input=|events|egui::RawInput{screen_rect:Some(egui::Rect::from_min_size(egui::Pos2::ZERO,size)),events,..Default::default()};
+    let _=ctx.run(input(vec![egui::Event::PointerMoved(pointer)]),|ctx|app.render(ctx));
+    let _=ctx.run(input(vec![egui::Event::MouseWheel{unit:egui::MouseWheelUnit::Point,delta:egui::vec2(0.,120.),modifiers:Default::default()}]),|ctx|app.render(ctx));
+    assert!(app.view.zoom>1.);assert_eq!(app.recipe,recipe);assert_eq!(app.frame.as_ref().unwrap().raw,raw);assert_eq!(app.frame.as_ref().unwrap().metadata,meta);
+    app.tab=2;draw(&mut app,&ctx,size);draw(&mut app,&ctx,size);
+    let pointer=egui::pos2(150.,250.);let _=ctx.run(input(vec![egui::Event::PointerMoved(pointer)]),|ctx|app.render(ctx));
+    let zoom=app.view.zoom;
+    let _=ctx.run(input(vec![egui::Event::MouseWheel{unit:egui::MouseWheelUnit::Point,delta:egui::vec2(0.,120.),modifiers:Default::default()}]),|ctx|app.render(ctx));
+    assert_eq!(app.view.zoom,zoom,"scrolling controls must not zoom the canvas");
+    app.worker.close();
+}
+
+#[test]
+fn preferences_restore_and_reset_do_not_connect_or_apply() {
+    let ctx=egui::Context::default();let mut app=App::without_scan(&ctx);
+    let saved=preferences::Preferences{exposure:155,gain:16,live_size:[1234.,800.],recipe:Recipe{gamma:1.8,..Default::default()},next_sequence:42,..Default::default()};
+    app.restore_preferences(saved.clone());assert_eq!(app.current_preferences(),saved);
+    assert!(app.source.is_none() && app.picker);assert_eq!(app.revision,0);
+    app.reset_preferences(&ctx);assert_eq!(app.current_preferences(),preferences::Preferences::default());assert!(app.source.is_none());assert_eq!(app.revision,0);
+    app.worker.close();
+}
+
+#[test]
+fn failed_preference_write_can_retry_without_losing_changes() {
+    let root=std::env::temp_dir().join(format!("camera-pref-retry-{}",std::process::id()));std::fs::create_dir_all(&root).unwrap();
+    let blocked=root.join("blocked");std::fs::write(&blocked,b"file").unwrap();
+    let ctx=egui::Context::default();let mut app=App::without_scan(&ctx);app.preferences_path=Some(blocked.join("settings.json"));app.settings.exposure_rows=155;
+    app.persist_preferences(true);assert_eq!(app.saved_preferences.exposure,120);
+    std::fs::remove_file(&blocked).unwrap();app.persist_preferences(true);
+    assert_eq!(preferences::Preferences::load(app.preferences_path.as_ref().unwrap()).unwrap().exposure,155);
+    app.worker.close();std::fs::remove_dir_all(root).unwrap();
+}

@@ -109,9 +109,9 @@ impl App {
         let restore=&self.product.restore_result;
         if restore_bad {return (if self.save_result.starts_with("Saved image") {"Full image saved · return to Live unconfirmed"} else {"Return to Live not confirmed · see Error details"}.into(),true);}
         if self.save_result.starts_with("Saved image") {
-            return (if self.export_full && restore.starts_with("Original applied") {"Full image saved · Live restored"} else if self.product.busy() {"Full image saved · returning to Live"} else {"Image and sidecars saved"}.into(),false);
+            return (if self.export_full && restore.starts_with("Original applied") {"Full image saved · Live restored"} else if self.product.busy() {"Full image saved · returning to Live"} else {"Image saved"}.into(),false);
         }
-        if self.busy {return ("Saving image and sidecars…".into(),false);}
+        if self.busy {return ("Saving image…".into(),false);}
         if self.save_result.contains("cancelled") {return ("Save cancelled".into(),false);}
         if self.source.is_none() && self.frame.is_some() {return ("Retained image · historical".into(),false);}
         (self.status.clone(),false)

@@ -24,3 +24,16 @@ pixels of the saved GR300 five-minute endpoint image exactly.
 Tests additionally cover RGB and Bayer (including the smallest 2 × 2 Bayer
 image), all rotations/reflections, monochrome, non-neutral gains/gamma and
 preview bounds. Literal independent border and color-plane tests remain in use.
+
+## Version 0.1.6 allocation reduction
+
+The preview now writes Color32 pixels directly through the same traversal used
+by RGB exports. It no longer builds a temporary RGB byte vector. The GUI retains
+only preview dimensions instead of cloning the entire ColorImage for cursor
+mapping. For a 1024 × 768 preview these buffers were 2.25 MiB and 3 MiB,
+respectively; these are buffer sizes, not a process-RSS measurement.
+
+The direct path matches `ColorImage::from_rgb(Recipe::render(...))` exactly for
+RGB/Bayer, versions 1/2, all orientations, monochrome and preview bounds.
+The paired benchmark reports separate timings; samples varied, so this update
+makes no guaranteed CPU-throughput or physical-FPS improvement claim.

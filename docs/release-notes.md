@@ -1,3 +1,21 @@
+# KohdaLab Camera 0.1.6
+
+- Remember camera/image settings, Live window size, save folder and capture
+  numbering. Restore defaults from Advanced without automatically reconnecting
+  or applying camera controls.
+- Add pointer-centered wheel zoom, drag panning, double-click to fit, and Fit /
+  100% buttons in Image. View transforms do not change exported pixels.
+- Suggest numbered PNG names and skip occupied image/sidecar names.
+- Render preview pixels directly into ColorImage and remove the unused retained
+  image clone. This eliminates an intermediate RGB allocation and pixel copy;
+  measured CPU timings vary, so no additional capture-FPS increase is claimed.
+
+Validation includes exact direct/indirect pixel equivalence, bounded pipeline
+checks, saved physical-image replay, preferences overwrite/retry, view geometry,
+input isolation, no-auto-connect/reset tests, independent review and native Mac
+Simulation interaction/restart/reset checks. The last physical Live validation
+remains the scoped 0.1.4 run.
+
 # KohdaLab Camera 0.1.5
 
 - Set the default exposure to 120 sensor rows. Gamma remains 2.2 and brightness

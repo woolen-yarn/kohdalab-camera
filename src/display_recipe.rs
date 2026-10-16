@@ -45,7 +45,10 @@ impl Recipe {
         if self.monochrome {let mean=(p[0]+p[1]+p[2])/3.;p=[mean;3];}
         p.map(|v| (255.*v.powf(1./self.gamma)).round().clamp(0.,255.) as u8)
     }
-    pub fn render(self,f:&Frame,max_edge:Option<u32>)->Result<(u32,u32,Vec<u8>),String> {
+    /// Traverse rendered pixels in display order. The traversal is shared by
+    /// exported RGB rendering and the preview's direct `ColorImage` path so
+    /// both retain identical reconstruction and recipe semantics.
+    fn render_each(self, f: &Frame, max_edge: Option<u32>, mut write: impl FnMut([u8; 3])) -> Result<(u32, u32), String> {
         f.validate()?;self.validate()?;
         let (w,h)=self.dimensions(f.metadata.width,f.metadata.height);
         let stride=match max_edge {Some(0)=>return Err("Zero preview bound".into()),Some(n)=>w.max(h).div_ceil(n),None=>1};
@@ -61,7 +64,6 @@ impl Recipe {
             let gain=2f32.powf(self.ev);
             let linear: [[f32;256];3]=std::array::from_fn(|c|std::array::from_fn(|v|(v as f32/255.*gain*self.wb[c]).clamp(0.,1.)));
             let lut:[[u8;256];3]=std::array::from_fn(|c|std::array::from_fn(|v|(255.*linear[c][v].powf(1./self.gamma)).round() as u8));
-            let mut out=Vec::with_capacity((ow*oh*3) as usize);
             for by in 0..oh {for bx in 0..ow {
                 let mut sum=[0u64;3];let mut n=0u64;
                 for y in by*stride..((by+1)*stride).min(h) {for x in bx*stride..((bx+1)*stride).min(w) {
@@ -71,12 +73,30 @@ impl Recipe {
                     if self.monochrome {p=[((u16::from(p[0])+u16::from(p[1])+u16::from(p[2])+1)/3) as u8;3];}
                     for c in 0..3 {sum[c]+=u64::from(p[c]);}n+=1;
                 }}
-                out.extend_from_slice(&sum.map(|v|((v+n/2)/n) as u8));
-            }}return Ok((ow,oh,out));
+                write(sum.map(|v|((v+n/2)/n) as u8));
+            }}return Ok((ow,oh));
         }
-        let mut out=Vec::with_capacity((ow*oh*3) as usize);
-        for y in 0..oh {for x in 0..ow {let (sx,sy)=self.source(x*stride,y*stride,f.metadata.width,f.metadata.height);out.extend_from_slice(&self.pixel(f.legacy_rgb(sx,sy).ok_or("Render coordinate")?));}}
-        Ok((ow,oh,out))
+        for y in 0..oh {for x in 0..ow {let (sx,sy)=self.source(x*stride,y*stride,f.metadata.width,f.metadata.height);write(self.pixel(f.legacy_rgb(sx,sy).ok_or("Render coordinate")?));}}
+        Ok((ow,oh))
+    }
+    pub fn render(self,f:&Frame,max_edge:Option<u32>)->Result<(u32,u32,Vec<u8>),String> {
+        f.validate()?;self.validate()?;
+        let (w,h)=self.dimensions(f.metadata.width,f.metadata.height);
+        let capacity=match max_edge {Some(0)=>0,Some(edge)=>{let stride=w.max(h).div_ceil(edge);(w.div_ceil(stride)*h.div_ceil(stride)*3) as usize},None=>(w*h*3) as usize};
+        let mut out=Vec::with_capacity(capacity);
+        let (w,h)=self.render_each(f,max_edge,|pixel|out.extend_from_slice(&pixel))?;
+        Ok((w,h,out))
+    }
+    /// Render directly into egui's retained preview pixels. This deliberately
+    /// avoids the transient packed RGB byte buffer used by `render` for image
+    /// export while using the exact same pixel traversal.
+    pub fn render_color_image(self, f: &Frame, max_edge: Option<u32>) -> Result<eframe::egui::ColorImage, String> {
+        f.validate()?;self.validate()?;
+        let (w,h)=self.dimensions(f.metadata.width,f.metadata.height);
+        let capacity=match max_edge {Some(0)=>0,Some(edge)=>{let stride=w.max(h).div_ceil(edge);(w.div_ceil(stride)*h.div_ceil(stride)) as usize},None=>(w*h) as usize};
+        let mut pixels=Vec::with_capacity(capacity);
+        let (w,h)=self.render_each(f,max_edge,|pixel|pixels.push(eframe::egui::Color32::from_rgb(pixel[0],pixel[1],pixel[2])))?;
+        Ok(eframe::egui::ColorImage {size:[w as usize,h as usize],pixels})
     }
     /// Bounded scene estimate from the held valid RAW, never calibration.
     pub fn estimate(self,f:&Frame,white_balance:bool)->Result<Self,String> {
@@ -212,6 +232,28 @@ impl Recipe {
                     assert_eq!(recipe.render(frame,bound).unwrap(),reference_v2_render(recipe,frame,bound),"format={}, size={}x{}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",frame.metadata.format,frame.metadata.width,frame.metadata.height);
                 }
             }}}}
+        }
+    }
+    #[test] fn direct_preview_matches_render_then_colorimage_for_all_recipes_and_bounds() {
+        let rgb=frame(3,2,vec![1,37,201,4,90,7,255,2,13,99,128,44,3,250,190,73,11,160],"RGB8");
+        let bayer=frame(4,4,vec![0,13,77,255,9,101,167,201,2,66,128,220,31,93,189,241],"BayerGRBG8");
+        for frame in [&rgb,&bayer] { for version in [1,2] { for quarter_turns in 0..4 { for mirror in [false,true] { for flip in [false,true] { for monochrome in [false,true] {
+            let recipe=Recipe {version,ev:0.37,gamma:1.73,wb:[0.63,1.24,1.81],quarter_turns,mirror,flip,monochrome};
+            for bound in [None,Some(1),Some(2),Some(3)] {
+                let (w,h,rgb)=recipe.render(frame,bound).unwrap();
+                assert_eq!(recipe.render_color_image(frame,bound).unwrap(),eframe::egui::ColorImage::from_rgb([w as usize,h as usize],&rgb),"format={}, version={version}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",frame.metadata.format);
+            }
+        }}}}}}
+    }
+    #[test] fn direct_preview_preserves_render_rejection_for_invalid_inputs() {
+        let valid=frame(2,2,vec![0,10,20,30],"BayerGRBG8");
+        let malformed=frame(2,2,vec![0,10,20],"BayerGRBG8");
+        for (recipe,source,bound) in [
+            (Recipe {version:3,..Recipe::neutral()},&valid,None),
+            (Recipe::neutral(),&valid,Some(0)),
+            (Recipe::neutral(),&malformed,None),
+        ] {
+            assert_eq!(recipe.render(source,bound).unwrap_err(),recipe.render_color_image(source,bound).unwrap_err());
         }
     }
     #[test] fn export_full_literal_and_original_tiff() {

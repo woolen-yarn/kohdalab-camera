@@ -95,12 +95,21 @@ impl App {
         });
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(egui::Color32::BLACK)).show(ctx,|ui| {
             self.viewport_rect=ui.max_rect();self.cursor.clear();
-            if (self.source.is_none() || (self.matching_revision==Some(self.revision) && self.displayed_revision==Some(self.revision))) && let (Some(t),Some(f),Some(pixels))=(&self.texture,&self.frame,&self.display_pixels) {
-                let rect=aspect_fit(ui.max_rect(),t.size_vec2());
-                ui.put(rect,egui::Image::new(t).fit_to_exact_size(rect.size()));
-                if let Some(pos)=ctx.pointer_hover_pos().filter(|p|rect.contains(*p)) {
-                    let x=(((pos.x-rect.left())/rect.width()*pixels.size[0] as f32).floor() as usize).min(pixels.size[0]-1);
-                    let y=(((pos.y-rect.top())/rect.height()*pixels.size[1] as f32).floor() as usize).min(pixels.size[1]-1);
+            if (self.source.is_none() || (self.matching_revision==Some(self.revision) && self.displayed_revision==Some(self.revision))) && let (Some(t),Some(f),Some(size))=(&self.texture,&self.frame,&self.display_size) {
+                let source_size={let (w,h)=self.displayed_recipe.dimensions(f.metadata.width,f.metadata.height);egui::vec2(w as f32,h as f32)};
+                let area=ui.max_rect();
+                let response=ui.allocate_rect(area,egui::Sense::click_and_drag());
+                if response.hovered() {
+                    let wheel=ctx.input(|i|i.smooth_scroll_delta.y);
+                    if wheel!=0. {if let Some(pos)=ctx.pointer_hover_pos(){self.view.zoom_at(area,source_size,pos,(wheel/300.).exp());}}
+                }
+                if response.dragged(){self.view.drag(area,source_size,response.drag_delta());}
+                if response.double_clicked(){self.view=Default::default();}
+                let rect=self.view.rect(area,source_size);
+                ui.painter().image(t.id(),rect,egui::Rect::from_min_max(egui::Pos2::ZERO,egui::pos2(1.,1.)),egui::Color32::WHITE);
+                if let Some(pos)=ctx.pointer_hover_pos().filter(|p|response.hovered() && area.contains(*p) && rect.contains(*p)) {
+                    let x=(((pos.x-rect.left())/rect.width()*size[0] as f32).floor() as usize).min(size[0]-1);
+                    let y=(((pos.y-rect.top())/rect.height()*size[1] as f32).floor() as usize).min(size[1]-1);
                     let (w,h)=self.displayed_recipe.dimensions(f.metadata.width,f.metadata.height);
                     let stride=w.max(h).div_ceil(1024);
                     let (sx,sy)=self.displayed_recipe.source(x as u32*stride,y as u32*stride,f.metadata.width,f.metadata.height);
@@ -153,6 +162,10 @@ impl App {
         });
     }
     fn image_settings(&mut self,ui:&mut egui::Ui) {
+        ui.horizontal(|ui| {
+            if ui.button("Fit").on_hover_text("Fit image to the window; double-click the image to reset.").clicked(){self.view=Default::default();}
+            if ui.button("100%").on_hover_text("One source pixel per UI point. Live preview is bounded to 1024 pixels.").clicked(){if let Some(f)=&self.frame {let (w,h)=self.displayed_recipe.dimensions(f.metadata.width,f.metadata.height);self.view.actual(self.viewport_rect,egui::vec2(w as f32,h as f32));}}
+        });
         ui.spacing_mut().slider_width=(ui.available_width()-60.).max(80.);
         ui.label("Brightness ×");let mut brightness=self.recipe.brightness();
         if ui.add(egui::Slider::new(&mut brightness,0.0625..=16.).logarithmic(true).fixed_decimals(2)).changed() {self.recipe.set_brightness(brightness);}
@@ -185,6 +198,7 @@ impl App {
         if let Some(f)=&self.frame {
             ui.label(camera_lab::measurement::timestamp_semantics(&f.metadata));
         }
+        if ui.button("Reset all settings").on_hover_text("Restore defaults, save numbering and window size. Apply camera settings to change active acquisition.").clicked(){self.reset_preferences(ui.ctx());}
         ui.collapsing("Diagnostics",|ui| {
         if let Some(t)=&self.frame_received {ui.label(format!("Texture update age: {:.1} s",t.age_at(now).as_secs_f64()));}
         if let Some(f)=&self.frame {

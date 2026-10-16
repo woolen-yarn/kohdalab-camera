@@ -51,10 +51,7 @@ struct Shared {
 pub struct Pipeline(Arc<Shared>);
 impl Pipeline {
     pub fn new(wake_gui: impl Fn() + Send + 'static) -> Result<Self, String> {
-        Self::with_recipe_converter(wake_gui, |f,recipe| {
-            let (w,h,pixels)=recipe.render(f,Some(1024))?;
-            Ok(egui::ColorImage::from_rgb([w as usize,h as usize],&pixels))
-        })
+        Self::with_recipe_converter(wake_gui, |f,recipe| recipe.render_color_image(f,Some(1024)))
     }
     fn with_converter(
         wake_gui: impl Fn() + Send + 'static,

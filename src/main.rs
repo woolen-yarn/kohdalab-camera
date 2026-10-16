@@ -12,6 +12,8 @@ use nusb::MaybeFuture;
 use camera_lab::display_recipe::Recipe;
 mod parity_ui;
 mod natural_ui;
+mod preferences;
+mod image_view;
 use std::{
     path::PathBuf,
     sync::mpsc::{self, Receiver, SyncSender},
@@ -24,6 +26,12 @@ mod integrated_ux_tests;
 #[cfg(test)]
 mod parity_tests;
 struct App {
+    preferences_path: Option<PathBuf>,
+    saved_preferences: preferences::Preferences,
+    preferences_checked: std::time::Instant,
+    save_folder: Option<PathBuf>,
+    save_sequence: u64,
+    view: image_view::View,
     fake_only: bool,
     fake_until: Option<std::time::Instant>,
     devices: Vec<nusb::DeviceInfo>,
@@ -42,7 +50,7 @@ struct App {
     recipe: Recipe,
     displayed_recipe: Recipe,
     full_recipe: Recipe,
-    display_pixels: Option<egui::ColorImage>,
+    display_size: Option<[usize;2]>,
     cursor: String,
     viewport_rect: egui::Rect,
     estimate_rx: Option<Receiver<Result<Recipe,String>>>,
@@ -115,7 +123,16 @@ impl App {
             return app;
         }
         #[cfg(not(feature = "input-diagnostics"))]
-        app.scan();
+        {
+            app.preferences_path=preferences::Preferences::path();
+            if let Some(path)=&app.preferences_path {
+                match preferences::Preferences::load(path) {
+                    Ok(p)=>app.restore_preferences(p),
+                    Err(_)=>app.status="Saved settings could not be loaded; defaults restored.".into(),
+                }
+            }
+            app.scan();
+        }
         #[cfg(not(feature = "input-diagnostics"))]
         app
     }
@@ -156,6 +173,7 @@ impl App {
             }
         });
         Self {
+            preferences_path:None,saved_preferences:Default::default(),preferences_checked:std::time::Instant::now(),save_folder:None,save_sequence:1,view:Default::default(),
             fake_only: false,
             fake_until: None,
             devices: vec![],
@@ -172,7 +190,7 @@ impl App {
             connection_fault: false,
             tab: usize::MAX,
             recipe:Recipe::default(),displayed_recipe:Recipe::default(),full_recipe:Recipe::default(),
-            display_pixels:None,cursor:String::new(),viewport_rect:egui::Rect::NOTHING,estimate_rx:None,estimate_base:None,
+            display_size:None,cursor:String::new(),viewport_rect:egui::Rect::NOTHING,estimate_rx:None,estimate_base:None,
             terminal_preview_failure: preview_error.map(|e| format!("{e}. Reopen the application to restore preview; automatic restart is disabled.")),
             status: String::new(),
             worker,
@@ -267,6 +285,38 @@ impl App {
             Err(e) => self.control_error = Some(e),
         }
     }
+    fn restore_preferences(&mut self,p:preferences::Preferences) {
+        self.settings=p.settings().expect("validated preferences");self.recipe=p.recipe;self.displayed_recipe=p.recipe;self.full_recipe=p.recipe;
+        self.live_size=egui::vec2(p.live_size[0],p.live_size[1]);self.save_folder=p.folder.clone();self.save_sequence=p.next_sequence;self.saved_preferences=p;
+        if let Some(preview)=&self.preview {preview.set_recipe(self.recipe);}
+    }
+    fn current_preferences(&self)->preferences::Preferences {
+        preferences::Preferences{version:1,mode:self.settings.mode.profile().id.into(),exposure:self.settings.exposure_rows,gain:self.settings.gain_eighths,recipe:self.recipe,live_size:[self.live_size.x,self.live_size.y],folder:self.save_folder.clone(),next_sequence:self.save_sequence}
+    }
+    fn persist_preferences(&mut self,force:bool) {
+        let Some(path)=self.preferences_path.clone() else{return;};
+        if !force && self.preferences_checked.elapsed()<Duration::from_secs(1){return;}
+        self.preferences_checked=std::time::Instant::now();let p=self.current_preferences();
+        if p==self.saved_preferences{return;}
+        match p.save(&path) {
+            Ok(())=>self.saved_preferences=p,
+            Err(_)=>self.status="Settings could not be saved. Check folder permissions.".into(),
+        }
+    }
+    fn save_dialog(&self,full:bool)->rfd::FileDialog {
+        let p=self.current_preferences();
+        let mut dialog=rfd::FileDialog::new().set_title(if full {"Capture Full"}else{"Save image"})
+            .add_filter("PNG",&["png"]).add_filter("TIFF",&["tiff","tif"])
+            .set_file_name(p.suggested_name(full));
+        if let Some(folder)=self.save_folder.as_ref().filter(|p|p.is_dir()){dialog=dialog.set_directory(folder);}
+        dialog
+    }
+    fn reset_preferences(&mut self,ctx:&egui::Context) {
+        self.settings=Settings::default();self.recipe=Recipe::default();self.live_size=egui::vec2(1100.,760.);
+        self.save_folder=None;self.save_sequence=1;self.view=Default::default();self.intent=camera_lab::startup::Intent::Normal;
+        if !self.picker {ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(self.live_size));}
+        self.status="Defaults restored. Apply camera settings to update acquisition.".into();
+    }
     fn capture(&mut self) {
         if self.busy || self.closing || self.product.busy() {
             return;
@@ -274,12 +324,7 @@ impl App {
         // Freeze both displayed RAW and displayed recipe before the modal dialog.
         let recipe=self.displayed_recipe;
         if let Some(f) = self.frame.clone()
-            && let Some(p) = rfd::FileDialog::new()
-                .set_title("Save displayed image — choose a new PNG / TIFF filename")
-                .add_filter("PNG", &["png"])
-                .add_filter("TIFF", &["tiff"])
-                .set_file_name("capture.png")
-                .save_file()
+            && let Some(p) = self.save_dialog(false).save_file()
         {
             self.export_full=false;
             self.save_with_recipe(f, p, recipe);
@@ -292,8 +337,10 @@ impl App {
     }
     fn save_with_recipe(&mut self,f:Frame,p:PathBuf,recipe:Recipe) {
             if self.busy || self.closing {return;}
+            let folder=p.parent().map(std::path::Path::to_path_buf);
             match self.tx.try_send((f, p, recipe)) {
                 Ok(()) => {
+                    self.save_folder=folder;self.save_sequence=self.save_sequence.saturating_add(1);
                     self.busy = true;
                     self.save_result = "Saving frozen RAW + software recipe…".into();
                 }
@@ -303,9 +350,7 @@ impl App {
     fn capture_full(&mut self) {
         if self.closing || self.busy || self.product.busy() || self.product.applied.is_none() { return; }
         self.full_recipe=self.recipe;
-        let path = rfd::FileDialog::new().set_title("Capture Full — choose a new PNG / TIFF filename")
-            .add_filter("PNG", &["png"]).add_filter("TIFF", &["tiff","tif"])
-            .set_file_name("full.png").save_file();
+        let path = self.save_dialog(true).save_file();
         self.full_selection(path);
     }
     fn full_selection(&mut self, path: Option<PathBuf>) {
@@ -342,7 +387,7 @@ impl App {
         self.upload_frame(ctx, f, im, std::time::Instant::now());
     }
     fn upload_frame(&mut self, ctx: &egui::Context, f: Frame, im: egui::ColorImage, now: std::time::Instant) {
-        self.display_pixels=Some(im.clone());
+        self.display_size=Some(im.size);
         if let Some(t) = self.texture.as_mut() {
             t.set(im, egui::TextureOptions::LINEAR);
         } else {
@@ -478,6 +523,7 @@ impl App {
         // Observe after upload: an entry timestamp precedes the submitted frame and
         // would falsely trip Rolling's genuine clock-regression guard each update.
         self.parity_ui(ctx,clock());
+        self.persist_preferences(self.closing);
         ctx.request_repaint_after(Duration::from_millis(100));
     }
 }

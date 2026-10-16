@@ -26,12 +26,12 @@ firmware revision, or sensor. See [camera support and validation](docs/camera-su
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.5**, for **Windows x64**.
+The current published baseline is **0.1.6**, for **Windows x64**.
 
 - [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.5/kohdalab-camera-0.1.5-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.5/kohdalab-camera-0.1.5-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.5/SHA256SUMS.txt)
+- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.6/kohdalab-camera-0.1.6-windows-x64.zip)
+- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.6/kohdalab-camera-0.1.6-source.zip)
+- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.6/SHA256SUMS.txt)
 
 Extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
@@ -66,6 +66,16 @@ No macOS or Linux executable is distributed in this release.
 
 When one supported camera is found, it is selected automatically. Press **Load
 camera** to open Live. With multiple cameras, choose one first.
+
+Image navigation: wheel to zoom, drag to pan, double-click or **Image → Fit**
+to fit the window, and **Image → 100%** for one source pixel per UI point.
+Preview remains bounded to 1024 pixels; exports retain full source dimensions.
+
+Camera/image settings, window size, save folder and capture numbering are
+remembered. **Advanced → Reset all settings** restores defaults; press Apply
+to update active camera acquisition. Startup still requires **Load camera**.
+Save dialogs suggest numbered names such as `capture_0001.png`; existing files
+and sidecars are never overwritten.
 
 Default settings: exposure **120 sensor rows**, brightness **1.20×**, gamma
 **2.2** and analog gain **1×**. Version 0.1.5 changes only the exposure default;
