@@ -11,10 +11,11 @@ impl View {
         let limit=(rendered-area.size()).max(Vec2::ZERO)*0.5;
         self.pan=self.pan.clamp(-limit,limit);
     }
-    pub fn actual(&mut self,area:Rect,size:Vec2) {self.zoom=(1./Self::fit(area,size)).clamp(0.1,32.);self.pan=Vec2::ZERO;}
+    pub fn can_actual(area:Rect,size:Vec2)->bool {(1.0 / 32.0..=1.0).contains(&Self::fit(area,size))}
+    pub fn actual(&mut self,area:Rect,size:Vec2) {self.zoom=(1./Self::fit(area,size)).clamp(1.,32.);self.pan=Vec2::ZERO;}
     pub fn zoom_at(&mut self,area:Rect,size:Vec2,anchor:Pos2,factor:f32) {
         if !factor.is_finite() || factor<=0. {return;}
-        let previous=self.zoom;self.zoom=(self.zoom*factor).clamp(0.1,32.);
+        let previous=self.zoom;self.zoom=(self.zoom*factor).clamp(1.,32.);
         let relative=anchor-area.center();self.pan=relative-(relative-self.pan)*(self.zoom/previous);self.clamp(area,size);
     }
     pub fn drag(&mut self,area:Rect,size:Vec2,delta:Vec2) {self.pan+=delta;self.clamp(area,size);}
@@ -27,6 +28,9 @@ impl View {
         let anchor=Pos2::new(500.,350.);let before=(anchor-view.rect(area,size).min)/view.rect(area,size).size();
         view.zoom_at(area,size,anchor,2.);let after=(anchor-view.rect(area,size).min)/view.rect(area,size).size();assert!((before-after).length()<1e-6);
         view.drag(area,size,Vec2::splat(1e6));assert!(view.rect(area,size).contains_rect(area));
-        for factor in [1e6,1e-6,f32::NAN] {view.zoom_at(area,size,anchor,factor);assert!((0.1..=32.).contains(&view.zoom));assert!(view.pan.is_finite());}
+        for factor in [1e6,1e-6,f32::NAN] {view.zoom_at(area,size,anchor,factor);assert!((1.0..=32.).contains(&view.zoom));assert!(view.pan.is_finite());}
+        assert_eq!(view.zoom,1.);assert_eq!(view.rect(area,size),area);
+        assert!(!View::can_actual(area,Vec2::new(400.,300.)));
+        assert!(!View::can_actual(Rect::from_min_size(Pos2::ZERO,Vec2::splat(10.)),Vec2::splat(8192.)));
     }
 }

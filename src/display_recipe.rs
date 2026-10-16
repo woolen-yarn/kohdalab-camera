@@ -12,6 +12,17 @@ pub struct Recipe {
     pub flip: bool,
     pub quarter_turns: u8,
 }
+/// Validated, immutable processing state for one display recipe.
+///
+/// Preview workers retain this object while a recipe is unchanged.  In
+/// particular, the v2 gamma / white-balance lookup table is built once per
+/// recipe change, never once per camera frame.  It owns no frame data: RAW
+/// bytes are still rendered from the submitted frame every time.
+#[derive(Clone, Debug)]
+pub struct CompiledRecipe {
+    recipe: Recipe,
+    v2_lut: Option<[[u8; 256]; 3]>,
+}
 impl Default for Recipe {
     fn default()->Self { Self {ev:1.20_f32.log2(),gamma:2.2,quarter_turns:2,..Self::neutral()} }
 }
@@ -29,6 +40,28 @@ impl Recipe {
     pub fn validate(self)->Result<(),String> {
         if !matches!(self.version,1|2) || !self.ev.is_finite() || !(-4.0..=4.0).contains(&self.ev) || !self.gamma.is_finite() || !(0.25..=4.).contains(&self.gamma) || self.wb.iter().any(|v| !v.is_finite() || !(0.25..=4.).contains(v)) || self.quarter_turns>3 {return Err("Invalid software display recipe".into());} Ok(())
     }
+    /// Validate and prepare bounded recipe-only state.  The result contains no
+    /// sensor data and may therefore be reused across frames with this exact
+    /// recipe.
+    pub fn compile(self) -> Result<CompiledRecipe, String> {
+        self.validate()?;
+        let v2_lut = if self.version == 2 {
+            let gain = 2_f32.powf(self.ev);
+            let linear: [[f32; 256]; 3] = std::array::from_fn(|channel| {
+                std::array::from_fn(|value| {
+                    (value as f32 / 255. * gain * self.wb[channel]).clamp(0., 1.)
+                })
+            });
+            Some(std::array::from_fn(|channel| {
+                std::array::from_fn(|value| {
+                    (255. * linear[channel][value].powf(1. / self.gamma)).round() as u8
+                })
+            }))
+        } else {
+            None
+        };
+        Ok(CompiledRecipe { recipe: self, v2_lut })
+    }
     pub fn dimensions(self,w:u32,h:u32)->(u32,u32) {if self.quarter_turns%2==1 {(h,w)} else {(w,h)}}
     /// Output to original sensor pixel; reflection precedes clockwise rotation.
     pub fn source(self,x:u32,y:u32,w:u32,h:u32)->(u32,u32) {
@@ -45,58 +78,18 @@ impl Recipe {
         if self.monochrome {let mean=(p[0]+p[1]+p[2])/3.;p=[mean;3];}
         p.map(|v| (255.*v.powf(1./self.gamma)).round().clamp(0.,255.) as u8)
     }
-    /// Traverse rendered pixels in display order. The traversal is shared by
-    /// exported RGB rendering and the preview's direct `ColorImage` path so
-    /// both retain identical reconstruction and recipe semantics.
-    fn render_each(self, f: &Frame, max_edge: Option<u32>, mut write: impl FnMut([u8; 3])) -> Result<(u32, u32), String> {
-        f.validate()?;self.validate()?;
-        let (w,h)=self.dimensions(f.metadata.width,f.metadata.height);
-        let stride=match max_edge {Some(0)=>return Err("Zero preview bound".into()),Some(n)=>w.max(h).div_ceil(n),None=>1};
-        let (ow,oh)=(w.div_ceil(stride),h.div_ceil(stride));
-        if self.version==2 {
-            // `Frame::rgb` validates storage before every pixel. Rendering has
-            // already validated this immutable frame, so retain one validated
-            // view for the whole pass while preserving the public API's
-            // malformed-frame and bounds behavior.
-            let source = f.rgb_view().ok_or("Render coordinate")?;
-            // LUT is bounded by recipe, never pixel count. V2 monochrome
-            // averages processed encoded channels (half up), before box scaling.
-            let gain=2f32.powf(self.ev);
-            let linear: [[f32;256];3]=std::array::from_fn(|c|std::array::from_fn(|v|(v as f32/255.*gain*self.wb[c]).clamp(0.,1.)));
-            let lut:[[u8;256];3]=std::array::from_fn(|c|std::array::from_fn(|v|(255.*linear[c][v].powf(1./self.gamma)).round() as u8));
-            for by in 0..oh {for bx in 0..ow {
-                let mut sum=[0u64;3];let mut n=0u64;
-                for y in by*stride..((by+1)*stride).min(h) {for x in bx*stride..((bx+1)*stride).min(w) {
-                    let (sx,sy)=self.source(x,y,f.metadata.width,f.metadata.height);
-                    let p=source.render_rgb(sx as usize,sy as usize);
-                    let mut p:[u8;3]=std::array::from_fn(|c|lut[c][p[c] as usize]);
-                    if self.monochrome {p=[((u16::from(p[0])+u16::from(p[1])+u16::from(p[2])+1)/3) as u8;3];}
-                    for c in 0..3 {sum[c]+=u64::from(p[c]);}n+=1;
-                }}
-                write(sum.map(|v|((v+n/2)/n) as u8));
-            }}return Ok((ow,oh));
-        }
-        for y in 0..oh {for x in 0..ow {let (sx,sy)=self.source(x*stride,y*stride,f.metadata.width,f.metadata.height);write(self.pixel(f.legacy_rgb(sx,sy).ok_or("Render coordinate")?));}}
-        Ok((ow,oh))
-    }
     pub fn render(self,f:&Frame,max_edge:Option<u32>)->Result<(u32,u32,Vec<u8>),String> {
-        f.validate()?;self.validate()?;
-        let (w,h)=self.dimensions(f.metadata.width,f.metadata.height);
-        let capacity=match max_edge {Some(0)=>0,Some(edge)=>{let stride=w.max(h).div_ceil(edge);(w.div_ceil(stride)*h.div_ceil(stride)*3) as usize},None=>(w*h*3) as usize};
-        let mut out=Vec::with_capacity(capacity);
-        let (w,h)=self.render_each(f,max_edge,|pixel|out.extend_from_slice(&pixel))?;
-        Ok((w,h,out))
+        // Preserve the established error ordering: malformed sensor data is
+        // rejected before a bad display recipe.
+        f.validate()?;
+        self.compile()?.render_validated(f,max_edge)
     }
     /// Render directly into egui's retained preview pixels. This deliberately
     /// avoids the transient packed RGB byte buffer used by `render` for image
     /// export while using the exact same pixel traversal.
     pub fn render_color_image(self, f: &Frame, max_edge: Option<u32>) -> Result<eframe::egui::ColorImage, String> {
-        f.validate()?;self.validate()?;
-        let (w,h)=self.dimensions(f.metadata.width,f.metadata.height);
-        let capacity=match max_edge {Some(0)=>0,Some(edge)=>{let stride=w.max(h).div_ceil(edge);(w.div_ceil(stride)*h.div_ceil(stride)) as usize},None=>(w*h) as usize};
-        let mut pixels=Vec::with_capacity(capacity);
-        let (w,h)=self.render_each(f,max_edge,|pixel|pixels.push(eframe::egui::Color32::from_rgb(pixel[0],pixel[1],pixel[2])))?;
-        Ok(eframe::egui::ColorImage {size:[w as usize,h as usize],pixels})
+        f.validate()?;
+        self.compile()?.render_color_image_validated(f,max_edge)
     }
     /// Bounded scene estimate from the held valid RAW, never calibration.
     pub fn estimate(self,f:&Frame,white_balance:bool)->Result<Self,String> {
@@ -106,6 +99,63 @@ impl Recipe {
         let means=sum.map(|v|v/n);let mean=means.iter().sum::<f64>()/3.;let mut r=self;
         if white_balance {r.wb=means.map(|v|(mean/v).clamp(0.25,4.) as f32);} else {r.ev=(128./mean).log2().clamp(-4.,4.) as f32;}
         Ok(r)
+    }
+}
+impl CompiledRecipe {
+    pub fn recipe(&self) -> Recipe { self.recipe }
+    /// Traverse rendered pixels in display order. The traversal is shared by
+    /// exported RGB rendering and the preview's direct `ColorImage` path so
+    /// both retain identical reconstruction and recipe semantics.
+    fn render_each(&self, f: &Frame, max_edge: Option<u32>, mut write: impl FnMut([u8; 3])) -> Result<(u32, u32), String> {
+        let recipe=self.recipe;
+        let (w,h)=recipe.dimensions(f.metadata.width,f.metadata.height);
+        let stride=match max_edge {Some(0)=>return Err("Zero preview bound".into()),Some(n)=>w.max(h).div_ceil(n),None=>1};
+        let (ow,oh)=(w.div_ceil(stride),h.div_ceil(stride));
+        if recipe.version==2 {
+            // `Frame::rgb` validates storage before every pixel. Rendering has
+            // already validated this immutable frame, so retain one validated
+            // view for the whole pass while preserving the public API's
+            // malformed-frame and bounds behavior.
+            let source = f.rgb_view().ok_or("Render coordinate")?;
+            // LUT is bounded by recipe, never pixel count. V2 monochrome
+            // averages processed encoded channels (half up), before box scaling.
+            let lut=self.v2_lut.as_ref().expect("validated v2 recipe has LUT");
+            for by in 0..oh {for bx in 0..ow {
+                let mut sum=[0u64;3];let mut n=0u64;
+                for y in by*stride..((by+1)*stride).min(h) {for x in bx*stride..((bx+1)*stride).min(w) {
+                    let (sx,sy)=recipe.source(x,y,f.metadata.width,f.metadata.height);
+                    let p=source.render_rgb(sx as usize,sy as usize);
+                    let mut p:[u8;3]=std::array::from_fn(|c|lut[c][p[c] as usize]);
+                    if recipe.monochrome {p=[((u16::from(p[0])+u16::from(p[1])+u16::from(p[2])+1)/3) as u8;3];}
+                    for c in 0..3 {sum[c]+=u64::from(p[c]);}n+=1;
+                }}
+                write(sum.map(|v|((v+n/2)/n) as u8));
+            }}return Ok((ow,oh));
+        }
+        for y in 0..oh {for x in 0..ow {let (sx,sy)=recipe.source(x*stride,y*stride,f.metadata.width,f.metadata.height);write(recipe.pixel(f.legacy_rgb(sx,sy).ok_or("Render coordinate")?));}}
+        Ok((ow,oh))
+    }
+    fn render_validated(&self,f:&Frame,max_edge:Option<u32>)->Result<(u32,u32,Vec<u8>),String> {
+        let (w,h)=self.recipe.dimensions(f.metadata.width,f.metadata.height);
+        let capacity=match max_edge {Some(0)=>0,Some(edge)=>{let stride=w.max(h).div_ceil(edge);(w.div_ceil(stride)*h.div_ceil(stride)*3) as usize},None=>(w*h*3) as usize};
+        let mut out=Vec::with_capacity(capacity);
+        let (w,h)=self.render_each(f,max_edge,|pixel|out.extend_from_slice(&pixel))?;
+        Ok((w,h,out))
+    }
+    pub fn render(&self,f:&Frame,max_edge:Option<u32>)->Result<(u32,u32,Vec<u8>),String> {
+        f.validate()?;
+        self.render_validated(f,max_edge)
+    }
+    fn render_color_image_validated(&self, f: &Frame, max_edge: Option<u32>) -> Result<eframe::egui::ColorImage, String> {
+        let (w,h)=self.recipe.dimensions(f.metadata.width,f.metadata.height);
+        let capacity=match max_edge {Some(0)=>0,Some(edge)=>{let stride=w.max(h).div_ceil(edge);(w.div_ceil(stride)*h.div_ceil(stride)) as usize},None=>(w*h) as usize};
+        let mut pixels=Vec::with_capacity(capacity);
+        let (w,h)=self.render_each(f,max_edge,|pixel|pixels.push(eframe::egui::Color32::from_rgb(pixel[0],pixel[1],pixel[2])))?;
+        Ok(eframe::egui::ColorImage {size:[w as usize,h as usize],pixels})
+    }
+    pub fn render_color_image(&self, f: &Frame, max_edge: Option<u32>) -> Result<eframe::egui::ColorImage, String> {
+        f.validate()?;
+        self.render_color_image_validated(f,max_edge)
     }
 }
 #[cfg(test)] mod tests {
@@ -230,6 +280,7 @@ impl Recipe {
                 let recipe=Recipe{ev:0.37,gamma:1.73,wb:[0.63,1.24,1.81],quarter_turns,mirror,flip,monochrome,..Recipe::neutral()};
                 for bound in [None,Some(1),Some(2),Some(3)] {
                     assert_eq!(recipe.render(frame,bound).unwrap(),reference_v2_render(recipe,frame,bound),"format={}, size={}x{}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",frame.metadata.format,frame.metadata.width,frame.metadata.height);
+                    assert_eq!(recipe.compile().unwrap().render(frame,bound).unwrap(),reference_v2_render(recipe,frame,bound),"compiled format={}, size={}x{}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",frame.metadata.format,frame.metadata.width,frame.metadata.height);
                 }
             }}}}
         }
@@ -242,6 +293,7 @@ impl Recipe {
             for bound in [None,Some(1),Some(2),Some(3)] {
                 let (w,h,rgb)=recipe.render(frame,bound).unwrap();
                 assert_eq!(recipe.render_color_image(frame,bound).unwrap(),eframe::egui::ColorImage::from_rgb([w as usize,h as usize],&rgb),"format={}, version={version}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",frame.metadata.format);
+                assert_eq!(recipe.compile().unwrap().render_color_image(frame,bound).unwrap(),eframe::egui::ColorImage::from_rgb([w as usize,h as usize],&rgb),"compiled format={}, version={version}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",frame.metadata.format);
             }
         }}}}}}
     }
@@ -255,6 +307,11 @@ impl Recipe {
         ] {
             assert_eq!(recipe.render(source,bound).unwrap_err(),recipe.render_color_image(source,bound).unwrap_err());
         }
+        for recipe in [
+            Recipe {version:3,..Recipe::neutral()},
+            Recipe {gamma:f32::NAN,..Recipe::neutral()},
+            Recipe {wb:[1.,f32::INFINITY,1.],..Recipe::neutral()},
+        ] { assert_eq!(recipe.compile().unwrap_err(), "Invalid software display recipe"); }
     }
     #[test] fn export_full_literal_and_original_tiff() {
         let f=frame(2,2,vec![0,10,20,30],"BayerGRBG8");let r=Recipe::neutral();

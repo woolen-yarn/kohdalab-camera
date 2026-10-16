@@ -290,6 +290,9 @@ impl App {
         self.live_size=egui::vec2(p.live_size[0],p.live_size[1]);self.save_folder=p.folder.clone();self.save_sequence=p.next_sequence;self.saved_preferences=p;
         if let Some(preview)=&self.preview {preview.set_recipe(self.recipe);}
     }
+    fn needs_periodic_updates(&self)->bool {
+        self.source.is_some() || self.session.active || self.busy || self.closing || self.scan_rx.is_some() || self.estimate_rx.is_some() || self.fake_until.is_some()
+    }
     fn current_preferences(&self)->preferences::Preferences {
         preferences::Preferences{version:1,mode:self.settings.mode.profile().id.into(),exposure:self.settings.exposure_rows,gain:self.settings.gain_eighths,recipe:self.recipe,live_size:[self.live_size.x,self.live_size.y],folder:self.save_folder.clone(),next_sequence:self.save_sequence}
     }
@@ -524,7 +527,11 @@ impl App {
         // would falsely trip Rolling's genuine clock-regression guard each update.
         self.parity_ui(ctx,clock());
         self.persist_preferences(self.closing);
-        ctx.request_repaint_after(Duration::from_millis(100));
+        if self.needs_periodic_updates() {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        } else if self.preferences_path.is_some() && self.current_preferences()!=self.saved_preferences {
+            ctx.request_repaint_after(Duration::from_secs(1));
+        }
     }
 }
 impl eframe::App for App {
@@ -774,7 +781,8 @@ mod tests {
             assert!(!rendered.contains("Texture update age:"),"technical timing starts collapsed");
             // A nonzero legacy timestamp without valid measurement provenance
             // must not be promoted to host completion or sensor exposure time.
-            assert!(rendered.contains("Host accepted-frame completion UTC unavailable; legacy unix_millis has unspecified semantics; sensor exposure time unavailable"));
+            assert!(rendered.contains("Capture timing unavailable"));
+            assert!(camera_lab::measurement::timestamp_semantics(&frame.metadata).contains("legacy unix_millis has unspecified semantics"));
             assert!(!rendered.contains("captured at 0"));
             assert!(!rendered.contains("host completion 1730000000123 ms"));
             app.request(None);

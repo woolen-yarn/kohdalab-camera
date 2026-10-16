@@ -138,7 +138,7 @@ impl App {
             } else {ui.label("Software simulation · no camera required");}
             ui.separator();
             let ready=self.can_connect();
-            if ui.add_enabled(self.picker_connect_ready(),egui::Button::new("Load camera")).clicked() {self.connect_picker();}
+            if parity_ui::primary_action(ui,self.picker_connect_ready(),"Load camera").clicked() {self.connect_picker();}
             ui.separator();
             if !ready {ui.label(if self.connection_fault || self.session.restart_disabled || self.session.state==camera_lab::session::State::Error {"Camera operation failed. Reconnection is disabled; see the error below."} else if self.busy {"Waiting for the image save to finish…"} else {"Stopping the previous camera…"});}
             else if !self.picker_simulation && self.selected.is_none() {ui.small("Select a supported camera to connect.");}

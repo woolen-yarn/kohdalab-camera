@@ -37,3 +37,20 @@ The direct path matches `ColorImage::from_rgb(Recipe::render(...))` exactly for
 RGB/Bayer, versions 1/2, all orientations, monochrome and preview bounds.
 The paired benchmark reports separate timings; samples varied, so this update
 makes no guaranteed CPU-throughput or physical-FPS improvement claim.
+
+## Version 0.1.7 interaction and rendering refinement
+
+The cursor readout starts at the left edge without a reserved empty column.
+Zoom has Fit as its minimum, with explicit zoom controls and a reachable 100%
+mode. Neutral toolbar controls, a collapsible inspector, and concise timing
+labels keep the image prominent. The toolbar design takes inspiration from
+[Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/toolbars); this remains an egui application.
+
+Idle windows no longer schedule a continuous repaint timer. Acquisition, scans,
+exports, shutdown and pending preference writes retain their update scheduling.
+The preview worker caches compiled display recipes and rebuilds the lookup table
+when the recipe changes. Direct and compiled rendering have equivalent pixels.
+Compilation costs approximately 2.1 microseconds on the development host; total
+render timings were effectively unchanged (about 3.65 ms at 1024 × 768 and
+10.9 ms at 2048 × 1536). These measurements do not establish physical camera
+FPS improvement.

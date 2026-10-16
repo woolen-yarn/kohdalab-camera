@@ -41,7 +41,7 @@ shutil.copytree(root / 'third-party-licenses', portable / 'third-party-licenses'
     'Physical support: SHODENSHA GR300 (tested unit; MT9T001, USB 0547:4d33).\n'
     'An existing WinUSB setup is required; no driver changes are automated.\n'
     'F1–F5 select tabs; Tab and Enter provide keyboard navigation.\n'
-    'Optical/color calibration and resize persistence remain unqualified.\n'
+    'Optical/color calibration remains unqualified; the owner confirmed manual resize persistence.\n'
     'See the release notes for version-specific tests and five-minute validation.\n'
     'See https://github.com/woolen-yarn/kohdalab-camera for current support and limitations.\n',
     encoding='utf-8')

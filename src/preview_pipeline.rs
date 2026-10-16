@@ -51,7 +51,15 @@ struct Shared {
 pub struct Pipeline(Arc<Shared>);
 impl Pipeline {
     pub fn new(wake_gui: impl Fn() + Send + 'static) -> Result<Self, String> {
-        Self::with_recipe_converter(wake_gui, |f,recipe| recipe.render_color_image(f,Some(1024)))
+        Self::with_renderer(wake_gui, |frame, recipe, compiled| {
+            // Compiled state is recipe-only.  It never owns or retains RAW;
+            // every accepted frame is rendered from its submitted bytes.
+            if compiled.as_ref().is_none_or(|cached| cached.recipe() != recipe) {
+                *compiled = Some(recipe.compile()?);
+            }
+            compiled.as_ref().expect("compiled recipe was installed")
+                .render_color_image(frame, Some(1024))
+        })
     }
     fn with_converter(
         wake_gui: impl Fn() + Send + 'static,
@@ -60,9 +68,22 @@ impl Pipeline {
         Self::with_recipe_converter(wake_gui, move |f,_| convert(f))
     }
     fn with_recipe_converter(wake_gui: impl Fn() + Send + 'static, convert: impl Fn(&Frame,crate::display_recipe::Recipe)->Result<egui::ColorImage,String> + Send + 'static)->Result<Self,String> {
+        Self::with_renderer(wake_gui, move |frame, recipe, _| convert(frame, recipe))
+    }
+    fn with_renderer(
+        wake_gui: impl Fn() + Send + 'static,
+        convert: impl Fn(
+                &Frame,
+                crate::display_recipe::Recipe,
+                &mut Option<crate::display_recipe::CompiledRecipe>,
+            ) -> Result<egui::ColorImage, String>
+            + Send
+            + 'static,
+    ) -> Result<Self,String> {
         let shared = Arc::new(Shared::default());
         let worker = shared.clone();
         std::thread::Builder::new().name("preview-image".into()).spawn(move || {
+            let mut compiled_recipe = None;
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| loop {
                 let (key, raw, recipe, epoch, held) = {
                     let mut s = worker.state.lock().unwrap_or_else(|e| e.into_inner());
@@ -73,7 +94,7 @@ impl Pipeline {
                     s.counters.raw_consumed += 1;
                     s.input.take().unwrap()
                 };
-                let result = convert(&raw,recipe);
+                let result = convert(&raw,recipe,&mut compiled_recipe);
                 let mut s = worker.state.lock().unwrap_or_else(|e| e.into_inner());
                 if s.closed || (!held && s.generation != Some(key.generation)) || s.processing_epoch != epoch {
                     s.counters.stale += 1;
@@ -192,6 +213,27 @@ mod tests {
         p.set_recipe(crate::display_recipe::Recipe::legacy());let g=generation(1);p.set_generation(Some(g));assert!(p.submit(key(g,1),frame(1)));start.recv_timeout(Duration::from_secs(3)).unwrap();
         let r=crate::display_recipe::Recipe{ev:1.,..crate::display_recipe::Recipe::legacy()};p.set_recipe(r);assert!(p.submit(key(g,1),frame(1)));release.send(()).unwrap();
         completion.recv_timeout(Duration::from_secs(3)).unwrap();let result=p.take().unwrap();assert_eq!(result.recipe,r);assert_eq!(result.image.pixels[0],egui::Color32::from_rgb(20,30,40));assert_eq!(p.counters().stale,1);
+    }
+    #[test]
+    fn compiled_preview_recipe_rebuilds_when_recipe_changes() {
+        let (done, completion) = mpsc::sync_channel(2);
+        let p = Pipeline::new(move || { done.try_send(()).unwrap(); }).unwrap();
+        let generation = generation(1);
+        let first = crate::display_recipe::Recipe::neutral();
+        p.set_recipe(first);
+        p.set_generation(Some(generation));
+        assert!(p.submit(key(generation, 1), frame(1)));
+        completion.recv_timeout(Duration::from_secs(3)).unwrap();
+        let first_image = p.take().unwrap().image;
+        assert_eq!(first_image, first.render_color_image(&frame(1), Some(1024)).unwrap());
+
+        let second = crate::display_recipe::Recipe { ev: 1., ..first };
+        p.set_recipe(second);
+        assert!(p.submit(key(generation, 2), frame(2)));
+        completion.recv_timeout(Duration::from_secs(3)).unwrap();
+        let second_image = p.take().unwrap().image;
+        assert_eq!(second_image, second.render_color_image(&frame(2), Some(1024)).unwrap());
+        assert_ne!(first_image, second_image);
     }
     fn generation(revision: u64) -> Generation { Generation { revision, settings: Settings::default() } }
     fn frame(sequence: u64) -> Frame {

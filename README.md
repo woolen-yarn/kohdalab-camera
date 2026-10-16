@@ -26,12 +26,12 @@ firmware revision, or sensor. See [camera support and validation](docs/camera-su
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.6**, for **Windows x64**.
+The current published baseline is **0.1.7**, for **Windows x64**.
 
 - [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.6/kohdalab-camera-0.1.6-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.6/kohdalab-camera-0.1.6-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.6/SHA256SUMS.txt)
+- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.7/kohdalab-camera-0.1.7-windows-x64.zip)
+- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.7/kohdalab-camera-0.1.7-source.zip)
+- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.7/SHA256SUMS.txt)
 
 Extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
@@ -39,7 +39,7 @@ not required to run the portable application. The physical backend requires an
 existing WinUSB setup; the application does not install or change drivers.
 No macOS or Linux executable is distributed in this release.
 
-1. Select the supported USB camera, then choose **Connect and open capture window**.
+1. Select the supported USB camera, then choose **Load camera**.
    Choose **Simulation / demo** explicitly to explore without hardware.
 2. Use the **Camera / Acquisition / Image / Export / Advanced** tabs.
    **F1–F5** also select the tabs.
@@ -69,7 +69,9 @@ camera** to open Live. With multiple cameras, choose one first.
 
 Image navigation: wheel to zoom, drag to pan, double-click or **Image → Fit**
 to fit the window, and **Image → 100%** for one source pixel per UI point.
-Preview remains bounded to 1024 pixels; exports retain full source dimensions.
+Zooming out stops at the initial **Fit** size. Click the selected tab again to
+close the inspector. **100%** is available when it falls between Fit and the
+maximum zoom. Preview remains bounded to 1024 pixels; exports retain full source dimensions.
 
 Camera/image settings, window size, save folder and capture numbering are
 remembered. **Advanced → Reset all settings** restores defaults; press Apply

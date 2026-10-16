@@ -122,3 +122,25 @@ fn failed_preference_write_can_retry_without_losing_changes() {
     assert_eq!(preferences::Preferences::load(app.preferences_path.as_ref().unwrap()).unwrap().exposure,155);
     app.worker.close();std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn footer_cursor_starts_at_the_left_without_reserved_space() {
+    let ctx=egui::Context::default();let mut app=App::without_scan(&ctx);app.picker=false;app.tab=usize::MAX;
+    let frame=camera_lab::CameraAdapter::next_frame(&mut camera_lab::Simulation{sequence:1}).unwrap();app.show_frame(&ctx,frame);
+    let size=egui::vec2(1100.,760.);draw(&mut app,&ctx,size);
+    let input=|events|egui::RawInput{screen_rect:Some(egui::Rect::from_min_size(egui::Pos2::ZERO,size)),events,..Default::default()};
+    let _=ctx.run(input(vec![egui::Event::PointerMoved(egui::pos2(800.,400.))]),|ctx|app.render(ctx));
+    let out=ctx.run(input(vec![]),|ctx|app.render(ctx));
+    let text=out.shapes.iter().find_map(|s|match &s.shape {egui::epaint::Shape::Text(t) if t.galley.text().starts_with("Cursor (")=>Some(t),_=>None}).unwrap();
+    assert!(text.pos.x<=8.,"cursor text has an unwanted leading gap: {}",text.pos.x);
+    let (text_left,row_left)=ctx.data(|d|d.get_temp::<(f32,f32)>(egui::Id::new("cursor-left-edge"))).unwrap();assert!((text_left-row_left).abs()<0.1);
+    app.worker.close();
+}
+
+#[test]
+fn idle_windows_stop_polling_but_pending_work_keeps_updates() {
+    let ctx=egui::Context::default();let mut app=App::without_scan(&ctx);
+    assert!(!app.needs_periodic_updates());app.busy=true;assert!(app.needs_periodic_updates());app.busy=false;
+    app.source=Some(Source::Simulation);assert!(app.needs_periodic_updates());app.source=None;
+    app.closing=true;assert!(app.needs_periodic_updates());app.worker.close();
+}
