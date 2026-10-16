@@ -47,6 +47,17 @@ def make_payload(root: Path) -> Path:
 
 
 class InstallerPayloadTests(unittest.TestCase):
+    def test_cli_rejects_symlink_payload_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            payload = make_payload(root)
+            alias = root / "alias"
+            alias.symlink_to(payload, target_is_directory=True)
+            self.assertEqual(installer.main([
+                "--payload", str(alias), "--output", str(root / "setup.exe"),
+                "--dry-run",
+            ]), 2)
+
     def test_rejects_tampered_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             payload = make_payload(Path(temporary))
@@ -68,7 +79,8 @@ class InstallerPayloadTests(unittest.TestCase):
             root = Path(temporary)
             payload = make_payload(root)
             installer.validate_payload(payload)
-            _, commit, rollback, cleanup_backup, uninstall = installer.render_payload_includes(payload, root / "includes")
+            stage, commit, rollback, cleanup_backup, uninstall = installer.render_payload_includes(payload, root / "includes")
+            self.assertIn('File "/oname=KohdaLab Camera.exe" ', stage.read_text(encoding="utf-8"))
             commands = uninstall.read_text(encoding="utf-8")
             self.assertIn('Delete "$INSTDIR\\KohdaLab Camera.exe"', commands)
             self.assertIn('RMDir "$INSTDIR\\third-party-licenses\\dependency"', commands)

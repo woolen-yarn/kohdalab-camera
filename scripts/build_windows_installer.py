@@ -140,7 +140,7 @@ def render_payload_includes(
             # This is an NSIS variable expression, not a filesystem string.
             stage_lines.append(f'SetOutPath "{target}"')
             current_dir = destination_dir
-        stage_lines.append(f"File /oname={nsis_quote(relative.name)} {nsis_quote(str(path))}")
+        stage_lines.append(f"File {nsis_quote('/oname=' + relative.name)} {nsis_quote(str(path))}")
     commit_lines: list[str] = []
     for index, path in enumerate(files):
         relative = path.relative_to(payload)

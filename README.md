@@ -26,14 +26,15 @@ firmware revision, or sensor. See [camera support and validation](docs/camera-su
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.9**, for **Windows x64**.
+The current published baseline is **0.1.10**, for **Windows x64**.
 
 - [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.9/kohdalab-camera-0.1.9-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.9/kohdalab-camera-0.1.9-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.9/SHA256SUMS.txt)
+- [Windows Setup (unsigned)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.10/KohdaLab-Camera-0.1.10-Setup.exe)
+- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.10/kohdalab-camera-0.1.10-windows-x64.zip)
+- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.10/kohdalab-camera-0.1.10-source.zip)
+- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.10/SHA256SUMS.txt)
 
-Extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
+Run Setup for a per-user installation, or extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
 not required to run the portable application. The physical backend requires an
 existing WinUSB setup; the application does not install or change drivers.
@@ -98,6 +99,12 @@ Default settings: exposure **120 sensor rows**, brightness **1.20×**, gamma
 **2.2** and analog gain **1×**.
 
 ## Validation and known limitations
+
+Version 0.1.10 adds installed-driver preservation and startup diagnostics. Windows
+Setup was checked for fresh install, update, uninstall and preservation of an
+unrelated user file. Its application, helper, uninstaller and Setup are unsigned;
+organization signing awaits certificate enrollment. The last physical capture
+validation is version 0.1.9 below, not a new 0.1.10 hardware test.
 
 The exact published version 0.1.9 binaries completed 399.4 seconds of Live
 acquisition on SHODENSHA GR300, with 15,701 accepted frames. The camera was

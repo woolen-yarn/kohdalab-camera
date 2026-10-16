@@ -78,9 +78,20 @@ The build tool verifies runtime hashes and license presence. It does not downloa
 or install a compiler. [NSIS](https://nsis.sourceforge.io/Docs/Chapter4.html)
 `RequestExecutionLevel user` avoids an administrative setup requirement.
 
+## Verified installation
+
+Version 0.1.10 Setup was compiled with NSIS 3.12 using zlib after checking all
+687 build inputs. Fresh per-user install, same-version update and uninstall
+passed on Windows; an unrelated test file survived both update and uninstall.
+The final per-user installation matched both runtime hashes and its desktop
+shortcut targeted the installed application. The installed startup report found
+the GR300 WinUSB binding and sibling helper, without starting acquisition.
+See the [scoped installation record](validation-0.1.10.json). This does not extend
+the version 0.1.9 physical Live validation to new binaries.
+
 ## Signature audit and execution warnings
 
-The inspected version 0.1.9 GUI and helper are **NotSigned**. Neither the user nor
+The inspected version 0.1.10 GUI, helper, uninstaller and Setup are **NotSigned**. Neither the user nor
 machine personal certificate store contained a code-signing certificate with a
 private key. The checked files had no Zone.Identifier stream, so this local test
 cannot establish downloaded-file SmartScreen behavior.

@@ -14,6 +14,9 @@ Official GR300 SDK integration is deferred at the owner's request. The existing
 WinUSB backend remains the only implemented physical acquisition backend.
 Version 0.1.9 retains the last five-minute physical validation; new 0.1.10 checks
 cover driver policy, UI regression and Windows startup/installation behavior.
+Fresh install, update, uninstall and unrelated-file preservation passed. The
+installed runtime hashes and shortcut were verified; all four executable types
+remain unsigned. See [installation validation](validation-0.1.10.json).
 
 # KohdaLab Camera 0.1.9
 
