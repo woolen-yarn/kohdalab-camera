@@ -17,6 +17,7 @@ root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--target-dir', type=Path, default=root / 'target')
 parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('--validation-report', type=Path)
 args = parser.parse_args()
 version = tomllib.loads((root / 'Cargo.toml').read_text())['package']['version']
 if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root).strip():
@@ -41,13 +42,17 @@ shutil.copytree(root / 'third-party-licenses', portable / 'third-party-licenses'
     'An existing WinUSB setup is required; no driver changes are automated.\n'
     'F1–F5 select tabs; Tab and Enter provide keyboard navigation.\n'
     'Mouse interaction, optical/color calibration and resize persistence remain open.\n'
-    'This branding build has not been physically retested; long-run testing is deferred.\n'
+    'See the release notes for scoped validation; long-run testing is deferred.\n'
     'See https://github.com/woolen-yarn/kohdalab-camera for current support and limitations.\n',
     encoding='utf-8')
+runtime = {p.name: sha(p) for p in portable.glob('*.exe')}
+validation = json.loads(args.validation_report.read_text()) if args.validation_report else None
+if validation and validation.get('runtime') != runtime:
+    raise SystemExit('Validation report does not match the packaged binaries.')
 (portable / 'RELEASE-MANIFEST.json').write_text(json.dumps({
     'product': 'KohdaLab Camera', 'version': version, 'git_commit': commit,
-    'target': 'x86_64-pc-windows-gnu', 'physical_retest': False,
-    'runtime': {p.name: sha(p) for p in portable.glob('*.exe')},
+    'target': 'x86_64-pc-windows-gnu', 'validation': validation,
+    'runtime': runtime,
 }, indent=2))
 binary_zip = args.output / f'kohdalab-camera-{version}-windows-x64.zip'
 with zipfile.ZipFile(binary_zip, 'x', zipfile.ZIP_DEFLATED) as archive:

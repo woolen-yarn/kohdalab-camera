@@ -25,7 +25,7 @@ fn forced_light_system_geometry_labels_and_footer() {
             assert!((center-(53.+i as f32*98.)).abs()<1.,"{label} center {center}");
         }
         let labels:Vec<_>=texts.iter().map(|t|t.galley.text()).collect();
-        let expected=match tab {0=>vec!["Device","Reconnect","Change camera","Pause"],1=>vec!["Full sensor live mode · 3.1 MP","Exposure · sensor rows","Analog gain ×","Apply camera settings"],2=>vec!["Brightness ×","Auto brightness","Monochrome","Gamma","Mirror","Flip","Rotation","Set white balance","Reset white balance"],3=>vec!["Capture image…","Capture full sensor image… · 3.1 MP"],_=>vec!["KohdaLab Camera · v033 experimental"]};
+        let expected=match tab {0=>vec!["Device","Reconnect","Change camera","Pause"],1=>vec!["Full sensor live mode · 3.1 MP","Exposure · sensor rows","Analog gain ×","Apply camera settings"],2=>vec!["Brightness ×","Auto brightness","Monochrome","Gamma","Mirror","Flip","Rotation","Set white balance","Reset white balance"],3=>vec!["Capture image…","Capture full sensor image… · 3.1 MP"],_=>vec![concat!("KohdaLab Camera · ",env!("CARGO_PKG_VERSION"))]};
         for label in expected {assert!(labels.contains(&label),"missing {label}: {labels:?}");}
     }
     app.status="failed ".repeat(1000);app.save_result="saved ".repeat(1000);app.cursor="cursor ".repeat(1000);

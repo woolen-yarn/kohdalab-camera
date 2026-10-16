@@ -1,0 +1,42 @@
+{
+  "version": "0.1.2",
+  "acceptance": "incomplete",
+  "runtime": {
+    "KohdaLab Camera.exe": "3a88971edfe5258da8704a68c4fee07bf84d9f52a4440d74955dc6967d680cba",
+    "continuous-helper.exe": "60510a848309a3fb832c92cb191f4c5dd47d846b7d3a68813427380496137482"
+  },
+  "observed": {
+    "camera": "SHODENSHA GR300",
+    "physical": true,
+    "live_dimensions": [
+      1024,
+      768
+    ],
+    "export_sequence": 4019,
+    "source_fps_window": 39.5,
+    "host_frame_completion_utc_ms": 1792145788641,
+    "processed_png_pixels_match_raw_reconstruction": true,
+    "original_bayer_tiff_matches_raw": true,
+    "gui_and_helper_native_exit_zero": true,
+    "observer_elapsed_seconds": 296.9266351,
+    "postflight_owners": 0,
+    "postflight_actual_locks": 0,
+    "postflight_usb_status": "OK / WinUSB / problem 0"
+  },
+  "procedural_limits": [
+    "Connect within 60 seconds of preflight is not proven; this run is not an acceptance PASS."
+  ],
+  "open": [
+    "ordinary mouse input through Windows App",
+    "physical arbitrary-resize persistence",
+    "color/CFA and optical field-of-view calibration"
+  ],
+  "long_run": "deferred by user",
+  "tests": {
+    "targeted_ui": 11,
+    "redacted_bounded_diagnostics": 1,
+    "review": "reported diagnostic safety findings fixed and independently rechecked",
+    "gui_suite": 25
+  },
+  "artifact_relation": "Physical observations bind the runtime hashes listed here. The final release additionally fixes retained-simulation labeling, so its GUI binary differs and has not been physically retested."
+}

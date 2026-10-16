@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(windows, windows_subsystem = "windows")]
+#[cfg(feature = "input-diagnostics")]
+mod input_diagnostics;
 use camera_lab::{
     Frame,
     controls::{Mode, Settings},
@@ -104,7 +106,17 @@ impl App {
             }
             return app;
         }
+        #[cfg(feature = "input-diagnostics")]
+        {
+            // Diagnostic builds cannot select or open physical hardware.
+            app.fake_only = true;
+            app.picker_simulation = true;
+            app.fake_until = Some(std::time::Instant::now() + Duration::from_secs(180));
+            return app;
+        }
+        #[cfg(not(feature = "input-diagnostics"))]
         app.scan();
+        #[cfg(not(feature = "input-diagnostics"))]
         app
     }
     fn without_scan(ctx: &egui::Context) -> Self {
@@ -348,6 +360,8 @@ impl App {
         self.render_at(ctx, std::time::Instant::now);
     }
     fn render_at(&mut self, ctx: &egui::Context, mut clock: impl FnMut() -> std::time::Instant) {
+        #[cfg(feature = "input-diagnostics")]
+        input_diagnostics::events(ctx);
         let now = clock();
         if let Some(result) = self.scan_rx.as_ref().and_then(|r| match r.try_recv() {
             Ok(v) => Some(v),
@@ -474,6 +488,12 @@ impl eframe::App for App {
 }
 fn main() -> eframe::Result {
     if std::env::args().nth(1).as_deref() == Some("--physical-adapter-test") {
+        #[cfg(feature = "input-diagnostics")]
+        {
+            eprintln!("Physical adapter access is disabled in input diagnostic builds");
+            std::process::exit(2);
+        }
+        #[cfg(not(feature = "input-diagnostics"))]
         if let Err(e) = physical_adapter_test() {
             eprintln!("Physical adapter test failed: {e}");
             std::process::exit(1);
@@ -706,12 +726,11 @@ mod tests {
                 text(&s.shape, &mut rendered);
             }
             assert!(rendered.contains("Texture update age:"));
-            if stamp == 0 {
-                assert!(rendered.contains("Capture time unavailable"));
-                assert!(!rendered.contains("captured at 0"));
-            } else {
-                assert!(rendered.contains("host completion 1730000000123 ms since Unix epoch; exposure time unavailable"));
-            }
+            // A nonzero legacy timestamp without valid measurement provenance
+            // must not be promoted to host completion or sensor exposure time.
+            assert!(rendered.contains("Host accepted-frame completion UTC unavailable; legacy unix_millis has unspecified semantics; sensor exposure time unavailable"));
+            assert!(!rendered.contains("captured at 0"));
+            assert!(!rendered.contains("host completion 1730000000123 ms"));
             app.request(None);
             camera_lab::export(&frame, &root.join(format!("{stamp}.png"))).unwrap();
             let saved: camera_lab::Metadata = serde_json::from_slice(

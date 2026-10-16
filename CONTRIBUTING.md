@@ -32,3 +32,21 @@ Read the relevant implementation before editing. Use targeted tests appropriate
 to the change; documentation-only edits do not require physical camera runs.
 Do not change recorded results, thresholds, or historical checksums to make a
 check pass. Preserve license notices in source and portable distributions.
+
+## Native input diagnostics
+
+For a bounded, simulation-only investigation of input delivery, build the
+application with `--features input-diagnostics`. Set `KOHDALAB_INPUT_TRACE` to a
+new writable file before launch. The diagnostic build disables physical camera
+selection and the physical-adapter CLI path, and requests normal closure after
+180 seconds. Do not use this feature in release distributions.
+
+Only pointer, focus, and navigation-key metadata are recorded. Text and paste
+contents are omitted; each frame inspects at most 16 events and the file is
+capped at 256 records of at most 4096 characters. A diagnostic trace can establish
+which events reached the application; it cannot establish that an external
+remote-input tool actually sent a click.
+
+After changing build inputs, run `python3 scripts/update_source_identity.py`
+before the release build. The diagnostic marker is supplementary; release
+manifest commit and binary hashes identify the distributed artifacts.

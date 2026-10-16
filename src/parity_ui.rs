@@ -56,7 +56,10 @@ impl App {
         let toolbar=egui::TopBottomPanel::top("tabs").show(ctx,|ui| {
             ui.horizontal(|ui| {
                 for (i,label) in TABS.iter().enumerate() {
-                    if ui.add_sized([90.,30.],egui::Button::new(*label).selected(self.tab==i)).on_hover_text(format!("{} · F{}",label,i+1)).clicked() {self.tab=i;}
+                    let response=ui.add_sized([90.,30.],egui::Button::new(*label).selected(self.tab==i)).on_hover_text(format!("{} · F{}",label,i+1));
+                    #[cfg(feature = "input-diagnostics")]
+                    input_diagnostics::button(ctx,label,&response);
+                    if response.clicked() {self.tab=i;}
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui| {ui.weak("KohdaLab Camera");});
             });
@@ -66,7 +69,14 @@ impl App {
             ui.horizontal(|ui| {
                 let dimensions=self.frame.as_ref().map(|f|format!("{} × {}",f.metadata.width,f.metadata.height)).unwrap_or_else(||"— × —".into());
                 let state=self.primary_state();
-                let context=if self.primary_state()=="Disconnected" && self.frame.is_some() {" · retained image (historical)"} else if self.frame.as_ref().is_some_and(|f|f.metadata.simulated) {" · SIMULATION"} else {""};
+                let simulated=self.frame.as_ref().is_some_and(|f|f.metadata.simulated);
+                let retained=self.primary_state()=="Disconnected" && self.frame.is_some();
+                let context=match (simulated,retained) {
+                    (true,true)=>" · SIMULATION · retained image (historical)",
+                    (true,false)=>" · SIMULATION",
+                    (false,true)=>" · retained image (historical)",
+                    (false,false)=>"",
+                };
                 let (capture,age,sim)=self.measurement.capture(now);
                 let (preview,preview_age)=self.measurement.preview(now);
                 let rate=|v:Option<f64>|v.map(|v|format!("{v:.1}")).unwrap_or_else(||"—".into());

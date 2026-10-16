@@ -1,16 +1,23 @@
-# KohdaLab Camera 0.1.1
+# KohdaLab Camera 0.1.2
 
-Windows application branding update for the current development baseline.
+A focused stability update for the SHODENSHA GR300 backend.
 
-- The portable application is named **KohdaLab Camera.exe**.
-- A new camera icon is embedded in the EXE and used by the native window.
-- Explorer file properties identify the product as **KohdaLab Camera**.
-- The original icon artwork, PNG, multi-resolution ICO, and conversion script
-  are included in the source repository.
+- Remember valid Live window sizes as they change, and preserve them when native
+  transition reports are missing or still describe the smaller camera picker.
+- Keep the SIMULATION label visible on retained images after disconnect.
+- Add a regression test for normal mouse press/release on all five Live tabs.
+- Add optional, simulation-only input diagnostics with bounded pointer/navigation
+  records, no typed/pasted text, and a normal-close deadline. This feature is
+  disabled in the distributed application.
 
-Acquisition, image processing, device support, and session cleanup behavior are
-unchanged. Physical support remains limited to the tested **SHODENSHA GR300**
-(Micron MT9T001 sensor, USB `0547:4d33`) on Windows x64. This build has not been
-physically retested. Ordinary mouse interaction, color/field-of-view calibration,
-and arbitrary window-size persistence remain open; long-duration testing is
-deferred. See the README and camera support matrix for the validation scope.
+A short physical run observed Live acquisition, image and sidecar export,
+independent pixel agreement, and native GUI/helper exit code 0. Postflight found
+no remaining camera process or protective interlock and normal WinUSB status.
+The 60-second preflight-to-Connect window was not proven, so this is not an
+acceptance PASS. The final GUI binary additionally includes the retained-
+simulation label fix and has not been physically retested. See
+`docs/validation-0.1.2.json` for the exact scope.
+
+Ordinary mouse input through Windows App, physical arbitrary-resize persistence,
+and color/field-of-view calibration remain open. Long-duration testing is
+deferred. No acquisition or image-processing algorithm was changed.

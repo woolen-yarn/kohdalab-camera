@@ -15,10 +15,15 @@ impl App {
         self.picker=true;
     }
     pub(super) fn sync_stage(&mut self,ctx:&egui::Context) {
-        if self.viewport_picker==self.picker {return;}
-        if self.picker {
-            if let Some(r)=ctx.input(|i|i.viewport().inner_rect) {self.live_size=r.size().max(egui::vec2(900.,620.));}
+        // Remember valid Live measurements before the picker resize is requested.
+        // Ignore missing/stale picker-sized reports during native transitions.
+        if !self.viewport_picker {
+            if let Some(size)=ctx.input(|i|i.viewport().inner_rect.map(|r|r.size()))
+                .filter(|s|s.x.is_finite() && s.y.is_finite() && s.x>=900. && s.y>=620.) {
+                self.live_size=size;
+            }
         }
+        if self.viewport_picker==self.picker {return;}
         self.viewport_picker=self.picker;
         let (title,min,size)=if self.picker {
             ("Select a camera — KohdaLab Camera",egui::vec2(520.,360.),egui::vec2(640.,480.))
@@ -391,6 +396,50 @@ mod tests {
         app.picker=true;app.picker_simulation=true;app.connect_picker();assert!(matches!(app.source,Some(Source::Simulation)));assert!(!app.picker);
         app.worker.close();
     }
+    #[test]
+    fn live_tabs_accept_normal_pointer_press_and_release() {
+        let ctx=egui::Context::default();let mut app=App::without_scan(&ctx);
+        app.fake_only=true;app.picker=false;app.viewport_picker=false;
+        let screen=egui::Rect::from_min_size(egui::Pos2::ZERO,egui::vec2(1100.,760.));
+        for _ in 0..3 {let _=ctx.run(egui::RawInput{screen_rect:Some(screen),..Default::default()},|ctx|app.render(ctx));}
+        for tab in 0..5 {
+            let point=egui::pos2(53.+98.*tab as f32,16.);
+            for pressed in [true,false] {
+                let _=ctx.run(egui::RawInput{screen_rect:Some(screen),events:vec![
+                    egui::Event::PointerMoved(point),egui::Event::PointerButton{
+                        pos:point,button:egui::PointerButton::Primary,pressed,modifiers:egui::Modifiers::NONE}],
+                    ..Default::default()},|ctx|app.render(ctx));
+            }
+            assert_eq!(app.tab,tab,"tab {tab} did not accept the pointer click");
+        }
+        app.worker.close();
+    }
+
+    #[test]
+    fn live_resize_survives_missing_and_picker_sized_transition_reports() {
+        let ctx=egui::Context::default();
+        let mut app=App::without_scan(&ctx);app.fake_only=true;
+        app.picker=false;app.viewport_picker=false;
+        let mut input=egui::RawInput::default();
+        input.viewports.get_mut(&egui::ViewportId::ROOT).unwrap().inner_rect=Some(
+            egui::Rect::from_min_size(egui::Pos2::ZERO,egui::vec2(1270.,830.)));
+        let out=ctx.run(input,|ctx|app.sync_stage(ctx));
+        assert!(sizes(&out).is_empty());
+        assert_eq!(app.live_size,egui::vec2(1270.,830.));
+        app.picker=true;
+        let mut input=egui::RawInput::default();
+        input.viewports.get_mut(&egui::ViewportId::ROOT).unwrap().inner_rect=Some(
+            egui::Rect::from_min_size(egui::Pos2::ZERO,egui::vec2(640.,480.)));
+        let out=ctx.run(input,|ctx|app.sync_stage(ctx));
+        assert_eq!(sizes(&out),vec![egui::vec2(640.,480.)]);
+        assert_eq!(app.live_size,egui::vec2(1270.,830.));
+        app.picker=false;
+        let out=ctx.run(egui::RawInput::default(),|ctx|app.sync_stage(ctx));
+        assert_eq!(sizes(&out),vec![egui::vec2(1270.,830.)]);
+        assert_eq!(app.live_size,egui::vec2(1270.,830.));
+        app.worker.close();
+    }
+
     #[test]
     fn stage_edges_cleanup_gate_and_initial_close_failure() {
         let ctx=egui::Context::default();let gate=Arc::new(AtomicBool::new(false));

@@ -38,11 +38,17 @@ second unit as supported.
 
 ## Validation status
 
-Pre-publication feature code was exercised for Live acquisition, displayed-image
-export, full-sensor acquisition, Live restoration, and normal shutdown. Processed
-PNG pixels were independently reconstructed from RAW, and original Bayer TIFF
-pixels were checked against RAW. The published 0.1.0 binaries were rebuilt after
-publication naming/diagnostic-path changes and have not been physically retested.
+A short physical Windows run of a 0.1.2 candidate observed Live acquisition,
+displayed-image export, and normal GUI/helper shutdown. Processed PNG pixels
+matched an independent reconstruction from RAW, original Bayer TIFF pixels
+matched RAW, and postflight found no remaining process or protective lock.
+The required 60-second preflight-to-Connect window was not proven; the run is an
+observation, not an acceptance PASS. The final GUI binary additionally fixes
+retained-simulation labeling and has not been physically retested. See
+[the scoped validation record](validation-0.1.2.json).
+
+Full-sensor acquisition and Live restoration were checked in pre-publication
+feature code; they were not repeated during this focused 0.1.2 run.
 
 Remaining work includes ordinary mouse interaction through Windows App,
 color/CFA and optical field-of-view calibration, arbitrary window-size

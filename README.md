@@ -26,12 +26,12 @@ firmware revision, or sensor. See [camera support and validation](docs/camera-su
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.1**, for **Windows x64**.
+The current published baseline is **0.1.2**, for **Windows x64**.
 
 - [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.1/kohdalab-camera-0.1.1-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.1/kohdalab-camera-0.1.1-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.1/SHA256SUMS.txt)
+- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.2/kohdalab-camera-0.1.2-windows-x64.zip)
+- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.2/kohdalab-camera-0.1.2-source.zip)
+- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.2/SHA256SUMS.txt)
 
 Extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
@@ -66,13 +66,20 @@ No macOS or Linux executable is distributed in this release.
 
 ## Validation and known limitations
 
-A pre-publication candidate with the same capture and imaging feature code was
-checked on the laboratory unit for Live acquisition, PNG export, full-sensor
-capture, restoration of Live settings, and normal process shutdown. Saved PNG
-pixels matched an independent reconstruction from RAW; original Bayer TIFF
-pixels matched RAW exactly. The publication build has different binary hashes
-after naming and diagnostic-path changes and has **not been physically retested**.
+A short Windows check of a 0.1.2 candidate on SHODENSHA GR300 observed 1024 × 768
+Live acquisition, PNG/RAW/Bayer TIFF/metadata export, and normal GUI/helper
+shutdown. PNG pixels matched an independent RAW reconstruction, original Bayer
+TIFF pixels matched RAW, and postflight found no remaining process or protective
+lock. The required 60-second preflight-to-Connect window was not proven, so the
+run is recorded as an observation rather than an acceptance PASS. The final
+release additionally fixes retained-simulation labeling and has a different GUI
+binary hash; that final build has not been physically retested. See the
+[scoped validation record](docs/validation-0.1.2.json).
 
+The Live window now records valid size measurements continuously, rather than
+only when returning to camera selection. Targeted tests cover returning to Live
+when native transition reports are missing or still picker-sized. Physical
+arbitrary-resize persistence remains to be checked.
 Ordinary mouse operation through Windows App remains under investigation;
 keyboard operation with F1–F5, Tab, and Enter was observed. Color/CFA and optical
 field-of-view calibration, arbitrary window-size persistence, and long-duration
