@@ -119,7 +119,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             mode: Mode::FullFieldSkip,
-            exposure_rows: 100,
+            exposure_rows: 120,
             gain_eighths: 8,
         }
     }

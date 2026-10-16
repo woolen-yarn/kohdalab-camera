@@ -43,8 +43,8 @@ endpoint export and normal GUI/helper shutdown. A single supported camera was
 automatically selected. The owner confirmed manual mouse use, arbitrary resizing
 and retention of the changed size. See [the scoped record](validation-0.1.4.json).
 
-Color/CFA accuracy and optical field of view remain unqualified in the dark test
-scene. Full-sensor capture/Live restoration were checked in pre-publication
+The owner subsequently reported acceptable color and field of view by visual
+inspection. Optical/color calibration has not been performed. Full-sensor capture/Live restoration were checked in pre-publication
 feature code but not repeated in this finite run. Picker round-trip size
 retention was not repeated. Earlier records retain their original scope and
 runtime hashes.

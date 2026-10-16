@@ -26,12 +26,12 @@ firmware revision, or sensor. See [camera support and validation](docs/camera-su
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.4**, for **Windows x64**.
+The current published baseline is **0.1.5**, for **Windows x64**.
 
 - [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.4/kohdalab-camera-0.1.4-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.4/kohdalab-camera-0.1.4-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.4/SHA256SUMS.txt)
+- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.5/kohdalab-camera-0.1.5-windows-x64.zip)
+- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.5/kohdalab-camera-0.1.5-source.zip)
+- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.5/SHA256SUMS.txt)
 
 Extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
@@ -67,6 +67,10 @@ No macOS or Linux executable is distributed in this release.
 When one supported camera is found, it is selected automatically. Press **Load
 camera** to open Live. With multiple cameras, choose one first.
 
+Default settings: exposure **120 sensor rows**, brightness **1.20×**, gamma
+**2.2** and analog gain **1×**. Version 0.1.5 changes only the exposure default;
+the physical run below used version 0.1.4.
+
 ## Validation and known limitations
 
 Version 0.1.4 completed 336.2 seconds of Live acquisition on SHODENSHA GR300,
@@ -79,8 +83,8 @@ remaining process or protective lock. See the
 The owner confirmed normal manual mouse operation, arbitrary window resizing and
 retention of the changed size. Automated click/drag delivery through Windows App
 has tooling limitations. Picker round-trip size retention was not repeated in
-this run. Color/CFA accuracy and optical field of view remain unqualified because
-the test scene was dark. No optical or color calibration is claimed.
+this run. The owner subsequently reported that color and field of view looked
+acceptable. This is a visual assessment; no optical or color calibration was performed.
 
 The software renderer is pixel-equivalent to the previous version and passed
 independent pixel tests. See [performance verification](docs/rendering-performance.md).

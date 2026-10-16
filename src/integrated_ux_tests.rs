@@ -140,7 +140,7 @@ fn coherent_flow_and_stop_precedence() {
         draw(&mut app, &ctx);
     }
     assert_eq!(opens.load(Ordering::SeqCst), count);
-    assert_eq!(app.product.applied.unwrap().settings.exposure_rows, 100);
+    assert_eq!(app.product.applied.unwrap().settings.exposure_rows, Settings::default().exposure_rows);
     // The production action submits draft once; edits alone submit nothing.
     app.request(Some(Source::Simulation));
     let applied_revision = app.revision;

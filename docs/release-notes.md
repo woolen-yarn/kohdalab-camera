@@ -1,3 +1,13 @@
+# KohdaLab Camera 0.1.5
+
+- Set the default exposure to 120 sensor rows. Gamma remains 2.2 and brightness
+  remains 1.20×.
+- Record the owner's visual confirmation of acceptable color and field of view;
+  this does not imply optical/color calibration.
+
+The five-minute physical validation applies to 0.1.4. This default-setting update
+was checked with the UI/integration suite and a Windows release build.
+
 # KohdaLab Camera 0.1.4
 
 - Automatically select a single supported camera after enumeration; open it with
