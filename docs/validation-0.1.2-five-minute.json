@@ -1,0 +1,33 @@
+{
+  "version": "0.1.2",
+  "five_minute_live_criterion": "met",
+  "overall_plan": "incomplete",
+  "runtime": {
+    "KohdaLab Camera.exe": "0f90a528a916e8af68454e3c7bed0193f7b53ffa6b567da88883abb0a7fe8759",
+    "continuous-helper.exe": "85dae232d0d69e560336031d239ac5790e1e42e801c273ae3a87f0668c636c9c"
+  },
+  "observed": {
+    "camera": "SHODENSHA GR300",
+    "physical": true,
+    "live_dimensions": [
+      1024,
+      768
+    ],
+    "accepted_frames": 13098,
+    "source_elapsed_seconds": 333.2070429,
+    "rolling_accepted_fps": 39.5,
+    "processed_png_matches_independent_raw_reconstruction": true,
+    "original_bayer_tiff_matches_raw": true,
+    "normal_gui_and_helper_exit_zero": true,
+    "postflight_owners": 0,
+    "postflight_actual_locks": 0,
+    "preflight_to_connect_upper_bound_seconds": 41.5148977,
+    "manual_mouse_tabs": "owner confirmed normal"
+  },
+  "limits": [
+    "Start export was canceled; only the end image and sidecars were saved. Planned start/end export validation remains incomplete.",
+    "This verifies sampled Live operation, not integrity of every acquired frame or calibrated physical FPS.",
+    "Optical field of view, color calibration and arbitrary resize persistence remain unqualified."
+  ],
+  "operation_note": "Root owned the hardware session; the owner also operated the GUI during the run."
+}

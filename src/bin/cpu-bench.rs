@@ -3,6 +3,30 @@
 use camera_lab::{Frame, Metadata};
 use std::{hint::black_box, sync::Arc, time::Instant};
 fn main() {
+    if std::env::args().nth(1).as_deref()==Some("--verify-export-bundle") {
+        let path=std::env::args().nth(2).expect("PNG bundle path");
+        let meta:serde_json::Value=serde_json::from_slice(&std::fs::read(format!("{path}.json")).unwrap()).unwrap();
+        let frame=Frame {raw:Arc::new(std::fs::read(format!("{path}.raw")).unwrap()),metadata:serde_json::from_value(meta["frame"].clone()).unwrap()};
+        let recipe:camera_lab::display_recipe::Recipe=serde_json::from_value(meta["display_recipe"].clone()).unwrap();
+        let (w,h,pixels)=recipe.render(&frame,None).unwrap();
+        let image=image::open(&path).unwrap().to_rgb8();
+        assert_eq!(image.dimensions(),(w,h));assert_eq!(image.as_raw(),&pixels);
+        println!("Saved RAW/recipe replay matches all {} RGB pixels ({w}x{h})",w*h);
+        return;
+    }
+    if std::env::args().nth(1).as_deref()==Some("--recipe-v2") {
+        for (w,h) in [(1024,768),(2048,1536)] {
+            let f=Frame {raw:Arc::new((0..w*h).map(|i|(i%251) as u8).collect()),metadata:Metadata {acquisition:None,source:"Synthetic recipe benchmark; no camera".into(),simulated:true,sequence:1,measurement:None,unix_millis:0,width:w,height:h,format:"BayerGRBG8".into()}};
+            let recipe=camera_lab::display_recipe::Recipe::default();
+            for _ in 0..3 {black_box(recipe.render(&f,Some(1024)).unwrap());}
+            for sample in 0..5 {
+                let start=Instant::now();
+                for _ in 0..10 {black_box(recipe.render(&f,Some(1024)).unwrap());}
+                println!("{w}x{h} recipe/v2 preview sample {sample}: {:.3} ms/frame",start.elapsed().as_secs_f64()*100.);
+            }
+        }
+        return;
+    }
     if let Some(mode) = std::env::args().nth(1) {
         assert!(matches!(
             mode.as_str(),

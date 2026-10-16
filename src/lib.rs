@@ -40,6 +40,61 @@ pub struct Frame {
     pub raw: Arc<Vec<u8>>,
     pub metadata: Metadata,
 }
+/// Storage dimensions proved valid once for a rendering pass.
+///
+/// This is crate-private so callers cannot bypass `Frame`'s public validation
+/// contract.  It intentionally performs the same constant-time checks as the
+/// public `Frame::rgb` entry point.
+pub(crate) struct RgbView<'a> {
+    raw: &'a [u8],
+    width: usize,
+    height: usize,
+    channels: usize,
+}
+impl RgbView<'_> {
+    /// Rendering-only reconstruction after frame validation and coordinate
+    /// mapping have established the layout and bounds. Safe slice indexing is
+    /// still used; this never uses unchecked memory access.
+    #[inline]
+    pub(crate) fn render_rgb(&self, x: usize, y: usize) -> [u8; 3] {
+        debug_assert!(x < self.width && y < self.height);
+        if self.channels == 3 {
+            let i = (y * self.width + x) * 3;
+            return [self.raw[i], self.raw[i + 1], self.raw[i + 2]];
+        }
+        let l = if x == 0 { 1 } else { x - 1 };
+        let r = if x + 1 == self.width { self.width - 2 } else { x + 1 };
+        let u = if y == 0 { 1 } else { y - 1 };
+        let d = if y + 1 == self.height { self.height - 2 } else { y + 1 };
+        let at = |a: usize, b: usize| u16::from(self.raw[b * self.width + a]);
+        let c = at(x, y) as u8;
+        match (y % 2, x % 2) {
+            // Green sites need only their horizontal and vertical neighbours.
+            (0, 0) => [
+                ((at(l, y) + at(r, y) + 1) / 2) as u8,
+                c,
+                ((at(x, u) + at(x, d) + 1) / 2) as u8,
+            ],
+            // Red and blue sites need the axial green and diagonal opposite
+            // colour neighbours, but never the horizontal/vertical pair.
+            (0, 1) => [
+                c,
+                ((at(l, y) + at(r, y) + at(x, u) + at(x, d) + 2) / 4) as u8,
+                ((at(l, u) + at(r, u) + at(l, d) + at(r, d) + 2) / 4) as u8,
+            ],
+            (1, 0) => [
+                ((at(l, u) + at(r, u) + at(l, d) + at(r, d) + 2) / 4) as u8,
+                ((at(l, y) + at(r, y) + at(x, u) + at(x, d) + 2) / 4) as u8,
+                c,
+            ],
+            _ => [
+                ((at(x, u) + at(x, d) + 1) / 2) as u8,
+                c,
+                ((at(l, y) + at(r, y) + 1) / 2) as u8,
+            ],
+        }
+    }
+}
 impl Frame {
     pub fn validate(&self) -> Result<(), String> {
         let m = &self.metadata;
@@ -75,6 +130,15 @@ impl Frame {
         let (w,h)=(usize::try_from(m.width).ok()?,usize::try_from(m.height).ok()?);
         let len=w.checked_mul(h)?.checked_mul(channels)?;
         if len!=self.raw.len() {return None;} Some((w,h,channels))
+    }
+    pub(crate) fn rgb_view(&self) -> Option<RgbView<'_>> {
+        let (width, height, channels) = self.rgb_layout()?;
+        Some(RgbView {
+            raw: self.raw.as_slice(),
+            width,
+            height,
+            channels,
+        })
     }
     /// Independent bilinear GRBG; reflect101, u16 means rounded half up.
     /// Malformed layouts and out-of-range coordinates return None.

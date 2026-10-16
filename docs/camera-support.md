@@ -38,22 +38,18 @@ second unit as supported.
 
 ## Validation status
 
-A short physical Windows run of a 0.1.2 candidate observed Live acquisition,
-displayed-image export, and normal GUI/helper shutdown. Processed PNG pixels
-matched an independent reconstruction from RAW, original Bayer TIFF pixels
-matched RAW, and postflight found no remaining process or protective lock.
-The required 60-second preflight-to-Connect window was not proven; the run is an
-observation, not an acceptance PASS. The final GUI binary additionally fixes
-retained-simulation labeling and has not been physically retested. See
-[the scoped validation record](validation-0.1.2.json).
+The published 0.1.2 build met the owner's five-minute Live criterion, with an
+independently checked endpoint export and normal shutdown. Manual mouse
+operation was confirmed by the owner. The planned start export was canceled;
+color/CFA, optical field of view and arbitrary-resize persistence remain open.
+See [the five-minute record](validation-0.1.2-five-minute.json).
 
-Full-sensor acquisition and Live restoration were checked in pre-publication
-feature code; they were not repeated during this focused 0.1.2 run.
-
-Remaining work includes ordinary mouse interaction through Windows App,
-color/CFA and optical field-of-view calibration, arbitrary window-size
-persistence, and long-duration qualification. These checks remain open; source
-or unit-test results do not substitute for hardware evidence.
+Version 0.1.3 simplifies the interface and optimizes software reconstruction.
+It passed pixel-equivalence tests, replay of the saved physical image, 26 UI
+tests and a native Simulation UI check. It has not had a new physical-camera
+run. Full-sensor capture and Live restoration were checked in pre-publication
+feature code, not repeated in the five-minute run. Earlier records retain their
+original scope and runtime hashes.
 
 ## Other cameras and operating systems
 

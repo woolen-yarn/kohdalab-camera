@@ -79,14 +79,15 @@ impl App {
                 };
                 let (capture,age,sim)=self.measurement.capture(now);
                 let (preview,preview_age)=self.measurement.preview(now);
+                #[cfg(test)] ctx.data_mut(|d|d.insert_temp(egui::Id::new("footer-preview-rate"),preview));
                 let rate=|v:Option<f64>|v.map(|v|format!("{v:.1}")).unwrap_or_else(||"—".into());
                 let age_text=|v:Option<Duration>|v.map(|d|format!(" · age {:.1}s",d.as_secs_f64())).unwrap_or_default();
-                ui.add(egui::Label::new(format!("{dimensions} · {state}{context} · {}Capture {} FPS{} · Preview {} FPS{}",if sim {"SIM "} else {""},rate(capture),age_text(age),rate(preview),age_text(preview_age))).truncate()).on_hover_text("Capture: complete frames accepted at the source, including superseded frames; unavailable when missing or stale. Preview: unique camera frames submitted to texture over 2 seconds; excludes held adjustments and repaints. Ages use local monotonic clocks. Neither is physical display FPS.");
+                ui.add(egui::Label::new(format!("{dimensions} · {state}{context} · {}Capture {} FPS",if sim {"SIM "} else {""},rate(capture))).truncate()).on_hover_text(format!("Capture: complete frames accepted at the source{}; unavailable when stale. Preview: {} FPS{}, excluding held adjustments and repaints. Neither measures physical display refresh.",age_text(age),rate(preview),age_text(preview_age)));
             });
             ui.horizontal(|ui| {
                 let width=ui.available_width();
-                ui.add_sized([320_f32.min(width/2.),ui.text_style_height(&egui::TextStyle::Body)],egui::Label::new(if self.cursor.is_empty() {"Cursor — · RGB —"} else {&self.cursor}).truncate()).on_hover_text(&self.cursor);
-                ui.label("·");
+                ui.add_sized([320_f32.min(width/2.),ui.text_style_height(&egui::TextStyle::Body)],egui::Label::new(&self.cursor).truncate()).on_hover_text(&self.cursor);
+                if !self.cursor.is_empty() {ui.label("·");}
                 let (result,failed)=self.concise_outcome();
                 let text=egui::RichText::new(&result);let text=if failed {text.color(egui::Color32::LIGHT_RED)} else {text};
                 ui.add(egui::Label::new(text).truncate()).on_hover_text(self.outcome_detail());
@@ -148,7 +149,7 @@ impl App {
             if ui.add(egui::Slider::new(&mut gain,1.0..=4.0).step_by(0.125)).changed() {self.settings.gain_eighths=(gain*8.).round() as u16;}
             if ui.add_enabled(!self.connection_fault&&self.source.is_some()&&self.matching_revision==Some(self.revision)&&!self.product.busy()&&self.settings.validate().is_ok(),egui::Button::new("Apply camera settings")).clicked() {self.request(self.source.clone());}
             let pending=self.product.applied.is_none_or(|a|a.settings!=self.settings || a.intent!=self.intent);
-            ui.small(if pending {"Changes pending"} else {"Applied · matching frame confirmed"});
+            ui.small(if pending {"Changes pending"} else {"Applied"});
         });
     }
     fn image_settings(&mut self,ui:&mut egui::Ui) {
@@ -172,25 +173,26 @@ impl App {
     fn export_settings(&mut self,ui:&mut egui::Ui) {
         if ui.add_enabled(self.frame.is_some()&&(self.source.is_none()&&!self.session.active || self.matching_revision==Some(self.revision)&&self.displayed_revision==Some(self.revision))&&!self.busy&&!self.closing&&!self.product.busy(),egui::Button::new("Capture image…")).clicked() {self.capture();}
         if ui.add_enabled(self.product.applied.is_some()&&!self.busy&&!self.closing&&!self.product.busy(),egui::Button::new("Capture full sensor image… · 3.1 MP")).on_hover_text("Captures a new Full frame, then automatically returns to the applied Live settings.").clicked() {self.capture_full();}
-        ui.label("Choose the folder, file name and PNG/TIFF in the save dialog.");
-        ui.label("The captured frame is held while you choose where to save.");
-        ui.small("Original sensor TIFF (Bayer sources), RAW and metadata are also saved. Existing names are refused; partial sidecar failures are reported.");
+        ui.weak("Save as PNG or TIFF.").on_hover_text("The selected frame is held while the save dialog is open. Original sensor TIFF (Bayer sources), RAW and metadata are saved alongside it. Existing files are never overwritten; incomplete saves are reported.");
         if self.busy || self.product.busy() {if ui.button("Stop / Disconnect").clicked() {self.request(None);}}
     }
     fn advanced_settings(&mut self,ui:&mut egui::Ui,now:std::time::Instant) {
-        if let Some(t)=&self.frame_received {ui.label(format!("Texture update age: {:.1} s",t.age_at(now).as_secs_f64()));}
-        if let Some(f)=&self.frame {
-            ui.label(camera_lab::measurement::timestamp_semantics(&f.metadata));
-            if let Some(m)=&f.metadata.measurement {ui.label(format!("UTC Unix ms {:?}; source accepted total {}; sequence {}; local source sample {} ns; rolling {}/{} ns",m.host_accepted_completion_unix_ms,m.accepted_total,m.sequence,m.source_sample_ns,m.window_frames,m.window_ns));}
-        }
         ui.label(concat!("KohdaLab Camera · ",env!("CARGO_PKG_VERSION")));
         for (i,c) in ["Red WB","Green WB","Blue WB"].iter().enumerate() {ui.add(egui::Slider::new(&mut self.recipe.wb[i],0.25..=4.).text(*c));}
         if ui.button("Neutral display").clicked() {self.recipe=Recipe::neutral();}
         if ui.button("Reference appearance · +1.5 EV / gamma 2.2 / 180°").clicked() {self.recipe=Recipe::reference();}
         if ui.button("Reset display").clicked() {self.recipe=Recipe::default();}
+        if let Some(f)=&self.frame {
+            ui.label(camera_lab::measurement::timestamp_semantics(&f.metadata));
+        }
+        ui.collapsing("Diagnostics",|ui| {
+        if let Some(t)=&self.frame_received {ui.label(format!("Texture update age: {:.1} s",t.age_at(now).as_secs_f64()));}
+        if let Some(f)=&self.frame {
+            if let Some(m)=&f.metadata.measurement {ui.label(format!("UTC Unix ms {:?}; source accepted total {}; sequence {}; local source sample {} ns; rolling {}/{} ns",m.host_accepted_completion_unix_ms,m.accepted_total,m.sequence,m.source_sample_ns,m.window_frames,m.window_ns));}
+        }
         if let Some(d)=self.selected.and_then(|i|self.devices.get(i)) {ui.label(format!("{:04x}:{:04x} serial={:?} bus={} ports={:?}",d.vendor_id(),d.product_id(),d.serial_number(),d.bus_id(),d.port_chain()));}
-        ui.label("Scene estimates are bounded software held-scene estimates, not calibration. RAW and camera controls are unchanged.");
-        ui.strong("Advanced");ui.label("Physical FOV, orientation and color qualification remain unverified. Software GRBG reconstruction and display presets are not color calibration.");
+
+        ui.small("Color and optical calibration are not available.");
         ui.horizontal(|ui| {ui.selectable_value(&mut self.intent,camera_lab::startup::Intent::Normal,"Normal startup");ui.selectable_value(&mut self.intent,camera_lab::startup::Intent::Diagnostics,"Long Diagnostics");});
         ui.label("Diagnostics intentionally runs the unchanged three-pattern checks. Select then Apply acquisition settings.");
         ui.label(format!("{:?}: {}",self.session.state,self.session.message));ui.label(&self.status);ui.label(self.outcome_detail());
@@ -202,5 +204,6 @@ impl App {
             if let Some(a)=&f.metadata.acquisition {ui.label(format!("{:?}",a));}
         }
         if let Some(l)=&self.session.lifecycle {ui.label(format!("STOP {} · release {} · lock removed {} · collected {} · native exit {:?} · proof {}",l.stop_observed,l.release_committed,l.marker_deleted,l.collected,l.exit,l.proof_flags));}
+        });
     }
 }

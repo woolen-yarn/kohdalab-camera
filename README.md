@@ -26,12 +26,12 @@ firmware revision, or sensor. See [camera support and validation](docs/camera-su
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.2**, for **Windows x64**.
+The current published baseline is **0.1.3**, for **Windows x64**.
 
 - [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.2/kohdalab-camera-0.1.2-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.2/kohdalab-camera-0.1.2-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.2/SHA256SUMS.txt)
+- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.3/kohdalab-camera-0.1.3-windows-x64.zip)
+- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.3/kohdalab-camera-0.1.3-source.zip)
+- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.3/SHA256SUMS.txt)
 
 Extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
@@ -57,7 +57,7 @@ No macOS or Linux executable is distributed in this release.
 - Brightness is a positive multiplier with a default of **1.20×**.
 - Processed PNG/TIFF exports, original Bayer TIFF, RAW data, and metadata.
   Existing output names are not overwritten.
-- Separate acquisition and preview FPS readouts.
+- Capture FPS in the status bar, with preview timing available on hover.
 - Timestamps represent **host UTC time when a complete frame was accepted**,
   rather than sensor exposure time.
 - A separate acquisition helper owns the physical session. When cleanup cannot
@@ -66,26 +66,23 @@ No macOS or Linux executable is distributed in this release.
 
 ## Validation and known limitations
 
-A short Windows check of a 0.1.2 candidate on SHODENSHA GR300 observed 1024 × 768
-Live acquisition, PNG/RAW/Bayer TIFF/metadata export, and normal GUI/helper
-shutdown. PNG pixels matched an independent RAW reconstruction, original Bayer
-TIFF pixels matched RAW, and postflight found no remaining process or protective
-lock. The required 60-second preflight-to-Connect window was not proven, so the
-run is recorded as an observation rather than an acceptance PASS. The final
-release additionally fixes retained-simulation labeling and has a different GUI
-binary hash; that final build has not been physically retested. See the
-[scoped validation record](docs/validation-0.1.2.json).
+The preceding 0.1.2 Windows build completed more than five minutes of Live
+acquisition on SHODENSHA GR300. The saved endpoint recorded 333.2 seconds and
+13,098 accepted frames. Exported PNG pixels matched an independent RAW
+reconstruction, original Bayer TIFF pixels matched RAW, and both GUI and helper
+exited normally. Postflight found no remaining camera process or protective
+lock. See the [five-minute validation record](docs/validation-0.1.2-five-minute.json).
 
-The Live window now records valid size measurements continuously, rather than
-only when returning to camera selection. Targeted tests cover returning to Live
-when native transition reports are missing or still picker-sized. Physical
-arbitrary-resize persistence remains to be checked.
-Ordinary mouse operation through Windows App remains under investigation;
-keyboard operation with F1–F5, Tab, and Enter was observed. Color/CFA and optical
-field-of-view calibration, arbitrary window-size persistence, and long-duration
-qualification of the current release remain incomplete. Long-duration testing
-is deferred. This is an initial development baseline, not a fully qualified
-multi-camera release.
+The owner confirmed normal manual mouse operation. Automated click delivery
+through Windows App remains a tooling limitation. The planned start export was
+canceled, so the two-endpoint export check remains incomplete. Color/CFA and
+optical field-of-view calibration and physical arbitrary-resize persistence
+remain unqualified. This is a development baseline for the tested camera.
+
+Version 0.1.3 adds a simpler UI and faster, pixel-equivalent software rendering.
+It passed 26 UI tests, rendering equivalence tests and replay of all 786,432
+pixels from the saved physical-camera image. Its Windows build has not yet had
+a new physical-camera run. See [performance verification](docs/rendering-performance.md).
 
 Observed acquisition/preview rates around 39.5 frames/s are specific to the test
 conditions and are not a guaranteed performance specification or an optical

@@ -51,6 +51,11 @@ impl Recipe {
         let stride=match max_edge {Some(0)=>return Err("Zero preview bound".into()),Some(n)=>w.max(h).div_ceil(n),None=>1};
         let (ow,oh)=(w.div_ceil(stride),h.div_ceil(stride));
         if self.version==2 {
+            // `Frame::rgb` validates storage before every pixel. Rendering has
+            // already validated this immutable frame, so retain one validated
+            // view for the whole pass while preserving the public API's
+            // malformed-frame and bounds behavior.
+            let source = f.rgb_view().ok_or("Render coordinate")?;
             // LUT is bounded by recipe, never pixel count. V2 monochrome
             // averages processed encoded channels (half up), before box scaling.
             let gain=2f32.powf(self.ev);
@@ -61,7 +66,7 @@ impl Recipe {
                 let mut sum=[0u64;3];let mut n=0u64;
                 for y in by*stride..((by+1)*stride).min(h) {for x in bx*stride..((bx+1)*stride).min(w) {
                     let (sx,sy)=self.source(x,y,f.metadata.width,f.metadata.height);
-                    let p=f.rgb(sx,sy).ok_or("Render coordinate")?;
+                    let p=source.render_rgb(sx as usize,sy as usize);
                     let mut p:[u8;3]=std::array::from_fn(|c|lut[c][p[c] as usize]);
                     if self.monochrome {p=[((u16::from(p[0])+u16::from(p[1])+u16::from(p[2])+1)/3) as u8;3];}
                     for c in 0..3 {sum[c]+=u64::from(p[c]);}n+=1;
@@ -109,6 +114,48 @@ impl Recipe {
 #[cfg(test)] mod quality_v2 {
     use super::*;
     fn frame(w:u32,h:u32,raw:Vec<u8>,format:&str)->Frame {Frame{raw:std::sync::Arc::new(raw),metadata:crate::Metadata{acquisition:None,source:"reference-free literal".into(),simulated:true,sequence:1,measurement:None,unix_millis:0,width:w,height:h,format:format.into()}}}
+    /// Deliberately uses the public per-pixel API so this remains an exact
+    /// reference for the cached-layout render path.
+    fn reference_v2_render(recipe: Recipe, frame: &Frame, max_edge: Option<u32>) -> (u32, u32, Vec<u8>) {
+        frame.validate().unwrap();
+        recipe.validate().unwrap();
+        let (width, height) = recipe.dimensions(frame.metadata.width, frame.metadata.height);
+        let stride = match max_edge {
+            Some(0) => panic!("reference only accepts positive bounds"),
+            Some(edge) => width.max(height).div_ceil(edge),
+            None => 1,
+        };
+        let (output_width, output_height) = (width.div_ceil(stride), height.div_ceil(stride));
+        let gain = 2_f32.powf(recipe.ev);
+        let lut: [[u8; 256]; 3] = std::array::from_fn(|channel| {
+            std::array::from_fn(|value| {
+                (255. * (value as f32 / 255. * gain * recipe.wb[channel]).clamp(0., 1.)
+                    .powf(1. / recipe.gamma))
+                    .round() as u8
+            })
+        });
+        let mut output = Vec::with_capacity((output_width * output_height * 3) as usize);
+        for block_y in 0..output_height {
+            for block_x in 0..output_width {
+                let mut sum = [0_u64; 3];
+                let mut count = 0_u64;
+                for y in block_y * stride..((block_y + 1) * stride).min(height) {
+                    for x in block_x * stride..((block_x + 1) * stride).min(width) {
+                        let (source_x, source_y) = recipe.source(x, y, frame.metadata.width, frame.metadata.height);
+                        let raw = frame.rgb(source_x, source_y).unwrap();
+                        let mut processed = std::array::from_fn(|channel| lut[channel][raw[channel] as usize]);
+                        if recipe.monochrome {
+                            processed = [((u16::from(processed[0]) + u16::from(processed[1]) + u16::from(processed[2]) + 1) / 3) as u8; 3];
+                        }
+                        for channel in 0..3 { sum[channel] += u64::from(processed[channel]); }
+                        count += 1;
+                    }
+                }
+                output.extend_from_slice(&sum.map(|value| ((value + count / 2) / count) as u8));
+            }
+        }
+        (output_width, output_height, output)
+    }
     #[test] fn literal_smallest_border_and_legacy_defect() {
         let f=frame(2,2,vec![0,10,20,30],"BayerGRBG8");
         let literal=vec![10,0,20,10,15,20,10,15,20,10,30,20];
@@ -153,6 +200,19 @@ impl Recipe {
         for monochrome in [false,true] {let r=Recipe{ev:0.5,gamma:2.2,wb:[0.7,1.2,2.],monochrome,..Recipe::neutral()};let (_,_,pixels)=r.render(&f,None).unwrap();for (raw,out) in f.raw.chunks_exact(3).zip(pixels.chunks_exact(3)) {assert_eq!(out,r.pixel(raw.try_into().unwrap()));}}
         let root=std::env::temp_dir().join(format!("rgb-v030-{}",std::process::id()));std::fs::create_dir(&root).unwrap();let p=root.join("rgb.png");crate::image_export::save_recipe(&f,&p,Recipe::neutral()).unwrap();
         let m:serde_json::Value=serde_json::from_slice(&std::fs::read(format!("{}.json",p.display())).unwrap()).unwrap();assert_eq!(m["original_sensor_tiff"]["available"],false);assert!(m["processing"].as_str().unwrap().starts_with("source-RGB8"));assert!(!root.join("rgb.png.original-RAW.tiff").exists());std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test] fn cached_v2_render_matches_public_rgb_reference_for_all_orientations_and_bounds() {
+        let rgb=frame(3,2,vec![1,37,201,4,90,7,255,2,13,99,128,44,3,250,190,73,11,160],"RGB8");
+        let bayer_2x2=frame(2,2,vec![3,61,142,250],"BayerGRBG8");
+        let bayer_4x4=frame(4,4,vec![0,13,77,255,9,101,167,201,2,66,128,220,31,93,189,241],"BayerGRBG8");
+        for frame in [&rgb,&bayer_2x2,&bayer_4x4] {
+            for quarter_turns in 0..4 {for mirror in [false,true] {for flip in [false,true] {for monochrome in [false,true] {
+                let recipe=Recipe{ev:0.37,gamma:1.73,wb:[0.63,1.24,1.81],quarter_turns,mirror,flip,monochrome,..Recipe::neutral()};
+                for bound in [None,Some(1),Some(2),Some(3)] {
+                    assert_eq!(recipe.render(frame,bound).unwrap(),reference_v2_render(recipe,frame,bound),"format={}, size={}x{}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",frame.metadata.format,frame.metadata.width,frame.metadata.height);
+                }
+            }}}}
+        }
     }
     #[test] fn export_full_literal_and_original_tiff() {
         let f=frame(2,2,vec![0,10,20,30],"BayerGRBG8");let r=Recipe::neutral();

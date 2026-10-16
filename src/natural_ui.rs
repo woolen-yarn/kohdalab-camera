@@ -64,7 +64,7 @@ impl App {
         if self.has_failure_panel() {
             let mut geometry=None;
             egui::TopBottomPanel::top("failure-details").show(ctx,|ui| {
-                ui.colored_label(egui::Color32::LIGHT_RED,"Error details — lifecycle proof remains required");
+                ui.colored_label(egui::Color32::LIGHT_RED,"Operation error · Error details");
                 ui.add(egui::Label::new(&self.session.persistence).wrap());
                 let summary=self.pinned_failure_summary();
                 let summary=ui.add(egui::Label::new(summary).truncate());
@@ -72,7 +72,7 @@ impl App {
                 if let Some(backend)=self.session.lifecycle.as_ref().and_then(|l|l.backend_cause) {
                     ui.add(egui::Label::new(format!("Backend detail: {}",camera_lab::diagnostic::summary(Some(backend)))).wrap());
                 }
-                ui.small("Full bounded first cause and lifecycle details (scroll)");
+                ui.small("Technical details (scroll)");
                 let scroll=egui::ScrollArea::vertical().id_salt("failure-scroll").auto_shrink([false,false]).max_height((ctx.screen_rect().height()*0.3).clamp(48.,160.)).show(ui,|ui| {
                     ui.add(egui::Label::new(self.session.first_failure.as_deref().unwrap_or("No Worker failure captured")).wrap());
                     ui.add(egui::Label::new(self.outcome_detail()).wrap());
@@ -307,6 +307,18 @@ mod tests {
         }
     }
     #[test]
+    fn export_error_does_not_claim_live_acquisition_stopped() {
+        let ctx=egui::Context::default();let mut app=App::without_scan(&ctx);
+        app.source=Some(Source::Simulation);app.session.state=camera_lab::session::State::Streaming;
+        app.matching_revision=Some(app.revision);app.displayed_revision=Some(app.revision);
+        app.outcome_fault=Some("Image sidecar save failed".into());
+        assert_eq!(app.primary_state(),"Live");
+        let out=ctx.run(egui::RawInput::default(),|ctx|{app.failure_visibility(ctx);});
+        assert!(out.shapes.iter().any(|s|matches!(&s.shape,egui::epaint::Shape::Text(t) if t.galley.text()=="Operation error · Error details")));
+        assert!(!out.shapes.iter().any(|s|matches!(&s.shape,egui::epaint::Shape::Text(t) if t.galley.text().contains("operation stopped"))));
+        app.worker.close();
+    }
+    #[test]
     fn v038_nonworker_failure_geometry_and_retained_scroll() {
         let mut records=Vec::new();
         for source in ["Preview","Control","Outcome"] {
@@ -496,22 +508,18 @@ mod tests {
         let meta:serde_json::Value=serde_json::from_slice(&std::fs::read(format!("{}.json",path.display())).unwrap()).unwrap();
         assert_eq!(meta["frame"],serde_json::to_value(&frame.metadata).unwrap());assert_eq!(meta["display_recipe"],serde_json::to_value(recipe).unwrap());
     }
-    // Read the actual footer output; querying Live again after render would miss
-    // the old entry-time -> upload-time -> earlier-footer-time regression.
-    fn preview_footer(out:&egui::FullOutput)->f64 {
-        let text=out.shapes.iter().find_map(|s|match &s.shape {
-            egui::epaint::Shape::Text(t) if t.galley.text().contains(" · Preview ")=>Some(t.galley.text()),
-            _=>None,
-        }).expect("production parity footer");
-        text.split(" · Preview ").nth(1).unwrap().split(" FPS").next().unwrap()
-            .parse().expect("active Preview must be numeric, not unavailable")
+    // Read the rate evaluated during the production footer render, before any
+    // later clock query. Preview details are available on hover in the UI.
+    fn preview_footer(ctx:&egui::Context)->f64 {
+        ctx.data(|d|d.get_temp::<Option<f64>>(egui::Id::new("footer-preview-rate")))
+            .flatten().expect("active preview measurement available")
     }
     fn active_preview(app:&mut App,ctx:&egui::Context) {
         let start=Instant::now();let initial=app.measurement.unique_total;
         let mut observations=0;
         while start.elapsed()<Duration::from_millis(2400) {
-            let out=draw(app,ctx);
-            assert!(preview_footer(&out)>0.,"active unique Preview must stay nonzero");
+            draw(app,ctx);
+            assert!(preview_footer(ctx)>0.,"active unique Preview must stay nonzero");
             observations+=1;
             std::thread::sleep(Duration::from_millis(10));
         }
@@ -538,7 +546,7 @@ mod tests {
         app.recipe.ev=0.5;app.recipe_changed();until(&mut app,&ctx,|a|a.displayed_recipe==a.recipe);assert_eq!(app.measurement.unique_total,unique);
         let end=Instant::now()+Duration::from_millis(2100);
         while Instant::now()<end {draw(&mut app,&ctx);std::thread::sleep(Duration::from_millis(10));}
-        assert_eq!(preview_footer(&draw(&mut app,&ctx)),0.);
+        draw(&mut app,&ctx);assert_eq!(preview_footer(&ctx),0.);
         assert_eq!(app.measurement.unique_total,unique,"held recipe and repaints cannot inflate Preview");
         app.paused=false;
         until(&mut app,&ctx,|a|a.measurement.unique_total>unique);

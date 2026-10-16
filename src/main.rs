@@ -725,7 +725,7 @@ mod tests {
             for s in output.shapes {
                 text(&s.shape, &mut rendered);
             }
-            assert!(rendered.contains("Texture update age:"));
+            assert!(!rendered.contains("Texture update age:"),"technical timing starts collapsed");
             // A nonzero legacy timestamp without valid measurement provenance
             // must not be promoted to host completion or sensor exposure time.
             assert!(rendered.contains("Host accepted-frame completion UTC unavailable; legacy unix_millis has unspecified semantics; sensor exposure time unavailable"));
