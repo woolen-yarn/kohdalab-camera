@@ -32,8 +32,8 @@ impl App {
         if self.viewport_picker==self.picker {return;}
         self.viewport_picker=self.picker;
         let (title,min,size)=if self.picker {
-            ("Select a camera — KohdaLab Camera",egui::vec2(520.,360.),egui::vec2(640.,480.))
-        } else {("Live image — KohdaLab Camera",egui::vec2(900.,620.),self.live_size)};
+            (concat!("Select a camera — KohdaLab Camera v",env!("CARGO_PKG_VERSION")),egui::vec2(520.,360.),egui::vec2(640.,480.))
+        } else {(concat!("Live image — KohdaLab Camera v",env!("CARGO_PKG_VERSION")),egui::vec2(900.,620.),self.live_size)};
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.into()));
         ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(min));
         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));

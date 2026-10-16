@@ -72,7 +72,7 @@ impl App {
                     input_diagnostics::button(ctx,label,&response);
                     if response.clicked() {self.tab=if self.tab==i {usize::MAX}else{i};}
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui| {ui.weak("KohdaLab Camera");});
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui| {ui.weak(concat!("KohdaLab Camera v",env!("CARGO_PKG_VERSION")));});
             });
         }).response.rect;
         egui::TopBottomPanel::bottom("compact-status").exact_height(42.).show(ctx,|ui| {

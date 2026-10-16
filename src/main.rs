@@ -581,7 +581,7 @@ fn main() -> eframe::Result {
     // Abort, OOM and external kill cannot be caught.
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
         eframe::run_native(
-            "Select a camera — KohdaLab Camera",
+            concat!("Select a camera — KohdaLab Camera v",env!("CARGO_PKG_VERSION")),
             eframe::NativeOptions {
                 // Present ready camera frames without waiting for display refresh.
                 // Repainting remains driven by readiness and the bounded status timer.
