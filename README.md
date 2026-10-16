@@ -10,11 +10,16 @@ support is a roadmap, not an existing capability.
 
 ## Current camera support
 
-| Camera / backend | Current status | Requirements and modes |
+| Manufacturer / camera model | Sensor / USB identity | Current support |
 | --- | --- | --- |
-| ScopeTek-family USB camera, USB ID `0547:4d33`, Micron MT9T001 sensor | Initial physical backend; tested on one laboratory unit. Commercial model name is unconfirmed. | Windows x64 with an existing WinUSB binding; 1024 × 768 Live and 2048 × 1536 full-sensor capture. |
-| Simulation / demo | Available without a physical camera | Synthetic frames for exploring the interface; does not validate hardware compatibility. |
-| Other USB cameras, UVC webcams, and vendor SDK cameras | Not supported yet | Future backends require documented interfaces, redistribution-compatible dependencies, and separate hardware validation. |
+| **SHODENSHA GR300** | Micron MT9T001; USB `0547:4d33`; ScopeTek-family backend. | Tested on one laboratory unit. Windows x64 with an existing WinUSB binding; 1024 × 768 Live and 2048 × 1536 full-sensor capture. |
+| Simulation / demo | Synthetic source; no camera sensor | Available without hardware for exploring the interface. |
+| Other camera models | UVC webcams, other USB cameras, and vendor SDK devices | Not supported yet; multi-camera support is planned. |
+
+The tested camera is identified by its owner as **SHODENSHA GR300**. Its USB
+product string is `3.1M USB2.0 Camera`; the sensor and USB ID above describe this
+tested unit. Other GR300 revisions and similarly named models have not been
+validated.
 
 A matching USB ID alone does not establish compatibility with another camera,
 firmware revision, or sensor. See [camera support and validation](docs/camera-support.md).

@@ -2,13 +2,25 @@
 
 ## Current physical backend
 
-The initial backend targets a **ScopeTek-family USB camera with a Micron MT9T001
-sensor**, identified by USB vendor ID `0547` and product ID `4d33`. The commercial
-model name has not been confirmed. Support is scoped to the single laboratory
-unit used during development, not to every device sharing these identifiers.
+### SHODENSHA GR300
+
+The current supported commercial camera is **SHODENSHA GR300**, identified by the
+owner of the tested laboratory unit. Manufacturer and camera model are the
+primary identifiers; sensor and USB information are supplementary details.
+
+The tested unit uses a **Micron MT9T001** sensor and USB ID **`0547:4d33`**. It
+reports `3.1M USB2.0 Camera` as its USB product name and is handled by the current
+ScopeTek-family backend. The backend family is a technical classification, not
+the product's manufacturer name.
+
+Windows driver metadata currently uses "KohdaLab" as a registration name; it
+does not replace the SHODENSHA product identity. Support is scoped to this tested
+unit. Other GR300 revisions, GR300-series variants, or devices sharing the same
+USB identifiers or sensor are not automatically qualified.
 
 | Property | Current scope |
 | --- | --- |
+| Manufacturer / model | SHODENSHA GR300 (tested unit, owner-confirmed identity) |
 | Distributed operating system | Windows x64 |
 | USB access | Existing WinUSB binding; no automatic driver installation or replacement |
 | Live mode | 1024 × 768 |
