@@ -1,0 +1,36 @@
+{
+  "version": "0.1.4",
+  "acceptance": "validated_for_scoped_live_export_and_normal_shutdown",
+  "runtime": {
+    "KohdaLab Camera.exe": "153091c506f004d38ab3ad5e5eecb2936320e3b625068edfc336e63a64861049",
+    "continuous-helper.exe": "7fdd6f11f94ff7ef66439ffb6cb8914ef6ee7808745f5f0296c109b218007cfc"
+  },
+  "observed": {
+    "camera": "SHODENSHA GR300",
+    "physical": true,
+    "sole_camera_automatically_selected": true,
+    "load_camera_opens_live": true,
+    "live_dimensions": [
+      1024,
+      768
+    ],
+    "source_elapsed_seconds": 336.1815364,
+    "accepted_frames": 13215,
+    "rolling_accepted_fps": 39.5,
+    "processed_png_pixels_match_independent_raw_reconstruction": true,
+    "original_bayer_tiff_matches_raw": true,
+    "native_gui_and_helper_exit_zero": true,
+    "observer_elapsed_seconds": 564.5488044,
+    "preflight_to_connect_upper_bound_seconds": 14.224772699999999,
+    "postflight_owners": 0,
+    "postflight_actual_locks": 0,
+    "manual_mouse_operation": "owner confirmed normal",
+    "custom_resize_and_size_retention": "owner confirmed normal; automated drag delivery did not establish resize"
+  },
+  "limits": [
+    "Dark scene does not qualify optical field of view, CFA/color accuracy or calibration.",
+    "Live evidence covers a five-minute interval and an endpoint export, not every acquired frame.",
+    "Full-sensor switching and picker round-trip size retention were not repeated in this finite run."
+  ],
+  "operation_note": "Root owned the hardware session; owner performed the manual resize check."
+}

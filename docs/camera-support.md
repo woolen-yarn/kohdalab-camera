@@ -38,18 +38,16 @@ second unit as supported.
 
 ## Validation status
 
-The published 0.1.2 build met the owner's five-minute Live criterion, with an
-independently checked endpoint export and normal shutdown. Manual mouse
-operation was confirmed by the owner. The planned start export was canceled;
-color/CFA, optical field of view and arbitrary-resize persistence remain open.
-See [the five-minute record](validation-0.1.2-five-minute.json).
+Version 0.1.4 completed 336.2 seconds of physical Live acquisition, a pixel-checked
+endpoint export and normal GUI/helper shutdown. A single supported camera was
+automatically selected. The owner confirmed manual mouse use, arbitrary resizing
+and retention of the changed size. See [the scoped record](validation-0.1.4.json).
 
-Version 0.1.3 simplifies the interface and optimizes software reconstruction.
-It passed pixel-equivalence tests, replay of the saved physical image, 26 UI
-tests and a native Simulation UI check. It has not had a new physical-camera
-run. Full-sensor capture and Live restoration were checked in pre-publication
-feature code, not repeated in the five-minute run. Earlier records retain their
-original scope and runtime hashes.
+Color/CFA accuracy and optical field of view remain unqualified in the dark test
+scene. Full-sensor capture/Live restoration were checked in pre-publication
+feature code but not repeated in this finite run. Picker round-trip size
+retention was not repeated. Earlier records retain their original scope and
+runtime hashes.
 
 ## Other cameras and operating systems
 

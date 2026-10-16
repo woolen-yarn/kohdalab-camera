@@ -1,7 +1,13 @@
 //! Presentation only. Worker snapshots remain the cleanup/restart authority.
 use super::*;
 impl App {
-    pub(super) fn refreshed_selection<T:PartialEq>(selected:Option<T>,identities:impl Iterator<Item=T>)->Option<usize> {selected.and_then(|id|identities.enumerate().find_map(|(i,d)|(d==id).then_some(i)))}
+    pub(super) fn refreshed_selection<T:PartialEq>(selected:Option<T>,identities:impl Iterator<Item=T>)->Option<usize> {
+        let identities:Vec<_>=identities.collect();
+        match selected {
+            Some(id)=>identities.iter().position(|d|*d==id),
+            None=>(identities.len()==1).then_some(0),
+        }
+    }
     pub(super) fn can_connect(&self) -> bool {
         !self.closing && !self.busy && !self.connection_fault && !self.session.active
             && !self.session.restart_disabled
@@ -113,7 +119,7 @@ impl App {
     pub(super) fn selector_ui(&mut self,ctx:&egui::Context) {
         egui::CentralPanel::default().frame(egui::Frame::new().fill(ctx.style().visuals.panel_fill).inner_margin(8.)).show(ctx,|ui| {
             ui.heading("Select a camera");
-            ui.label("Choose the camera to open. You can change it later from the capture window.");
+            ui.label("Select a camera, then load it.");
             ui.separator();
             ui.horizontal(|ui| {
                 ui.radio_value(&mut self.picker_simulation,false,"USB camera");
@@ -132,7 +138,7 @@ impl App {
             } else {ui.label("Software simulation · no camera required");}
             ui.separator();
             let ready=self.can_connect();
-            if ui.add_enabled(self.picker_connect_ready(),egui::Button::new("Connect and open capture window")).clicked() {self.connect_picker();}
+            if ui.add_enabled(self.picker_connect_ready(),egui::Button::new("Load camera")).clicked() {self.connect_picker();}
             ui.separator();
             if !ready {ui.label(if self.connection_fault || self.session.restart_disabled || self.session.state==camera_lab::session::State::Error {"Camera operation failed. Reconnection is disabled; see the error below."} else if self.busy {"Waiting for the image save to finish…"} else {"Stopping the previous camera…"});}
             else if !self.picker_simulation && self.selected.is_none() {ui.small("Select a supported camera to connect.");}
@@ -393,6 +399,9 @@ mod tests {
         assert_eq!(App::refreshed_selection(Some("port-B"),["port-C","port-B","port-A"].into_iter()),Some(1));
         assert_eq!(App::refreshed_selection(Some("port-A"),["port-C","port-B"].into_iter()),None);
         assert_eq!(App::refreshed_selection(None,["port-C","port-B"].into_iter()),None);
+        assert_eq!(App::refreshed_selection(None,["port-A"].into_iter()),Some(0));
+        assert_eq!(App::refreshed_selection(None,std::iter::empty::<&str>()),None);
+        assert_eq!(App::refreshed_selection(Some("port-A"),["port-B"].into_iter()),None,"do not silently replace a missing selected camera");
         app.show_frame(&ctx,camera_lab::CameraAdapter::next_frame(&mut camera_lab::Simulation{sequence:1}).unwrap());
         let mut records=Vec::new();
         for (picker,tab,size) in [(true,0,egui::vec2(640.,480.)),(false,2,egui::vec2(1100.,760.)),(false,1,egui::vec2(1100.,760.))] {
@@ -460,7 +469,7 @@ mod tests {
             let output=ctx.run(egui::RawInput{system_theme:Some(egui::Theme::Light),screen_rect:Some(egui::Rect::from_min_size(egui::Pos2::ZERO,size)),..Default::default()},|ctx|app.render(ctx));
             assert_eq!(ctx.theme(),egui::Theme::Dark);
             let labels:Vec<_>=output.shapes.iter().filter_map(|s|if let egui::epaint::Shape::Text(t)=&s.shape {Some(t.galley.text())} else {None}).collect();
-            for label in ["Select a camera","Connect and open capture window","Refresh","Simulation / demo","No eligible camera found"] {assert!(labels.contains(&label),"missing {label}");}
+            for label in ["Select a camera","Load camera","Refresh","Simulation / demo","No eligible camera found"] {assert!(labels.contains(&label),"missing {label}");}
             assert!(!labels.contains(&"Choose an explicit source"));assert!(app.source.is_none());
         }
         assert!(app.picker && app.can_connect());assert!(sizes(&draw(&mut app,&ctx)).is_empty());

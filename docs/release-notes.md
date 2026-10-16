@@ -1,3 +1,17 @@
+# KohdaLab Camera 0.1.4
+
+- Automatically select a single supported camera after enumeration; open it with
+  **Load camera**. Multiple cameras still require a choice, and a missing selected
+  camera is never silently replaced by a different device.
+- Shorten the opening screen instructions.
+
+Validation: 26 UI tests and independent review passed. The exact Windows build
+completed 336.2 seconds of real GR300 Live acquisition, a PNG/RAW/Bayer TIFF export
+with independent pixel agreement, and normal GUI/helper exit. No process or
+protective lock remained. The owner confirmed manual resizing and size retention.
+Color/optical qualification and picker round-trip resizing remain outside this
+run. See [the scoped validation record](validation-0.1.4.json).
+
 # KohdaLab Camera 0.1.3
 
 - Simplify the Live status bar and export panel. Move technical counters and
