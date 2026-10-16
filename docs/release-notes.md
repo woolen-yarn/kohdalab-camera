@@ -6,10 +6,18 @@
   report separating CPU timings from UI-tool observation overhead.
 
 The targeted GUI check, native Simulation image adjustment/export/normal close,
-and exact saved-image replay passed. Windows x64 built successfully. A fresh
-GR300 five-minute verification is pending: Windows App screen capture works,
-but automated input did not reach the Windows desktop. No physical connection
-was started in this attempt. The last completed physical run remains 0.1.4.
+and exact saved-image replay passed. Windows x64 built successfully. Subsequent
+physical validation of the exact published binaries completed 399.4 seconds of
+GR300 Live with 15,701 accepted frames, image adjustment and Fit controls,
+PNG/RAW/Bayer TIFF export, and normal Disconnect/Close. All saved pixels matched
+independent RAW reconstruction; both processes exited normally without a
+remaining protective lock. See [validation](validation-0.1.9.json) and
+[observed responsiveness](responsiveness.md).
+
+The initial zero-connection attempt was blocked by Windows App input delivery.
+The owner opened the picker, and held mouse clicks then allowed the finite run
+to proceed. Validation is supplemental to the original release archives; their
+bytes and original manifests remain unchanged.
 
 # KohdaLab Camera 0.1.8
 

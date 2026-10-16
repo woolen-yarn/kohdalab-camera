@@ -1,0 +1,48 @@
+{
+  "version": "0.1.9",
+  "acceptance": "validated_for_scoped_live_adjustment_export_and_normal_shutdown",
+  "runtime": {
+    "KohdaLab Camera.exe": "9677edfeb0f64ecec931e2c7992770937e7c0a5647fc32983b2b58096f0af3e1",
+    "continuous-helper.exe": "983af3d4a901dd3cfca5461639ebe5b8fa53980aec0af812f37e3bbab3c622c0"
+  },
+  "observed": {
+    "camera": "SHODENSHA GR300",
+    "physical": true,
+    "sole_camera_automatically_selected": true,
+    "load_camera_opens_live": true,
+    "live_dimensions": [
+      1024,
+      768
+    ],
+    "source_elapsed_seconds": 399.38887,
+    "accepted_frames": 15701,
+    "rolling_accepted_fps": 39.5,
+    "brightness_slider_updates_image": true,
+    "display_defaults_restored": true,
+    "magnification_and_fit_buttons": true,
+    "processed_png_pixels_match_independent_raw_reconstruction": true,
+    "original_bayer_tiff_matches_raw": true,
+    "native_gui_and_helper_exit_zero": true,
+    "native_process_count": 2,
+    "observer_elapsed_seconds": 570.8635886999999,
+    "preflight_to_connect_upper_bound_seconds": 30.1492324,
+    "postflight_owners": 0,
+    "postflight_actual_locks": 0,
+    "postflight_device_status": "OK",
+    "published_runtime_hashes_match": true
+  },
+  "interaction_observation_upper_bounds_ms": {
+    "loadToFirstObservationMs": 1011,
+    "loadToLiveImageObservationMs": 21460,
+    "brightnessClickToObservationMs": 997,
+    "saveConfirmToObservationMs": 1519,
+    "disconnectToObservationMs": 940
+  },
+  "limits": [
+    "Endpoint and lifecycle evidence does not verify every intermediate frame or calibrate physical FPS.",
+    "The scene was nearly uniform; this run does not establish optical field of view or color calibration. Earlier owner visual acceptance remains separate.",
+    "Full-sensor switching, arbitrary resize, wheel delivery and picker round-trip size retention were not repeated in this run.",
+    "Interaction observations include Windows App input delivery, state inspection and screenshot overhead; first-image observation is a loose upper bound, not exact startup latency."
+  ],
+  "operation_note": "The owner opened the selection window. Root then used 200 ms held mouse clicks in Windows App; one physical connection was made. A previous zero-process observer timeout is preserved separately and is not a failed camera connection."
+}

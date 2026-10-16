@@ -90,22 +90,24 @@ Save dialogs suggest numbered names such as `capture_0001.png`; existing files
 and sidecars are never overwritten.
 
 Default settings: exposure **120 sensor rows**, brightness **1.20×**, gamma
-**2.2** and analog gain **1×**. Version 0.1.5 changes only the exposure default;
-the physical run below used version 0.1.4.
+**2.2** and analog gain **1×**.
 
 ## Validation and known limitations
 
-Version 0.1.4 completed 336.2 seconds of Live acquisition on SHODENSHA GR300,
-with 13,215 accepted frames. The camera was selected automatically, and **Load
-camera** opened Live. The saved PNG matched an independent RAW reconstruction;
-the original Bayer TIFF matched RAW. GUI and helper exited normally, with no
-remaining process or protective lock. See the
-[scoped validation record](docs/validation-0.1.4.json).
+The exact published version 0.1.9 binaries completed 399.4 seconds of Live
+acquisition on SHODENSHA GR300, with 15,701 accepted frames. The camera was
+selected automatically, and **Load camera** opened Live. Brightness adjustment,
+display-default restoration, zoom and Fit buttons, PNG/RAW/Bayer TIFF export,
+Disconnect and Close were exercised. Every PNG pixel matched independent RAW
+reconstruction; original Bayer TIFF matched RAW. GUI and helper exited normally,
+with no remaining process or protective lock. See the
+[scoped validation record](docs/validation-0.1.9.json).
 
 The owner confirmed normal manual mouse operation, arbitrary window resizing and
-retention of the changed size. Automated click/drag delivery through Windows App
-has tooling limitations. Picker round-trip size retention was not repeated in
-this run. The owner subsequently reported that color and field of view looked
+retention of the changed size in earlier checks. Held mouse clicks worked
+through Windows App in the latest run; keyboard and wheel delivery have tooling
+limitations. Full-sensor switching and picker round-trip resizing were not
+repeated in this run. The owner previously reported that color and field of view looked
 acceptable. This is a visual assessment; no optical or color calibration was performed.
 
 The software renderer is pixel-equivalent to the previous version and passed

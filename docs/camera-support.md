@@ -38,10 +38,13 @@ second unit as supported.
 
 ## Validation status
 
-Version 0.1.4 completed 336.2 seconds of physical Live acquisition, a pixel-checked
-endpoint export and normal GUI/helper shutdown. A single supported camera was
-automatically selected. The owner confirmed manual mouse use, arbitrary resizing
-and retention of the changed size. See [the scoped record](validation-0.1.4.json).
+The exact published version 0.1.9 binaries completed 399.4 seconds of physical
+Live acquisition, image adjustment and Fit controls, a pixel-checked endpoint
+export, and normal GUI/helper shutdown. A single supported camera was
+automatically selected. See [the scoped record](validation-0.1.9.json).
+
+The owner confirmed manual mouse use, arbitrary resizing and retention of the
+changed size during earlier checks. See [the earlier record](validation-0.1.4.json).
 
 The owner subsequently reported acceptable color and field of view by visual
 inspection. Optical/color calibration has not been performed. Full-sensor capture/Live restoration were checked in pre-publication
