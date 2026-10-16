@@ -1,7 +1,23 @@
 # KohdaLab Camera 0.1.0
 
-独立実装を今後の公式開発ベースとして公開する最初のReleaseです。Windows x64のアプリと分離した取得helper、MITソース、依存ライセンスを提供します。
+The first official development baseline for a Rust laboratory-camera platform.
+The current physical backend is limited to the tested ScopeTek-family USB
+`0547:4d33` / Micron MT9T001 unit on Windows x64. Multi-vendor camera support is a
+long-term goal, not a capability of this release.
 
-カメラ選択、5タブ、初期明るさ1.20倍、画素ごとのGRBG補間、画像調整、PNG/TIFFと原RAW保存、Full撮影後のLive復帰、取得/プレビューFPSの別表示、ホストUTC取得完了時刻を搭載しています。
+The portable release contains the application, a separate acquisition helper,
+MIT project source, and dependency license notices. Features include camera
+selection, five control tabs, default brightness of 1.20×, per-pixel GRBG
+demosaicing, image adjustments, processed PNG/TIFF and original RAW exports,
+full-sensor capture with Live restoration, separate acquisition/preview FPS,
+and host UTC frame-acceptance timestamps.
 
-公開前候補で実機Live・両サイズの保存・画素一致・通常終了を確認しました。公開用の名称/失敗記録先を整理したビルドは別ハッシュで、実機再試験前です。通常のマウス操作、色/視野、任意サイズ保持は未完了です。長時間運転は後日確認します。これらを全体完成と誤記しません。
+Pre-publication feature code was checked for physical Live acquisition, exports
+at both resolutions, pixel agreement, and normal shutdown. The build with
+publication names and diagnostic paths has different hashes and has not been
+physically retested. Ordinary mouse interaction, color/field-of-view calibration,
+and arbitrary window-size persistence remain incomplete. Long-duration testing
+is deferred. This release does not represent full product qualification.
+
+Repository documentation may evolve after the tag; the existing 0.1.0 download
+archives retain their original contents and checksums.

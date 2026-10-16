@@ -1,12 +1,36 @@
-# 出所と再配布の範囲
+# Provenance and redistribution scope
 
-このアプリは隔離した作業環境で独立に書いたRust実装を出発点にしています。旧アプリのソース、メーカー製バイナリ、逆アセンブル結果、USB通信の私的キャプチャ、メーカーの画像・アイコンをソースやReleaseへ取り込んでいません。アイコンとWindows manifestはこのプロジェクトの独自素材です。
+The application started from an independently written Rust implementation in an
+isolated workspace. Legacy application source, manufacturer binaries,
+disassembly output, private USB traffic captures, and manufacturer artwork were
+not incorporated into the source or release. The icon and Windows manifest are
+project-authored assets.
 
-センサーの寸法、公開レジスタ仕様、タイミングはMicron MT9T001の公開データシートを参照しました。USBの機能的な通信形式を調べる際は公開ScopeTek実装（JohnDMcMaster/uvscopetek）およびLinuxの公開カメラ実装を研究資料として参照しています。公開資料の存在をメーカーの認証や再配布許諾と同一視しません。研究用に取得したGPLソース、配列、初期化手順のコード、PDF本文をこのリポジトリやReleaseに同梱していません。公開実装は「逆解析ではない」と一律に断定できるものでもありません。この記載は工程と入力の説明で、法的なクリーンルーム認証ではありません。
+Sensor dimensions, public register specifications, and timing were studied from
+the public Micron MT9T001 datasheet. Public ScopeTek implementations
+(JohnDMcMaster/uvscopetek) and public Linux camera implementations were consulted
+as research inputs when investigating functional USB communication formats.
+Public availability is not equivalent to manufacturer certification or
+redistribution permission. GPL research source, arrays, initialization-sequence
+code, and datasheet contents are not bundled in this repository or release.
+A public implementation cannot categorically be described as free of
+reverse-engineering origins. This statement documents inputs and process; it is
+not a legal clean-room certification.
 
-- 公開資料: https://github.com/JohnDMcMaster/uvscopetek
-- 公開センサーデータシート参照: https://datasheet.octopart.com/MT9T001P12STC-Micron-datasheet-136597.pdf
-- Rust依存関係: Cargo.lockにレジストリ由来のチェックサムを記録。対応ライセンスはTHIRD_PARTY_NOTICES.mdとthird-party-licensesを保持。
-- ローカルplatformクレート: このプロジェクトのMITコード。
+- [Public ScopeTek research reference](https://github.com/JohnDMcMaster/uvscopetek)
+- [Public Micron MT9T001 datasheet reference](https://datasheet.octopart.com/MT9T001P12STC-Micron-datasheet-136597.pdf)
+- Rust registry dependencies: exact checksums are recorded in `Cargo.lock`.
+  Preserve `THIRD_PARTY_NOTICES.md` and `third-party-licenses/`.
+- The local `platform` crate is project-authored MIT code.
 
-配布対象はWindows x64です。Apple専用依存dispatchの上流ライセンス本文不足を含め、macOS実行物の配布適合性は今回の確認対象外です。公開資料の引用元や依存ライセンスは、旧バージョンのアプリ本体とは区別して今後も保持します。
+The distributed executable targets Windows x64. macOS distribution compliance,
+including the missing upstream license text for the Apple-only `dispatch`
+dependency, is outside this release's qualification scope. References and
+third-party license notices remain necessary even when old application versions
+are removed.
+
+Future camera backends must use documented interfaces with a clear provenance
+and redistribution basis. Manufacturer binary reverse engineering, private
+traffic captures, and proprietary initialization data must not be introduced.
+The current backend's public-research provenance above must remain disclosed;
+the platform roadmap does not retroactively establish an official vendor API.
