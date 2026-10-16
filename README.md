@@ -52,6 +52,9 @@ No macOS or Linux executable is distributed in this release.
 
 ## Imaging and data
 
+See [interface design and references](docs/design.md) for the UI principles,
+design influences and interaction decisions.
+
 - Per-pixel GRBG demosaicing, linear display sampling, white balance, gamma,
   rotation, flips, and monochrome display.
 - Brightness is a positive multiplier with a default of **1.20×**.
