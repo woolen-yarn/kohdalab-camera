@@ -1,0 +1,12 @@
+# 出所と再配布の範囲
+
+このアプリは隔離した作業環境で独立に書いたRust実装を出発点にしています。旧アプリのソース、メーカー製バイナリ、逆アセンブル結果、USB通信の私的キャプチャ、メーカーの画像・アイコンをソースやReleaseへ取り込んでいません。アイコンとWindows manifestはこのプロジェクトの独自素材です。
+
+センサーの寸法、公開レジスタ仕様、タイミングはMicron MT9T001の公開データシートを参照しました。USBの機能的な通信形式を調べる際は公開ScopeTek実装（JohnDMcMaster/uvscopetek）およびLinuxの公開カメラ実装を研究資料として参照しています。公開資料の存在をメーカーの認証や再配布許諾と同一視しません。研究用に取得したGPLソース、配列、初期化手順のコード、PDF本文をこのリポジトリやReleaseに同梱していません。公開実装は「逆解析ではない」と一律に断定できるものでもありません。この記載は工程と入力の説明で、法的なクリーンルーム認証ではありません。
+
+- 公開資料: https://github.com/JohnDMcMaster/uvscopetek
+- 公開センサーデータシート参照: https://datasheet.octopart.com/MT9T001P12STC-Micron-datasheet-136597.pdf
+- Rust依存関係: Cargo.lockにレジストリ由来のチェックサムを記録。対応ライセンスはTHIRD_PARTY_NOTICES.mdとthird-party-licensesを保持。
+- ローカルplatformクレート: このプロジェクトのMITコード。
+
+配布対象はWindows x64です。Apple専用依存dispatchの上流ライセンス本文不足を含め、macOS実行物の配布適合性は今回の確認対象外です。公開資料の引用元や依存ライセンスは、旧バージョンのアプリ本体とは区別して今後も保持します。

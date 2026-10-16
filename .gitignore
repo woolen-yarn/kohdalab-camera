@@ -1,0 +1,5 @@
+/target/
+/dist/
+*.capture/
+/kohdalab-camera-*/
+.DS_Store
