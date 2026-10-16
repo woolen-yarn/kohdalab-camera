@@ -1,3 +1,16 @@
+# KohdaLab Camera 0.1.9
+
+- Distinguish the whole-image **Fit** view from magnification such as
+  **2.0× Fit**, with an explanation of how it differs from 100%.
+- Add a quick start with current Simulation screenshots and a responsiveness
+  report separating CPU timings from UI-tool observation overhead.
+
+The targeted GUI check, native Simulation image adjustment/export/normal close,
+and exact saved-image replay passed. Windows x64 built successfully. A fresh
+GR300 five-minute verification is pending: Windows App screen capture works,
+but automated input did not reach the Windows desktop. No physical connection
+was started in this attempt. The last completed physical run remains 0.1.4.
+
 # KohdaLab Camera 0.1.8
 
 - Show the installed application version in the camera-selection window title,
