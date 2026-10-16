@@ -1,3 +1,29 @@
+# KohdaLab Camera 0.1.8
+
+- Show the installed application version in the camera-selection window title,
+  Live window title, and Live toolbar.
+
+This release did not repeat physical-camera acquisition. It was built and
+published from the current Windows x64 source baseline.
+
+# KohdaLab Camera 0.1.7
+
+- Refine the dark interface: make the image the visual focus, use a restrained
+  accent for available primary actions, and allow a selected toolbar tab to
+  close its inspector.
+- Make Fit the minimum zoom, add visible Fit / minus / magnification / plus /
+  100% controls, and keep 100% unavailable when it would be below Fit or beyond
+  the supported zoom range.
+- Remove the reserved blank area before Cursor in the status bar and simplify
+  Advanced details and duplicated display controls.
+- Avoid idle repaint polling and reuse compiled display recipes until image
+  controls change. Image and export semantics remain unchanged.
+
+Validation included GUI, renderer, and preview-pipeline tests; native Simulation
+interaction checks; and replay against a saved GR300 endpoint image. This
+release did not repeat physical-camera acquisition, and its local CPU
+measurements do not establish a physical capture-FPS improvement.
+
 # KohdaLab Camera 0.1.6
 
 - Remember camera/image settings, Live window size, save folder and capture

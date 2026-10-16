@@ -181,7 +181,7 @@ impl App {
             if let Some(f)=&self.frame {
                 let (w,h)=self.displayed_recipe.dimensions(f.metadata.width,f.metadata.height);let size=egui::vec2(w as f32,h as f32);
                 if ui.add_enabled(self.view.zoom>1.,egui::Button::new("−")).on_hover_text("Zoom out to Fit").clicked(){self.view.zoom_at(self.viewport_rect,size,self.viewport_rect.center(),1./1.25);}
-                ui.weak(format!("{:.1}×",self.view.zoom)).on_hover_text("Magnification relative to Fit");
+                ui.weak(if self.view.zoom<=1. {"Fit".into()}else{format!("{:.1}× Fit",self.view.zoom)}).on_hover_text("Magnification relative to the whole-image Fit view; 100% means one source pixel per UI point.");
                 if ui.add_enabled(self.view.zoom<32.,egui::Button::new("+")).on_hover_text("Zoom in").clicked(){self.view.zoom_at(self.viewport_rect,size,self.viewport_rect.center(),1.25);}
                 if ui.add_enabled(image_view::View::can_actual(self.viewport_rect,size),egui::Button::new("100%")).on_hover_text("One source pixel per UI point; unavailable when smaller than Fit.").clicked(){self.view.actual(self.viewport_rect,size);}
             }

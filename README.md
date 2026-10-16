@@ -39,6 +39,13 @@ not required to run the portable application. The physical backend requires an
 existing WinUSB setup; the application does not install or change drivers.
 No macOS or Linux executable is distributed in this release.
 
+For the current workflow and control reference, see the
+[Quick start guide](docs/quick-start.md).
+
+The guide includes current Simulation screenshots. See
+[responsiveness measurements](docs/responsiveness.md) for measured rendering
+costs and observed interaction times, including their scope and limitations.
+
 1. Select the supported USB camera, then choose **Load camera**.
    Choose **Simulation / demo** explicitly to explore without hardware.
 2. Use the **Camera / Acquisition / Image / Export / Advanced** tabs.
