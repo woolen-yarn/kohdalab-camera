@@ -21,14 +21,14 @@ firmware revision, or sensor. See [camera support and validation](docs/camera-su
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.0**, for **Windows x64**.
+The current published baseline is **0.1.1**, for **Windows x64**.
 
 - [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.0/kohdalab-camera-0.1.0-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.0/kohdalab-camera-0.1.0-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.0/SHA256SUMS.txt)
+- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.1/kohdalab-camera-0.1.1-windows-x64.zip)
+- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.1/kohdalab-camera-0.1.1-source.zip)
+- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.1/SHA256SUMS.txt)
 
-Extract the entire Windows ZIP and launch `camera-lab.exe`. Keep
+Extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
 not required to run the portable application. The physical backend requires an
 existing WinUSB setup; the application does not install or change drivers.
@@ -114,6 +114,9 @@ Unit tests do not operate a physical camera. Building for another operating
 system does not establish physical-backend support or distribution readiness.
 
 ## License and provenance
+
+The application icon is project artwork generated for KohdaLab Camera; the PNG
+source and Windows ICO are included under the project license.
 
 Project code is MIT licensed. Retain [LICENSE](LICENSE),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the texts under

@@ -4,7 +4,9 @@ The application started from an independently written Rust implementation in an
 isolated workspace. Legacy application source, manufacturer binaries,
 disassembly output, private USB traffic captures, and manufacturer artwork were
 not incorporated into the source or release. The icon and Windows manifest are
-project-authored assets.
+project assets. The current camera icon artwork was generated for this project
+with OpenAI image generation; its original PNG, derived Windows ICO, and
+conversion script are included under the project license.
 
 Sensor dimensions, public register specifications, and timing were studied from
 the public Micron MT9T001 datasheet. Public ScopeTek implementations

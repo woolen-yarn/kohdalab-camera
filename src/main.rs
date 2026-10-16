@@ -514,6 +514,7 @@ fn main() -> eframe::Result {
                 // Repainting remains driven by readiness and the bounded status timer.
                 vsync: false,
                 viewport: egui::ViewportBuilder::default()
+                    .with_icon(application_icon())
                     .with_inner_size([640., 480.])
                     .with_min_inner_size([520., 360.]),
                 ..Default::default()
@@ -970,4 +971,13 @@ mod tests {
             assert_eq!(app.close_started, Some(zero));
         }
     }
+}
+
+// Use the same project artwork for native windows and the packaged executable.
+fn application_icon() -> egui::IconData {
+    let image = image::load_from_memory(include_bytes!("../assets/kohdalab-camera.png"))
+        .expect("embedded application icon must be valid PNG")
+        .into_rgba8();
+    let (width, height) = image.dimensions();
+    egui::IconData { rgba: image.into_raw(), width, height }
 }

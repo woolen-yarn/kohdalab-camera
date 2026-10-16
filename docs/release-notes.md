@@ -1,23 +1,16 @@
-# KohdaLab Camera 0.1.0
+# KohdaLab Camera 0.1.1
 
-The first official development baseline for a Rust laboratory-camera platform.
-The current physical backend is limited to the tested ScopeTek-family USB
-`0547:4d33` / Micron MT9T001 unit on Windows x64. Multi-vendor camera support is a
-long-term goal, not a capability of this release.
+Windows application branding update for the current development baseline.
 
-The portable release contains the application, a separate acquisition helper,
-MIT project source, and dependency license notices. Features include camera
-selection, five control tabs, default brightness of 1.20×, per-pixel GRBG
-demosaicing, image adjustments, processed PNG/TIFF and original RAW exports,
-full-sensor capture with Live restoration, separate acquisition/preview FPS,
-and host UTC frame-acceptance timestamps.
+- The portable application is named **KohdaLab Camera.exe**.
+- A new camera icon is embedded in the EXE and used by the native window.
+- Explorer file properties identify the product as **KohdaLab Camera**.
+- The original icon artwork, PNG, multi-resolution ICO, and conversion script
+  are included in the source repository.
 
-Pre-publication feature code was checked for physical Live acquisition, exports
-at both resolutions, pixel agreement, and normal shutdown. The build with
-publication names and diagnostic paths has different hashes and has not been
+Acquisition, image processing, device support, and session cleanup behavior are
+unchanged. Physical support remains limited to the tested ScopeTek-family USB
+`0547:4d33` / Micron MT9T001 configuration on Windows x64. This build has not been
 physically retested. Ordinary mouse interaction, color/field-of-view calibration,
-and arbitrary window-size persistence remain incomplete. Long-duration testing
-is deferred. This release does not represent full product qualification.
-
-Repository documentation may evolve after the tag; the existing 0.1.0 download
-archives retain their original contents and checksums.
+and arbitrary window-size persistence remain open; long-duration testing is
+deferred. See the README and camera support matrix for the validation scope.
