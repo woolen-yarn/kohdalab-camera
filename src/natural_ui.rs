@@ -14,7 +14,7 @@ impl App {
             && self.session.state==camera_lab::session::State::Disconnected
             && self.session.requested_revision.is_none()
     }
-    fn picker_connect_ready(&self)->bool {self.can_connect() && (self.picker_simulation || (self.scan_rx.is_none() && self.selected.and_then(|i|self.devices.get(i)).is_some()))}
+    fn picker_connect_ready(&self)->bool {self.can_connect() && (self.picker_simulation || (self.scan_rx.is_none() && self.selected.and_then(|i|self.devices.get(i)).is_some_and(|d|camera_lab::driver_policy::connection_error(d).is_none())))}
     fn connect_picker(&mut self) {if self.picker_connect_ready() {if self.picker_simulation {self.request(Some(Source::Simulation));} else if let Some(d)=self.selected.and_then(|i|self.devices.get(i)).cloned() {self.request(Some(Source::Physical(d)));}}}
     pub(super) fn change_camera(&mut self) {
         self.request(None);
@@ -136,6 +136,11 @@ impl App {
                     ui.collapsing("Other USB devices",|ui| {for d in &self.other_devices {ui.label(format!("{} · {:04x}:{:04x} (unsupported)",d.product_string().unwrap_or("USB device"),d.vendor_id(),d.product_id())).on_hover_text(format!("{d:?}"));}});
                 });
             } else {ui.label("Software simulation · no camera required");}
+            #[cfg(windows)]
+            if !self.picker_simulation {if let Some(d)=self.selected.and_then(|i|self.devices.get(i)) {
+                if let Some(error)=camera_lab::driver_policy::connection_error(d) {ui.label(error);}
+                else {ui.weak("Using existing WinUSB driver").on_hover_text("Installed drivers are preserved. No driver installation or automatic replacement occurs.");}
+            }}
             ui.separator();
             let ready=self.can_connect();
             if parity_ui::primary_action(ui,self.picker_connect_ready(),"Load camera").clicked() {self.connect_picker();}

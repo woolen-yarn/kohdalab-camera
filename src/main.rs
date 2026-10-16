@@ -540,6 +540,27 @@ impl eframe::App for App {
     }
 }
 fn main() -> eframe::Result {
+    // Explicit support command: enumeration only; no Worker, USB open or helper launch.
+    if std::env::args().nth(1).as_deref()==Some("--startup-report") {
+        let result=(|| -> Result<(),String> {
+            let destination=std::env::args().nth(2).ok_or("Expected a new JSON output path")?;
+            let devices=nusb::list_devices().wait().map_err(|e|e.to_string())?;
+            let cameras:Vec<_>=devices.filter(|d|d.vendor_id()==0x0547 && d.product_id()==0x4d33).map(|d| {
+                #[cfg(windows)] let driver=d.driver().map(str::to_owned);
+                #[cfg(not(windows))] let driver:Option<String>=None;
+                serde_json::json!({"product":d.product_string(),"usb_id":"0547:4d33","installed_driver":driver,
+                    "driver_connection_error":camera_lab::driver_policy::connection_error(&d)})
+            }).collect();
+            let helper=std::env::current_exe().map_err(|e|e.to_string())?.with_file_name("continuous-helper.exe");
+            let report=serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,
+                "driver_policy":"preserve-installed-driver/v1","vendor_sdk_backend_available":false,
+                "helper_present":helper.is_file(),"cameras":cameras,"usb_opens":0,"helper_starts":0,"driver_changes":0});
+            let file=std::fs::OpenOptions::new().write(true).create_new(true).open(destination).map_err(|e|e.to_string())?;
+            serde_json::to_writer_pretty(file,&report).map_err(|e|e.to_string())
+        })();
+        if let Err(e)=result {eprintln!("Startup report failed: {e}");std::process::exit(1);}
+        return Ok(());
+    }
     if std::env::args().nth(1).as_deref() == Some("--physical-adapter-test") {
         #[cfg(feature = "input-diagnostics")]
         {

@@ -562,6 +562,10 @@ fn startup(
 ) -> io::Result<()> {
     let result = (|| {
         let helper = std::env::current_exe()?.with_file_name("continuous-helper.exe");
+        if !helper.is_file() {
+            return Err(io::Error::new(io::ErrorKind::NotFound,
+                "continuous-helper.exe is missing. Extract or reinstall the complete application before connecting."));
+        }
         let legacy = helper.with_file_name("physical-camera.lock");
         if legacy.try_exists()? {
             return Err(io::Error::other(
@@ -1712,6 +1716,7 @@ fn physical_backend(b: &Bootstrap, owner: &runtime::OwnerPort) -> Outcome {
             return Err("@ID Ambiguous device".into());
         }
         owner.checkpoint()?;
+        if let Some(error)=crate::driver_policy::connection_error(&info) {return Err(error.into());}
         let device = info.open().wait().map_err(|e| crate::diagnostic::backend_text("@OP",e.to_string()))?;
         opened = true;
         let config = device.active_configuration().map_err(|e| crate::diagnostic::backend_text("@DS",e.to_string()))?;

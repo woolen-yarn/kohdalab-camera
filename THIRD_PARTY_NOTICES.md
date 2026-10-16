@@ -1,5 +1,11 @@
 # Third-party notices
 
+The optional Windows Setup uses unmodified NSIS 3.12 bootstrap/uninstaller code
+and its zlib compression module (zlib/libpng license). Upstream notices are in
+`third-party-licenses/nsis-3.12/COPYING`; that file also documents other NSIS
+compression modules not selected by this installer. The NSIS compiler and its
+archive are development tools and are not bundled in Setup.
+
 The local `capability-platform` crate is part of this independently rebuilt
 application, licensed under MIT (see `platform/LICENSE`). Its source and manifest
 must accompany source distributions. It is not a registry-vendored dependency

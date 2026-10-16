@@ -545,6 +545,7 @@ impl Factory for RealFactory {
         request.settings.validate()?;
         match &request.source {
             Source::Physical(info) => {
+                if let Some(error)=crate::driver_policy::connection_error(info) {return Err(error.into());}
                 #[cfg(windows)]
                 {
                     let identity = crate::continuous_session::Identity::from_device(info)

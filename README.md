@@ -39,6 +39,11 @@ not required to run the portable application. The physical backend requires an
 existing WinUSB setup; the application does not install or change drivers.
 No macOS or Linux executable is distributed in this release.
 
+See [Windows installation, drivers and signing](docs/windows-distribution.md)
+for the installed-driver policy, Setup workflow, signature status and execution
+warning diagnosis. Official SDK integration is deferred; existing manufacturer
+drivers are preserved rather than replaced.
+
 For the current workflow and control reference, see the
 [Quick start guide](docs/quick-start.md).
 

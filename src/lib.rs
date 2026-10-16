@@ -15,6 +15,7 @@ pub mod preview_pipeline;
 pub mod session;
 pub mod sensor_contract;
 pub mod startup;
+pub mod driver_policy;
 pub mod product;
 pub mod measurement;
 pub mod image_export;

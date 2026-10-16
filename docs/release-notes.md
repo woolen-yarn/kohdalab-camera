@@ -1,3 +1,20 @@
+# KohdaLab Camera 0.1.10
+
+- Preserve existing Windows driver bindings. Reuse WinUSB only when it is the
+  active binding; a different or missing driver receives an explanation instead
+  of a silent replacement or unsupported acquisition attempt.
+- Recheck the binding in the physical helper. Detect a missing helper before
+  creating a physical-session interlock.
+- Add `--startup-report new-file.json`, an enumeration-only support report that
+  does not open USB or launch the acquisition helper.
+- Add per-user Windows Setup tooling and a signature audit, with documented
+  organization-signing prerequisites and honest unsigned-release status.
+
+Official GR300 SDK integration is deferred at the owner's request. The existing
+WinUSB backend remains the only implemented physical acquisition backend.
+Version 0.1.9 retains the last five-minute physical validation; new 0.1.10 checks
+cover driver policy, UI regression and Windows startup/installation behavior.
+
 # KohdaLab Camera 0.1.9
 
 - Distinguish the whole-image **Fit** view from magnification such as
