@@ -1,0 +1,121 @@
+{
+  "version": "0.1.11",
+  "scope": "Unsigned Windows CI/build metadata and workstation installation; no new physical capture test",
+  "ci": {
+    "url": "https://github.com/woolen-yarn/kohdalab-camera/actions/runs/39187983298",
+    "conclusion": "success",
+    "source_commit": "14d7cc156e496b6f2e8ea65c00414e05b4cf8cdb",
+    "artifacts": [
+      {
+        "digest": "sha256:9ddd25869f56380530f6bfe870c4db68f0a7604a19e36e9817d0e87b25a44222",
+        "expired": false,
+        "id": 12159300328,
+        "name": "windows-unsigned-14d7cc156e496b6f2e8ea65c00414e05b4cf8cdb",
+        "size_in_bytes": 17127154
+      },
+      {
+        "digest": "sha256:282d2267d9b5fe25496e286b9891aa96fe488f615377256417e42787b2b19b63",
+        "expired": false,
+        "id": 12159116912,
+        "name": "signpath-inputs-14d7cc156e496b6f2e8ea65c00414e05b4cf8cdb",
+        "size_in_bytes": 4100779
+      }
+    ],
+    "validation": {
+      "version": "0.1.11",
+      "scope": "Disposable Windows CI installation and enumeration only; no physical capture",
+      "metadata": [
+        {
+          "name": "KohdaLab Camera.exe",
+          "product": "KohdaLab Camera",
+          "version": "0.1.11",
+          "signature": "NotSigned",
+          "sha256": "b81f2d1d0ce2ba492bae23010b8c990f2df78820256fcf3a6d18650b625dc873"
+        },
+        {
+          "name": "continuous-helper.exe",
+          "product": "KohdaLab Camera",
+          "version": "0.1.11",
+          "signature": "NotSigned",
+          "sha256": "7e1b3ea809162ba7bd60dc339dea4912cd5a4f820180e5fad37ec153b12636a6"
+        },
+        {
+          "name": "Uninstall KohdaLab Camera.exe",
+          "product": "KohdaLab Camera",
+          "version": "0.1.11",
+          "signature": "NotSigned",
+          "sha256": "f1b6b04260a24ceab54ed119862b61bed541c684031d469ca412b8b04ffb209e"
+        },
+        {
+          "name": "KohdaLab-Camera-0.1.11-Setup.exe",
+          "product": "KohdaLab Camera",
+          "version": "0.1.11",
+          "signature": "NotSigned",
+          "sha256": "3027966ba4c84b74c364db6106d0383fd0ce6a6cf17c8149b4f7bb365b2108b1"
+        }
+      ],
+      "runtime_hashes_match": true,
+      "exported_uninstaller_matches": true,
+      "fresh_install": true,
+      "update": true,
+      "uninstall": true,
+      "unrelated_file_preserved": true,
+      "usb_opens": 0,
+      "helper_starts": 0
+    }
+  },
+  "workstation": {
+    "owners": 0,
+    "version": "0.1.11",
+    "runtime": {
+      "continuous-helper.exe": "7e1b3ea809162ba7bd60dc339dea4912cd5a4f820180e5fad37ec153b12636a6",
+      "KohdaLab Camera.exe": "b81f2d1d0ce2ba492bae23010b8c990f2df78820256fcf3a6d18650b625dc873"
+    },
+    "desktop_target_valid": true,
+    "metadata": [
+      {
+        "signature": "NotSigned",
+        "name": "KohdaLab Camera.exe",
+        "version": "0.1.11"
+      },
+      {
+        "signature": "NotSigned",
+        "name": "continuous-helper.exe",
+        "version": "0.1.11"
+      },
+      {
+        "signature": "NotSigned",
+        "name": "Uninstall KohdaLab Camera.exe",
+        "version": "0.1.11"
+      }
+    ],
+    "startup": {
+      "cameras": [
+        {
+          "driver_connection_error": null,
+          "installed_driver": "WINUSB",
+          "product": "3.1M USB2.0 Camera",
+          "usb_id": "0547:4d33"
+        }
+      ],
+      "driver_changes": 0,
+      "driver_policy": "preserve-installed-driver/v1",
+      "helper_present": true,
+      "helper_starts": 0,
+      "platform": "windows",
+      "usb_opens": 0,
+      "vendor_sdk_backend_available": false,
+      "version": "0.1.11"
+    },
+    "source_commit": "14d7cc156e496b6f2e8ea65c00414e05b4cf8cdb"
+  },
+  "last_physical_capture_validation": {
+    "version": "0.1.9",
+    "record": "validation-0.1.9.json"
+  },
+  "signpath": {
+    "application_submitted": false,
+    "account_integration_configured": false,
+    "configuration": "draft; provider approval pending"
+  }
+}

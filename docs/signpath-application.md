@@ -10,7 +10,7 @@ request was created as part of preparation.
 - Project: KohdaLab Camera.
 - Repository/home page: https://github.com/woolen-yarn/kohdalab-camera
 - Releases: https://github.com/woolen-yarn/kohdalab-camera/releases
-- Existing release: v0.1.10, Windows x64 portable ZIP and per-user EXE installer.
+- Existing release: v0.1.11, Windows x64 portable ZIP and per-user EXE installer.
 - Project license: MIT; dependency and toolchain notices are retained in
   `THIRD_PARTY_NOTICES.md` and `third-party-licenses/`.
 - Repository owner: https://github.com/woolen-yarn
@@ -38,7 +38,8 @@ Suggested reason for requesting signing:
 > and sign the application, helper, uninstaller and installer using a provenance-
 > verified pipeline accepted by SignPath. Current releases are explicitly unsigned.
 
-These statements describe the intended application, not already-completed CI.
+The unsigned build implementation is now available; successful run evidence is
+recorded below after qualification. No SignPath integration is active.
 Use [the official application page](https://signpath.org/apply); adapt this brief
 to the fields shown there rather than treating it as a fixed form schema.
 
@@ -47,16 +48,33 @@ to the fields shown there rather than treating it as a fixed form schema.
 | Condition | Current evidence / required action |
 | --- | --- |
 | Public OSS project | Public repository and MIT root license confirmed. Check the Windows-linked dependency license closure and installer/toolchain exceptions before asserting full license compliance. OSI-approved alternative license choices are not commercial dual-licensing. |
-| Maintained and released | Public source and v0.1.10 release exist. Do not imply a large user base or longstanding reputation; project reputation remains subject to Foundation review. |
+| Maintained and released | Public source and v0.1.11 release exist. Do not imply a large user base or longstanding reputation; project reputation remains subject to Foundation review. |
 | Documented function | README describes supported camera, limitations, exports and installation. |
 | No proprietary bundled SDK | Official SDK integration is deferred. Disclose the public ScopeTek-family protocol implementation and existing provenance notices; do not describe the backend as manufacturer-certified. |
 | Repository/source control | Owner account is identified. Human must confirm authority, team roles and MFA on both services. |
 | Policy and privacy | Draft policy is linked from README. Provider attribution is conditional until acceptance/use. Signed release pages will need the policy link. |
-| Verified automated build | **Not ready:** no `.github/workflows` pipeline exists at preparation time. Current releases were built outside GitHub Actions. Existing binary hashes are evidence of byte identity, not provider-verified CI origin. |
-| PE metadata | GUI and Setup have product/version resources. **Not ready:** helper has no dedicated Windows resource build step; generated uninstaller metadata also needs verification. Both must satisfy SignPath product/version restrictions. |
-| Uninstaller signing | **Not ready:** current NSIS tooling has no qualified uninstaller-signing hook. Confirm the supported multi-stage process before claiming all executable types can be signed. |
-| Installation behavior | v0.1.10 install/update/uninstall and unrelated-file preservation were checked. See `validation-0.1.10.json`; these are not new physical capture results. |
+| Verified automated build | Implemented in `.github/workflows/windows-unsigned.yml`; qualified by successful run `39187983298` for commit `14d7cc156e496b6f2e8ea65c00414e05b4cf8cdb`. GitHub build evidence does not itself mean SignPath-verified origin. |
+| PE metadata | GUI/helper resources now derive product/version from the root package. CI verifies GUI, helper, exported uninstaller and Setup metadata against the same version. |
+| Uninstaller signing | NSIS exports the exact unsigned uninstaller for a separate signing artifact. Provider enrollment and a reviewed signed-input/import stage remain necessary before a fully signed release; disclose this in the application. |
+| Installation behavior | v0.1.11 CI install/update/uninstall and unrelated-file preservation passed. The exact CI runtime was installed and hash/metadata/startup-checked on the workstation. See `validation-0.1.11.json`; no new physical capture test is claimed. |
 | Application approval | Not submitted. The human maintainer must review provider terms and Foundation publisher identity before enrollment. |
+
+## Qualified build evidence for the application
+
+- [Successful Windows run 39187983298](https://github.com/woolen-yarn/kohdalab-camera/actions/runs/39187983298).
+- Source commit: `14d7cc156e496b6f2e8ea65c00414e05b4cf8cdb`.
+- Unsigned distribution GitHub artifact ID: `12159300328`.
+- Initial signing-input GitHub artifact ID: `12159116912`.
+- [Scoped validation and artifact digests](validation-0.1.11.json).
+
+Both artifact file checksum manifests and ZIP CRCs were verified after download.
+GitHub artifact retention is 30 days; rerun the workflow if artifacts have expired
+when applying. Release assets are retained separately, but do not substitute a
+release URL for the original GitHub artifact ID in a future signing request.
+There is enough technical evidence to request eligibility/enrollment review;
+provider acceptance, MFA/role confirmation and production signing setup remain
+external prerequisites. The initial portability/test-setup failures are retained
+in Actions history; the linked run is the successful corrected implementation.
 
 ## Questions to resolve with SignPath
 
@@ -69,33 +87,29 @@ to the fields shown there rather than treating it as a fixed form schema.
 4. Confirm a supported sequence for signing nested executable files, the NSIS
    generated uninstaller, and final Setup with manual release approval.
 
-## Proposed CI integration, after prerequisites are settled
+## Implemented unsigned build and proposed signing integration
 
-1. Add a manually triggered unsigned build that checks out a public commit and
-   uses reviewed, pinned actions and toolchain versions. Use read-only repository
-   permissions, no physical camera, no private `.local` files and no release write
-   token in the build job. Keep signing unavailable to pull requests/forks.
-2. Build both Windows GNU executables with the public commands in README and
-   `Cargo.lock` enforced. Qualify resource-compiler discovery on the chosen runner;
-   current `build.rs` explicitly invokes `x86_64-w64-mingw32-windres`.
-3. Verify source identity without silently rewriting committed inputs; run scoped
-   tests, package notices and record source commit, compiler versions, hashes and
-   the CI artifact/run identity. Pin and verify the NSIS download as well.
-4. After enrollment, configure the exact organization/project/policy/artifact
-   identifiers assigned by SignPath. Install its GitHub integration and credentials
-   only with the maintainer's explicit authorization. Do not check tokens into git.
-5. Submit artifacts using the provider-supported provenance integration, require
-   human approval, and verify Authenticode signatures, identity, timestamps and
-   consistent product/version resources on returned files.
-6. Package/sign in the provider-approved nested order, then generate final
-   manifests/checksums. The current packager requires a clean committed tree and
-   hashes unsigned build outputs; qualify a signed-input packaging path first.
-7. Test a new signed candidate's install/update/uninstall and normal launch, then
-   publish a new version. Never replace v0.1.10 assets with changed signed bytes.
+See [continuous integration](continuous-integration.md) for the workflow's inputs,
+checks, artifact structure and limits. It uses read-only repository permissions,
+pinned Actions and Rust, checks the source identity, builds both executables,
+compiles Setup with a hash-verified NSIS, and exports the unsigned uninstaller.
+It does not require SignPath credentials or access to a physical camera.
 
-This design deliberately does not install a dormant signing workflow with fake
-credentials or an untested artifact configuration. It leaves the application,
-current binaries, historical hashes and Windows security settings unchanged.
+The draft [artifact configuration](../.signpath/first-party-files.draft.xml) and
+[enrollment notes](../.signpath/README.md) describe the initial three-file signing
+request. The draft is well-formed XML, not a provider-validated configuration.
+
+After enrollment, ask SignPath to accept the original GitHub artifact ID with
+origin verification, source-branch restrictions and manual human approval. Then
+qualify signed-input packaging/uninstaller import and final Setup signing before
+publishing any signed release. Confirm the supported nested sequence with the
+provider; unsigned Setup must not be described as fully signed because its loose
+input executables were signed separately. Keep existing unsigned release hashes
+and publish future signed bytes as a new version.
+
+The exact provider identifiers, GitHub App authorization and credentials are not
+invented or configured in advance. Neither a signing request nor enrollment is
+part of this preparation.
 
 ## Maintainer-only enrollment steps
 
@@ -109,4 +123,5 @@ current binaries, historical hashes and Windows security settings unchanged.
 
 Prepared against official conditions on 2026-10-19. Acceptance and review time
 are not guaranteed. No camera run or new binary release is needed for these
-documentation-only changes.
+application preparation. The CI/metadata update has its own unsigned qualification;
+physical capture evidence remains scoped to its original version.

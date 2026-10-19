@@ -26,13 +26,13 @@ firmware revision, or sensor. See [camera support and validation](docs/camera-su
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.10**, for **Windows x64**.
+The current published baseline is **0.1.11**, for **Windows x64**.
 
 - [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows Setup (unsigned)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.10/KohdaLab-Camera-0.1.10-Setup.exe)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.10/kohdalab-camera-0.1.10-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.10/kohdalab-camera-0.1.10-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.10/SHA256SUMS.txt)
+- [Windows Setup (unsigned)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/KohdaLab-Camera-0.1.11-Setup.exe)
+- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/kohdalab-camera-0.1.11-windows-x64.zip)
+- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/kohdalab-camera-0.1.11-source.zip)
+- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/SHA256SUMS.txt)
 
 Run Setup for a per-user installation, or extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
@@ -108,10 +108,17 @@ Default settings: exposure **120 sensor rows**, brightness **1.20×**, gamma
 
 ## Validation and known limitations
 
-Version 0.1.10 adds installed-driver preservation and startup diagnostics. Windows
+Version 0.1.11 is built and installation-tested in [public Windows CI](https://github.com/woolen-yarn/kohdalab-camera/actions/runs/39187983298).
+GUI/helper/Setup/uninstaller metadata and unsigned status, runtime hashes,
+install/update/uninstall and user-file preservation passed. The exact CI runtime
+was installed and startup-checked on the workstation. See
+[validation](docs/validation-0.1.11.json) and [CI details](docs/continuous-integration.md).
+No new physical capture validation is claimed for this build.
+
+Version 0.1.10 added installed-driver preservation and startup diagnostics. Windows
 Setup was checked for fresh install, update, uninstall and preservation of an
 unrelated user file. Its application, helper, uninstaller and Setup are unsigned;
-organization signing awaits certificate enrollment. The last physical capture
+SignPath application preparation is available; enrollment/signing are not active. The last physical capture
 validation is version 0.1.9 below, not a new 0.1.10 hardware test.
 
 The exact published version 0.1.9 binaries completed 399.4 seconds of Live

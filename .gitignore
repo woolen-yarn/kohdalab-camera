@@ -5,3 +5,4 @@
 .DS_Store
 /.local/
 __pycache__/
+/signing-inputs/

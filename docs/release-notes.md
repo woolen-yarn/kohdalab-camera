@@ -1,3 +1,22 @@
+# KohdaLab Camera 0.1.11
+
+- Add public, read-only GitHub Actions Windows GNU builds with pinned Rust and
+  Actions, a hash-verified NSIS compiler, source identity checks and unsigned
+  distribution/signing-input artifacts.
+- Derive GUI/helper PE product/version resources from the root package version;
+  verify matching metadata on GUI, helper, uninstaller and Setup.
+- Export the exact unsigned NSIS uninstaller for future SignPath enrollment.
+- Qualify synthetic-frame GUI tests, fresh install, update, uninstall, unrelated
+  file preservation and no-acquisition startup diagnostics in Windows CI.
+- Install the exact CI runtime on the workstation and verify hashes, version,
+  shortcut target and startup report. Organize current source/output paths and
+  archive earlier validation/staging data without deleting it.
+
+[CI and installation validation](validation-0.1.11.json) is scoped to build,
+metadata and installation. Physical capture validation remains v0.1.9. This
+release remains unsigned; no SignPath application or account integration was
+submitted. See [application preparation](signpath-application.md).
+
 # KohdaLab Camera 0.1.10
 
 - Preserve existing Windows driver bindings. Reuse WinUSB only when it is the

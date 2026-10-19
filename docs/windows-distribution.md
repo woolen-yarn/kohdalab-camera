@@ -80,6 +80,13 @@ or install a compiler. [NSIS](https://nsis.sourceforge.io/Docs/Chapter4.html)
 
 ## Verified installation
 
+Version 0.1.11 additionally passed [public Windows CI](https://github.com/woolen-yarn/kohdalab-camera/actions/runs/39187983298),
+including metadata/unsigned-status checks on all executable types, matching
+exported/installed uninstaller bytes, fresh install, update, uninstall and
+unrelated-file preservation. The exact CI runtime was installed and startup-
+checked on the workstation. See [v0.1.11 validation](validation-0.1.11.json).
+This remains an unsigned release without new physical capture qualification.
+
 Version 0.1.10 Setup was compiled with NSIS 3.12 using zlib after checking all
 687 build inputs. Fresh per-user install, same-version update and uninstall
 passed on Windows; an unrelated test file survived both update and uninstall.
