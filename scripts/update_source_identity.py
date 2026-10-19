@@ -13,7 +13,7 @@ for folder in ['src', 'helper-entry', 'platform', 'assets']:
     paths.extend(p for p in (root / folder).rglob('*') if p.is_file()
                  and p.suffix in {'.rs', '.toml', '.lock', '.rc', '.manifest', '.ico', '.png'})
 digest = hashlib.sha256()
-for path in sorted(set(paths)):
+for path in sorted(set(paths), key=lambda p: p.relative_to(root).as_posix()):
     digest.update(path.relative_to(root).as_posix().encode() + b'\0')
     digest.update(path.read_bytes() + b'\0')
 marker = digest.hexdigest()

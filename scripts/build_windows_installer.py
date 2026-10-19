@@ -315,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
         command = build_command(compiler_path(args.makensis), script, output, manifest["version"], stage, commit, rollback, cleanup_backup, uninstall)
         if args.export_uninstaller:
             exported = args.export_uninstaller.resolve()
-            if exported.exists() or payload == exported or payload in exported.parents:
+            if exported == output or exported.suffix.lower() != '.exe' or exported.exists() or payload == exported or payload in exported.parents:
                 raise ValueError("uninstaller export must be a new path outside the payload")
             if any(c in str(exported) for c in '$"%&|<>^\r\n'):
                 raise ValueError("unsupported character in uninstaller export path")

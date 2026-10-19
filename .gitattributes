@@ -1,3 +1,6 @@
-# Third-party license and copyright texts are retained for redistribution.
-# They are not application implementation and should not dominate language stats.
-third-party-licenses/** linguist-vendored
+# Source identities must describe the same bytes on Mac and Windows checkouts.
+* text=auto eol=lf
+*.ico -text
+*.png -text
+*.exe -text
+*.zip -text
