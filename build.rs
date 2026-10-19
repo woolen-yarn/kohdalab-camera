@@ -1,21 +1,21 @@
 #![forbid(unsafe_code)]
+
+mod windows_resources {
+    include!("assets/windows_resources.rs");
+}
+
 fn main() {
-    for path in [
-        "assets/windows.rc",
-        "assets/windows.manifest",
-        "assets/camera.ico",
-    ] {
-        println!("cargo:rerun-if-changed={path}");
-    }
-    if std::env::var("TARGET").unwrap() == "x86_64-pc-windows-gnu" {
-        let output = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap())
-            .join("camera-resource.o");
-        let status = std::process::Command::new("x86_64-w64-mingw32-windres")
-            .args(["-i", "assets/windows.rc", "-o"])
-            .arg(&output)
-            .status()
-            .expect("MinGW windres is required");
-        assert!(status.success(), "Windows resources must compile");
-        println!("cargo:rustc-link-arg-bin=camera-lab={}", output.display());
-    }
+    let workspace_root = std::path::PathBuf::from(
+        std::env::var_os("CARGO_MANIFEST_DIR").expect("Cargo must set CARGO_MANIFEST_DIR"),
+    );
+    windows_resources::compile(
+        &workspace_root,
+        windows_resources::Metadata {
+            binary: "camera-lab",
+            file_description: "KohdaLab Camera",
+            internal_name: "kohdalab-camera",
+            original_filename: "KohdaLab Camera.exe",
+            include_gui_resources: true,
+        },
+    );
 }

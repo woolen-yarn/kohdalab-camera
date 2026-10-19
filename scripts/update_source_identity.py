@@ -5,6 +5,7 @@ hashes in release manifests remain the authoritative distribution identities.
 """
 from pathlib import Path
 import hashlib
+import sys
 
 root = Path(__file__).resolve().parents[1]
 paths = [root / name for name in ['Cargo.toml', 'Cargo.lock', 'build.rs']]
@@ -16,5 +17,11 @@ for path in sorted(set(paths)):
     digest.update(path.relative_to(root).as_posix().encode() + b'\0')
     digest.update(path.read_bytes() + b'\0')
 marker = digest.hexdigest()
-(root / 'RECORDER-SOURCE-ID').write_text(marker + '\n')
+if sys.argv[1:] == ['--check']:
+    if (root / 'RECORDER-SOURCE-ID').read_text().strip() != marker:
+        raise SystemExit('Source identity is stale; refresh it before committing the build inputs.')
+elif sys.argv[1:]:
+    raise SystemExit('Usage: update_source_identity.py [--check]')
+else:
+    (root / 'RECORDER-SOURCE-ID').write_text(marker + '\n')
 print(marker)

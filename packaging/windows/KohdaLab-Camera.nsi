@@ -63,6 +63,13 @@ VIAddVersionKey /LANG=1033 "FileVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey /LANG=1033 "CompanyName" "${PRODUCT_PUBLISHER}"
 VIAddVersionKey /LANG=1033 "FileDescription" "KohdaLab Camera installer"
 VIAddVersionKey /LANG=1033 "OriginalFilename" "KohdaLab-Camera-Setup.exe"
+VIAddVersionKey /LANG=1033 "LegalCopyright" "MIT licensed; see accompanying license notices"
+
+; Export an exact unsigned uninstaller without running Setup on a build runner.
+; A provider-approved signing/import stage is intentionally not enabled yet.
+!ifdef EXPORT_UNINSTALLER
+  !uninstfinalize 'cmd /C copy /B /Y "%1" "${EXPORT_UNINSTALLER}" >nul' = 0
+!endif
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY

@@ -279,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--makensis", help="path to an existing makensis executable")
     parser.add_argument("--work-dir", type=Path, help="directory for generated explicit payload includes")
     parser.add_argument("--dry-run", action="store_true", help="validate payload and render includes without invoking NSIS")
+    parser.add_argument("--export-uninstaller", type=Path, help="also export the unsigned NSIS uninstaller for signing preparation (Windows compiler)")
     args = parser.parse_args(argv)
     try:
         manifest = validate_payload(args.payload)
@@ -312,9 +313,19 @@ def main(argv: list[str] | None = None) -> int:
         if output.exists():
             raise ValueError(f"refusing to overwrite installer output: {output}")
         command = build_command(compiler_path(args.makensis), script, output, manifest["version"], stage, commit, rollback, cleanup_backup, uninstall)
+        if args.export_uninstaller:
+            exported = args.export_uninstaller.resolve()
+            if exported.exists() or payload == exported or payload in exported.parents:
+                raise ValueError("uninstaller export must be a new path outside the payload")
+            if any(c in str(exported) for c in '$"%&|<>^\r\n'):
+                raise ValueError("unsupported character in uninstaller export path")
+            exported.parent.mkdir(parents=True, exist_ok=True)
+            command.insert(-1, f"/DEXPORT_UNINSTALLER={exported}")
         subprocess.run(command, check=True)
         if not output.is_file() or output.stat().st_size == 0:
             raise ValueError("NSIS did not produce a non-empty installer")
+        if args.export_uninstaller and not exported.is_file():
+            raise ValueError("NSIS did not export the uninstaller")
         print(json.dumps({**result, "sha256": sha256(output)}, indent=2))
         return 0
     except ValueError as error:

@@ -1,0 +1,117 @@
+name: Windows unsigned build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-unsigned.yml'
+      - '**/*.rs'
+      - '**/Cargo.toml'
+      - 'Cargo.lock'
+      - 'assets/**'
+      - 'packaging/**'
+      - 'scripts/**'
+      - 'RECORDER-SOURCE-ID'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-unsigned-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: target
+      RUST_VERSION: '1.99.1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Configure pinned Rust and GNU tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          rustup toolchain install $env:RUST_VERSION --profile minimal --target x86_64-pc-windows-gnu
+          if ($LASTEXITCODE) { throw 'Rust installation failed' }
+          rustup override set $env:RUST_VERSION
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          $tools = Split-Path $gcc
+          if (!(Test-Path (Join-Path $tools 'windres.exe'))) { throw 'GNU resource compiler missing' }
+          "CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=$gcc" >> $env:GITHUB_ENV
+          "WINDRES=$(Join-Path $tools 'windres.exe')" >> $env:GITHUB_ENV
+          $tools >> $env:GITHUB_PATH
+          rustc -Vv
+          cargo -V
+          & $gcc --version
+      - name: Verify committed source identity and packaging checks
+        shell: pwsh
+        run: |
+          python scripts/update_source_identity.py --check
+          if ($LASTEXITCODE) { throw 'Source identity mismatch' }
+          python scripts/test_build_windows_installer.py
+          if ($LASTEXITCODE) { throw 'Packaging tests failed' }
+      - name: Test camera policy and GUI without hardware
+        shell: pwsh
+        run: |
+          cargo test --locked --target x86_64-pc-windows-gnu --lib driver_policy
+          if ($LASTEXITCODE) { throw 'Driver policy tests failed' }
+          cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab natural_ui
+          if ($LASTEXITCODE) { throw 'GUI tests failed' }
+      - name: Build Windows application and helper
+        shell: pwsh
+        run: |
+          cargo build --locked --release --target x86_64-pc-windows-gnu --package camera-lab --bin camera-lab --package continuous-helper-entry --bin continuous-helper
+          if ($LASTEXITCODE) { throw 'Release build failed' }
+      - name: Package and compile Setup
+        shell: pwsh
+        run: |
+          python scripts/package_windows.py --target-dir target --output dist
+          if ($LASTEXITCODE) { throw 'Packaging failed' }
+          python scripts/fetch_nsis.py --output "$env:RUNNER_TEMP/nsis"
+          if ($LASTEXITCODE) { throw 'NSIS verification failed' }
+          $version = (Get-Content dist/windows/RELEASE-MANIFEST.json -Raw | ConvertFrom-Json).version
+          python scripts/build_windows_installer.py --payload dist/windows --output "dist/KohdaLab-Camera-$version-Setup.exe" --makensis "$env:RUNNER_TEMP/nsis/nsis-3.12/Bin/makensis.exe" --export-uninstaller "signing-inputs/Uninstall KohdaLab Camera.exe"
+          if ($LASTEXITCODE) { throw 'Installer build failed' }
+          Copy-Item 'dist/windows/KohdaLab Camera.exe','dist/windows/continuous-helper.exe' signing-inputs
+      - name: Validate installation and executable metadata
+        shell: pwsh
+        run: |
+          ./scripts/validate_windows_release.ps1 -DistributionDirectory dist -SigningInputsDirectory signing-inputs
+      - name: Record build origin and final checksums
+        shell: pwsh
+        run: |
+          python scripts/finalize_ci_artifacts.py --distribution dist --signing-inputs signing-inputs
+          if ($LASTEXITCODE) { throw 'Artifact checks failed' }
+          git diff --exit-code
+          if ($LASTEXITCODE) { throw 'Build modified committed source' }
+      - name: Upload unsigned distribution
+        id: distribution
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-unsigned-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload future signing inputs
+        id: signing
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signpath-inputs-${{ github.sha }}
+          path: signing-inputs/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Link evidence
+        shell: pwsh
+        env:
+          DISTRIBUTION_URL: ${{ steps.distribution.outputs.artifact-url }}
+          SIGNING_URL: ${{ steps.signing.outputs.artifact-url }}
+        run: |
+          "Unsigned build only; no signing request or release publication." >> $env:GITHUB_STEP_SUMMARY
+          "[Windows distribution]($env:DISTRIBUTION_URL)" >> $env:GITHUB_STEP_SUMMARY
+          "[Future signing inputs]($env:SIGNING_URL)" >> $env:GITHUB_STEP_SUMMARY
