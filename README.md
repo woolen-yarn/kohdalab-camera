@@ -45,6 +45,14 @@ for the installed-driver policy, Setup workflow, signature status and execution
 warning diagnosis. Official SDK integration is deferred; existing manufacturer
 drivers are preserved rather than replaced.
 
+### Code signing policy
+
+Current Windows downloads are **unsigned**. Free SignPath Foundation signing is
+being prepared; no application has been submitted or accepted. See the
+[Code signing policy](docs/code-signing-policy.md) and
+[application preparation](docs/signpath-application.md) for current status,
+privacy, intended approval roles and outstanding build requirements.
+
 For the current workflow and control reference, see the
 [Quick start guide](docs/quick-start.md).
 

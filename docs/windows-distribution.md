@@ -128,10 +128,14 @@ For a signed release, use a publisher-owned certificate or signing service:
 4. Publish checksums only after all signing steps. Keep private keys and service
    credentials outside source, logs and distribution archives.
 
-The intended signing identity is the laboratory/organization, as requested by
-the owner. Organization identity validation and certificate/service enrollment
-remain external prerequisites; no enrollment, purchase or credential change was
-performed. The current installer does not itself provide a signing identity. A signed
+Current releases remain unsigned. The owner has requested preparation for the
+free SignPath Foundation program, without submitting an application yet. Its
+certificate publisher would be SignPath Foundation, not the laboratory or
+university. See the [Code signing policy](code-signing-policy.md) and
+[application preparation](signpath-application.md). A laboratory/organization
+certificate remains a separate alternative requiring organization validation
+and enrollment. No enrollment, purchase or credential change was performed.
+The current installer does not itself provide a signing identity. A signed
 release must qualify the full signing pipeline, including the NSIS uninstaller;
 an unsigned build must remain labelled unsigned.
 
