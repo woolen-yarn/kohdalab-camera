@@ -59,9 +59,15 @@ jobs:
       - name: Test camera policy and GUI without hardware
         shell: pwsh
         run: |
+          # Windows fixture tests use the real bounded helper with synthetic frames.
+          cargo build --locked --target x86_64-pc-windows-gnu --package continuous-helper-entry --bin continuous-helper
+          if ($LASTEXITCODE) { throw 'Fixture helper build failed' }
+          New-Item -ItemType Directory -Force target/x86_64-pc-windows-gnu/debug/deps | Out-Null
+          Copy-Item target/x86_64-pc-windows-gnu/debug/continuous-helper.exe target/x86_64-pc-windows-gnu/debug/deps/continuous-helper.exe
+          $env:INTEGRATED_UX_FAKE_ROOT = Join-Path $env:RUNNER_TEMP ('camera-fixture-' + [Guid]::NewGuid().ToString('N'))
           cargo test --locked --target x86_64-pc-windows-gnu --lib driver_policy
           if ($LASTEXITCODE) { throw 'Driver policy tests failed' }
-          cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab natural_ui
+          cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab natural_ui -- --test-threads=1
           if ($LASTEXITCODE) { throw 'GUI tests failed' }
       - name: Build Windows application and helper
         shell: pwsh
