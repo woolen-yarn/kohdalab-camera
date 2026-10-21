@@ -52,3 +52,21 @@ Run `cargo test --locked --bin camera-lab` for application-side changes. Windows
 GUI tests also require the synthetic-frame helper and a new private fixture root;
 the unsigned CI workflow supplies both. Unit/synthetic-frame checks do not
 establish physical capture or optical qualification.
+
+---
+
+# コード構造と保守境界 / Code structure and maintenance boundaries（日本語）
+
+コードは camera transport、session ownership、image processing、export、presentation を分離します。GUI application は複数の関心事を調整するため、ここでの変更は小さくし既存 regression test で確認します。application state/worker/event は `crates/camera-lab/src/main.rs`、picker/presentation/viewport は `natural_ui.rs`、inspector/appearance は `parity_ui.rs`、Fit/zoom/pan は `image_view.rs`、preference/schema/initial Live size は `preferences.rs`、image correction/display recipe は `display_recipe.rs`、bounded preview は `preview_pipeline.rs`、image/RAW/metadata export は `image_export.rs`、session state/worker/lifecycle guardian は `session.rs`、continuous helper transport は `continuous_session/`、driver eligibility は `driver_policy.rs`、USB discovery catalog は `device_catalog.rs`、Windows PE resource は `assets/windows_resources.rs`、packaging/disposable-runner check は `scripts/` と `.github/workflows/windows-unsigned.yml` にあります。次 backend の boundary、GR300 固有 coupling、qualification は [extensibility](extensibility.md) を参照してください。
+
+## cleanup 中の挙動維持 / Preserving behavior during cleanup
+
+- `preferences.rs` の default window size と saved-settings schema value を initialization/persistence/reset で再利用します。constant の値変更は refactor でなく behavior/schema change です。
+- 選択した physical device は shared picker lookup で解決します。connection-state、scan、installed-driver gate の順序を保持し、presentation に connection/restart authority を与えません。
+- test-only constructor は `cfg(test)` 下で compile し、production startup は normal initialization/preference-loading path を使い続けます。
+- camera ownership、shutdown deadline、interlock、sensor protocol、image formula、export format、既存 error text は incidental UI cleanup の対象外です。別 scope の変更と validation が必要です。
+- tracked build input を変更したら `RECORDER-SOURCE-ID` を refresh します。これは current source を記録するもので、historical release/validation hash を変更しません。
+
+## Regression test
+
+`crates/camera-lab/src/app_tests.rs` は application regression test を既存 `tests` module として保持し、production event handling の閲覧性を上げつつ test name/assertion を維持します。focused UI/image-view/preference test は各 module、cross-module scenario は `parity_tests.rs` と `integrated_ux_tests.rs` にあります。application-side change は `cargo test --locked --bin camera-lab` を実行します。Windows GUI test には synthetic-frame helper と新しい private fixture root も必要で unsigned CI workflow が供給します。unit/synthetic-frame check は physical capture/optical qualification の根拠ではありません。

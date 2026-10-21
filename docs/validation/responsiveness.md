@@ -67,3 +67,23 @@ normally. See [the scoped validation record](validation-0.1.9.json).
 Optimize a measured slow stage rather than changing USB behavior or reducing
 image fidelity to improve a headline number. These observations do not identify
 an additional CPU bottleneck or demonstrate a new physical FPS improvement.
+
+---
+
+# 応答性測定 / Responsiveness measurements（日本語）
+
+Version 0.1.9 は development Mac の release build で測定し、CPU rendering time と観測した UI interaction time を区別しています。
+
+## Native Simulation の観測 / Native Simulation observations
+
+UI automation tool による一回の観測では、camera selection まで **1.154 s**、Simulation を読み visible image まで **1.335 s**、monochrome を visible grayscale に切替えるまで **1.322 s**、PNG save の確認から visible `Image saved` message まで **0.701 s** でした。各 interval は input delivery/state inspection と image change の screen capture を含むので、internal application latency ではなく上限です。Simulation は 640 × 480 RGB source を使い、保存 PNG は RAW/recipe replay と全 pixel で一致しました。Windows USB discovery/physical first-frame latency は測定していません。
+
+## CPU rendering
+
+warmup 後に 10 frame × 5 batch を測定し、両 synthetic input は default version 2 recipe と 1024-pixel preview bound を使いました。1024 × 768 Bayer input は Direct ColorImage median **3.740 ms/frame**、Cached recipe median **3.767 ms/frame**、2048 × 1536 は **11.331 ms/frame** と **11.720 ms/frame** でした。recipe compilation 単体は約 **2.2 microseconds** です。cache は table preparation の繰返しを除きますが、total timing は追加 throughput gain を示しません。camera FPS/Windows performance の根拠ではありません。current preview は intermediate RGB buffer を避け GUI state には preview dimensions だけを保持し、完全 idle window は periodic repaint polling を避けます。等価性と過去の測定は [rendering verification](rendering-performance.md) にあります。
+
+## Windows physical observations
+
+公開済み 0.1.9 binaries は有限の SHODENSHA GR300 run を完了しました。この session では mouse click を **200 ms** 保持すると Windows App が input を安定して配送しました。Load から visible physical Live image は **within 21.460 s**、brightness slider click から visibly changed image は **within 0.997 s**、PNG save 確認から `Image saved` は **within 1.519 s**、Disconnect から Disconnected state は **within 0.940 s** でした。**1.011 s** 時点ではまだ Connecting で、次の image observation は 21.460 s です。その間に transport check/inspection を行ったため、21 秒の application startup cost を示す値ではありません。selection window は owner が手動で開いたため process launch からの camera discovery/startup は測定していません。
+
+全 interval は remote input、inspection、screenshot overhead を含みます。image endpoint は acquisition 開始から **399.389 seconds**、accepted frame は **15,701**、rolling counter は **39.5 accepted frames/s** でした。PNG pixel と original Bayer TIFF は RAW と独立に一致し、両 process は normal exit しました。[scoped validation record](validation-0.1.9.json) を参照してください。headline number のために USB behavior や image fidelity を変えるのではなく、実測された遅い stage を最適化してください。この観測は追加 CPU bottleneck や新しい physical FPS improvement を示しません。

@@ -20,6 +20,18 @@ Engineering candidate v002 repairs omitted upstream license texts using exact pu
 
 Resolved public crates, including target-specific dependencies. Declared license expressions are from Cargo metadata. Original license/notice files follow in third-party-licenses. Cargo.lock contains exact registry checksums.
 
+## 日本語の説明 / Japanese explanation
+
+optional Windows Setup は変更していない NSIS 3.12 の bootstrap/uninstaller code と zlib compression module（zlib/libpng license）を使います。upstream notice は `third-party-licenses/nsis-3.12/COPYING` にあり、この installer が選択しない他の NSIS compression module も記載しています。NSIS compiler と archive は開発 tool であり Setup には同梱しません。
+
+local `capability-platform` crate は独自に再構築した application の一部で MIT license です（`crates/capability-platform/LICENSE`）。source distribution にはその source/manifest を同梱しなければなりません。registry-vendored dependency ではなく retained evidence directory への dependency もありません。registry dependency は下表にも記載する checksum-pinned `windows-sys` 0.61.2 と `windows-link` 0.2.1 です。qualification-only executable source は含みますが、その executable は camera application でも hardware-qualified distribution でもありません。
+
+compiler/runtime addition として、GCC runtime exception/GPLv3 text は gcc-runtime（public gcc-mirror/gcc の COPYING.RUNTIME と COPYING3）に、MinGW-w64/runtime は root COPYING/AUTHORS に加えて upstream combined runtime contributor notice を含みます。Rust standard-library COPYRIGHT/MIT/Apache text も別に保持します。これら compiler/runtime text は notice であり、GPL に基づいて採用した application code ではありません。
+
+engineering candidate v002 は、影響する directory の `RECOVERY.tsv` に各 file の public URL/SHA-256 とともに exact public VCS revision で不足 upstream license text を修復したことを記録します。Windows dependency expression は OR/AND obligation と bundled font を含む substantive license clause を確認し、Khronos registry attribution は `khronos_api-3.1.0/REGISTRY-NOTICES.txt` に保持します。この確認は全 nested attribution の証明ではありません。Apple-only dispatch 0.2.0 package は MIT を宣言しますが public archive/upstream tree に license text がないため、未解決の upstream notice defect により macOS distribution coverage が完全とは主張できません。この Windows candidate は macOS executable/dependency source を配布しません。下の full metadata row は Windows で link しない場合も含め他 platform dependency を記載します。
+
+target-specific dependency を含む解決済み public crate を以下に示します。license expression は Cargo metadata による宣言です。原文の license/notice file は `third-party-licenses` に続き、`Cargo.lock` は exact registry checksum を含みます。以下の表、upstream notice、license text は原文のまま保持します。
+
 | Crate | Version | License | Source |
 |---|---|---|---|
 | ab_glyph | 0.2.32 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |

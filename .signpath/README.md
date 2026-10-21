@@ -27,3 +27,20 @@ this plan in the application rather than claiming operational signing.
 
 Do not place API tokens, certificate keys, private images, or hardware-session
 records here. See [application preparation](../docs/development/signpath-application.md).
+
+---
+
+# SignPath enrollment inputs（日本語）
+
+SignPath account、certificate、GitHub App、API token は設定していません。unsigned workflow は GUI、helper、正確に export した NSIS uninstaller、build-origin record を含む `signpath-inputs-<commit>` を別の GitHub artifact として upload します。将来の trusted-build-system input は、この自己作成 JSON だけではなく GitHub artifact ID と run URL です。
+
+`first-party-files.draft.xml` は公式 [artifact examples](https://docs.signpath.io/artifact-configuration/examples) に基づく enrollment review 用 draft です。deploy 済みでも provider 検証済みでもありません。enrollment 後、元の GitHub artifact ID を持つ signing-input artifact を提出します。この設定は unsigned Setup を署名せず、nested executable の再 packaging を主張しません。
+
+承認後は SignPath で二段階を適格化します。
+
+1. signing-input artifact の 3 ファイルを署名し、product/version、承認済み source branch と commit origin を確認し、人間の approver を必須にします。
+2. 返却された signed runtime bytes から payload manifest/ZIP を再構築し、review 済み NSIS path で signed uninstaller を import してから final Setup を署名・検証します。現行 tooling は uninstaller を export しますが signed replacement の import はまだ行いません。部分署名 installer を fully signed として公開してはいけません。
+
+第二段階には provider integration が必要で、enrollment 前には検証できません。ただし eligibility review を求める前提ではありません。運用中の署名を主張せず、この計画を application に開示します。
+
+ここに API token、certificate key、private image、hardware-session record を置かないでください。[application preparation](../docs/development/signpath-application.md) を参照してください。

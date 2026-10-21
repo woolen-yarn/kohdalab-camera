@@ -173,6 +173,86 @@ acceptance PASS. The final GUI binary additionally includes the retained-
 simulation label fix and has not been physically retested. See
 `docs/validation/validation-0.1.2.json` for the exact scope.
 
-Ordinary mouse input through Windows App, physical arbitrary-resize persistence,
-and color/field-of-view calibration remain open. Long-duration testing is
-deferred. No acquisition or image-processing algorithm was changed.
+---
+
+# 変更履歴 / Changelog（日本語）
+
+以下の英語の各 entry が canonical historical record です。日本語は同じ release scope を読みやすくする対訳で、記録済み validation、hash、release asset を変更しません。
+
+## 0.1.11
+
+公開・read-only の GitHub Actions Windows GNU build（pinned Rust/Actions、hash-verified NSIS、source identity、unsigned distribution/signing-input artifact）を追加しました。GUI/helper PE product/version resource を root package version から導出し、GUI、helper、uninstaller、Setup の metadata 一致を検証します。将来の SignPath enrollment 用に exact unsigned NSIS uninstaller を export し、synthetic-frame GUI、fresh install/update/uninstall、unrelated file preservation、no-acquisition startup diagnostic を Windows CI で qualify しました。workstation に exact CI runtime を install して hash/version/shortcut/startup report を確認し、source/output path と過去 validation/staging data を削除せず整理しました。[CI and installation validation](docs/validation/validation-0.1.11.json) は build/metadata/install の範囲で、physical capture validation は 0.1.9 のままです。release は unsigned で SignPath application/account integration は提出していません（[application preparation](docs/development/signpath-application.md)）。
+
+## 0.1.10
+
+既存 Windows driver binding を保持し、WinUSB は active binding のときのみ再利用します。異なる/missing driver は silent replacement/unsupported acquisition でなく説明を返します。physical helper でも binding を再確認し、physical-session interlock の前に missing helper を検出します。`--startup-report new-file.json` は USB を開かず helper も起動しない enumeration-only support report です。per-user Windows Setup/signature audit と organization-signing prerequisite/unsigned status を追加しました。owner request により official GR300 SDK integration は deferred で、existing WinUSB backend が唯一の physical backend です。0.1.9 が five-minute physical validation、0.1.10 は driver policy/UI regression/Windows startup-install behavior を対象とし、fresh install/update/uninstall/unrelated file preservation、runtime hash/shortcut を確認しました。4 executable type は unsigned です（[installation validation](docs/validation/validation-0.1.10.json)）。
+
+## 0.1.9
+
+whole-image **Fit** と **2.0× Fit** のような magnification を区別し、100% との差を説明しました。Simulation screenshot 付き quick start と CPU timing/UI-tool observation overhead を分けた responsiveness report を追加しました。targeted GUI/native Simulation image adjustment/export/normal close、exact saved-image replay、Windows x64 build を確認し、その後 published binary が GR300 Live **399.4 seconds**、**15,701 accepted frames**、image adjustment/Fit、PNG/RAW/Bayer TIFF export、normal Disconnect/Close を完了しました。saved pixel は independent RAW reconstruction と一致し、protective lock は残りませんでした。owner の input delivery 制約により held mouse click を用いた run であり、original release archive を補う validation ですが byte/original manifest は不変です（[validation](docs/validation/validation-0.1.9.json)、[responsiveness](docs/validation/responsiveness.md)）。
+
+## 0.1.8
+
+- camera-selection window title、Live window title、Live toolbar に installed application version を表示します。
+
+この release では physical-camera acquisition を再実施していません。current Windows x64 source baseline から build/publish しました。
+
+## 0.1.7
+
+- dark interface を改善し、image を visual focus に、available primary action に抑制した accent を使い、selected toolbar tab で inspector を閉じられるようにします。
+- Fit を minimum zoom とし、visible な Fit / minus / magnification / plus / 100% control を追加します。100% が Fit 未満または supported zoom range 外になるときは利用不可に保ちます。
+- status bar の Cursor 前に予約していた blank area を除き、Advanced detail と重複した display control を簡潔にします。
+- idle repaint polling を避け、image control が変わるまで compiled display recipe を再利用します。image/export semantics は変更しません。
+
+validation には GUI、renderer、preview-pipeline test、native Simulation interaction check、保存済み GR300 endpoint image の replay を含みます。この release は physical-camera acquisition を再実施しておらず、local CPU measurement は physical capture-FPS improvement の根拠ではありません。
+
+## 0.1.6
+
+- camera/image setting、Live window size、save folder、capture numbering を記憶します。Advanced から default を復元しても自動 reconnect や camera control の適用はしません。
+- pointer 中心の wheel zoom、drag pan、double-click Fit、Image の Fit / 100% button を追加します。view transform は exported pixel を変更しません。
+- 番号付き PNG name を提案し、使用済み image/sidecar name を避けます。
+- preview pixel を ColorImage に直接 render し、不要な retained image clone を除きます。intermediate RGB allocation/pixel copy をなくしますが、測定 CPU timing は変動するため追加 capture-FPS increase は主張しません。
+
+validation には exact direct/indirect pixel equivalence、bounded pipeline check、saved physical-image replay、preference overwrite/retry、view geometry、input isolation、no-auto-connect/reset test、independent review、native Mac Simulation interaction/restart/reset check を含みます。最後の physical Live validation は scope を限定した 0.1.4 run のままです。
+
+## 0.1.5
+
+- default exposure を **120 sensor rows** に設定します。gamma は **2.2**、brightness は **1.20×** のままです。
+- owner による acceptable color/field of view の visual confirmation を記録しますが、optical/color calibration を意味しません。
+
+five-minute physical validation は 0.1.4 に適用されます。この default-setting update は UI/integration suite と Windows release build で確認しました。
+
+## 0.1.4
+
+- enumeration 後、supported camera が一台なら自動選択し、**Load camera** で開きます。複数 camera では選択が必要で、missing selected camera を別 device に黙って置換しません。
+- opening screen instruction を短縮します。
+
+validation: **26 UI tests** と independent review が pass しました。exact Windows build は実 GR300 Live acquisition **336.2 seconds**、independent pixel agreement を伴う PNG/RAW/Bayer TIFF export、normal GUI/helper exit を完了しました。process/protective lock は残りませんでした。owner は manual resize と size retention を確認しました。color/optical qualification と picker round-trip resizing はこの run の範囲外です。[scoped validation record](docs/validation/validation-0.1.4.json) を参照してください。
+
+## 0.1.3
+
+- Live status bar/export panel を簡潔にし、technical counter/startup diagnostic を折り畳んだ Diagnostics section に移します。
+- capture FPS、simulation/retained-image label、actionable error を可視のままにします。
+- 各 Bayer site で必要な color neighbor だけを再構成し、layout validation は render ごとに一度にします。RGB pixel、RAW byte、recipe semantics は変更しません。synthetic Mac CPU benchmark は rendering time を約 **31–35%** 削減しましたが、Windows capture-FPS の主張ではありません。
+- preceding real-camera export に対して全 pixel を検証し、orientation、scaling、color、malformed-input の exact regression coverage を保ちます。
+
+validation: **26 UI tests** と rendering test が pass し、simulation Image/Export panel は mouse click で visual check しました。0.1.3 Windows build は新しい physical-camera run を受けていません。[performance verification](docs/validation/rendering-performance.md) を参照してください。
+
+## Additional 0.1.2 validation / 0.1.2 の追加検証
+
+公開 build はその後 SHODENSHA GR300 で **333.2 seconds** の Live acquisition、pixel-checked endpoint export、normal native shutdown を完了しました。owner は manual mouse operation を確認しました。planned start export は canceled されたため、full two-endpoint export plan は未完です。[later validation record](docs/validation/validation-0.1.2-five-minute.json) を参照してください。
+
+以下の earlier observation は original candidate scope を保ちます。
+
+## 0.1.2
+
+SHODENSHA GR300 backend 向けの focused stability update です。
+
+- valid Live window size を変化時に記憶し、native transition report がない場合や、より小さい camera picker を記述したままの場合にも保持します。
+- disconnect 後の retained image に **SIMULATION** label を表示し続けます。
+- 5 個すべての Live tab で通常の mouse press/release を行う regression test を追加します。
+- bounded pointer/navigation record、typed/pasted text を含まないこと、normal-close deadline を持つ optional simulation-only input diagnostic を追加します。この feature は distributed application では無効です。
+
+短い physical run では Live acquisition、image/sidecar export、independent pixel agreement、native GUI/helper exit code 0 を観測しました。postflight は camera process/protective interlock が残らず、WinUSB status が正常であることを確認しました。**60-second preflight-to-Connect window は証明されていないため、acceptance PASS ではありません**。final GUI binary には retained-simulation label fix も含まれますが、物理的に再試験していません。正確な scope は `docs/validation/validation-0.1.2.json` を参照してください。
+
+Windows App を通じた ordinary mouse input、physical arbitrary-resize persistence、color/field-of-view calibration は未解決です。long-duration testing は deferred です。acquisition/image-processing algorithm は変更していません。

@@ -60,3 +60,21 @@ behavior. Keep the last physical validation identified by its own version/hash.
 
 See [SignPath application preparation](signpath-application.md) for the remaining
 human enrollment steps and provider-dependent signed-installer work.
+
+---
+
+# unsigned Windows 継続的インテグレーション / Unsigned Windows continuous integration（日本語）
+
+[Windows unsigned build](https://github.com/woolen-yarn/kohdalab-camera/actions/workflows/windows-unsigned.yml) は disposable GitHub-hosted Windows 2025 runner で public source を build します。`main` への対象 push と明示的 manual workflow dispatch で開始でき、署名、GitHub release 作成、driver install、physical camera 使用は行いません。
+
+## 入力と確認 / Inputs and checks
+
+Rust **1.99.1** と Windows GNU target を明示選択し、hosted image の GNU linker/resource compiler version を run log に記録します。Cargo は committed lockfile、first-party Actions は fixed commit SHA を使い、checkout credential は保持せず workflow token は read-only です。`.gitattributes` は checkout line ending を揃え、source identity は platform-independent relative-path order を用いて verification のみ行い CI が書換えません。stale marker は build を停止します。camera driver-policy/headless GUI unit test は hardware なしで実行し、両 first-party executable は root package version/product name を埋込みます。NSIS **3.12** archive は hash-verify 後に extract し、Setup は per-user で acquisition を始めません。compiler は Setup を実行せず exact unsigned uninstaller を export します。disposable install は 4 executable type の metadata/unsigned status、runtime hash、exported/installed uninstaller equality、startup report、same-version update、normal uninstall、unrelated-file preservation を確認します。installer が作る shortcut/HKCU entry は runner の normal uninstall で除去し、この script を user の既存 installation に対して実行してはいけません。
+
+## Artifact と根拠 / Artifacts and evidence
+
+successful run は 30 日間、`windows-unsigned-<commit>`（portable/source ZIP、Setup、complete portable payload、startup/CI validation record、build origin、SHA-256 checksum）と `signpath-inputs-<commit>`（GUI、helper、exported uninstaller、build origin、SHA-256 checksum、enrollment preparation のみ）を upload します。`BUILD-ORIGIN.json` は public source commit、workflow/run identity、source marker、Rust tool を記録する descriptive evidence であり attestation/SignPath-verified origin ではありません。enrollment 後も provider の supported integration で original GitHub artifact を取得し source/approval policy を強制する必要があり、別場所への copy は trusted artifact identity を保存しません。workflow は `.local/`、camera image、credential、private validation data を消費せず、upload path は generated `dist/` と `signing-inputs/` のみです。SignPath API call/account integration/signing secret/automatic release approval はありません。
+
+## CI から public release へ / From CI to a public release
+
+successful run の commit/artifact digest を確認し artifact を download、個別 checksum を verify してから distribute します。run URL と scoped validation record を release と共に保持し、exact verified byte は新 version として upload します。変更 binary を添付するために古い release を上書きしません。CI check は physical camera capture、optical quality、Windows download-reputation behavior を証明しないため、最後の physical validation は独自 version/hash で示します。残る human enrollment/provider-dependent signed-installer work は [SignPath application preparation](signpath-application.md) を参照してください。

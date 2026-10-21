@@ -155,3 +155,59 @@ enterprise policy can impose additional blocks. The application cannot repair
 a block that prevents it from starting. Preserve the exact warning, file hash
 and signature report for diagnosis; do not disable protection or silently remove
 Mark of the Web as an installation workaround.
+
+---
+
+# Windows インストール、driver、署名 / Windows installation, drivers and signing（日本語）
+
+KohdaLab Camera は application installation と camera driver setup を分けます。アプリは current user として動作し、startup/Setup は Windows driver、service、security setting、PowerShell execution policy を変更しません。
+
+## Installed driver policy
+
+KohdaLab IV が official VISA runtime を優先し WinUSB へ黙って fallback しないのと同じ preservation principle を Camera も採ります。ただし camera SDK は VISA と別 interface なので独自に文書化した backend が必要です。検証済み SHODENSHA GR300 の acquisition backend は既存 WinUSB binding を必要とします。別 driver が binding されていれば Camera はそれを保持し、互換 vendor SDK backend がないことを説明して Load を無効化します。helper は USB を開く前に binding を再確認します。unknown/missing/composite binding を推測で WinUSB と扱いません。disk 上に driver package があるだけでは active binding から利用可能になりません。
+
+official SDK integration は owner の要請により deferred です。official GR300 driver を取得に用いるには manufacturer API specification、supported architecture、SDK access、redistribution term が必要です。manufacturer DLL を推測した entry point で probe したり reverse engineer したりしません。公開済み [GR300-family setup instructions](https://www.shodensha-inc.co.jp/microscope/gr300bcm3_20180219.pdf) は supplied viewer を説明しますが、tested unit 向け再配布可能 API を示しません。別 GR300 revision は互換と仮定できません。[Microsoft USB desktop guidance](https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/windows-desktop-app-for-a-usb-device) の通り WinUSB app は Winusb.sys を device driver に使い、vendor driver はその driver が公開する interface を必要とします。同じ USB ID でも transport は置換可能ではありません。
+
+## Startup
+
+startup は bounded saved preference を load して camera を asynchronous に enumerate します。一致 device が一台なら自動選択しますが、acquisition は **Load** が押されて初めて開始します。startup で elevation、installer、driver replacement、network fetch、certificate-store update、security bypass は実行しません。helper は PATH を検索せず executable の隣から解決し、missing helper は physical-session interlock 作成前に拒否します。protective lock と不確かな cleanup は reconnection を block し続け、installer はそれを消しません。application folder は完全なまま保ってください。
+
+camera を開かず helper を起動しない support report は次です。
+
+```powershell
+& '.\KohdaLab Camera.exe' --startup-report '.\startup-report.json'
+```
+
+output path は新規でなければなりません。report は application version、enumerated matching camera binding、helper presence を含み、successful capture/certificate の証明ではありません。
+
+## Installer と portable ZIP
+
+NSIS installer は Windows x64 向けで、`%LOCALAPPDATA%\Programs\KohdaLab Camera` に per-user install します。desktop/Start Menu shortcut と HKCU Apps uninstall entry を作成し、application/helper/license notice を install しますが driver install や Live 自動開始はしません。user setting、capture、device interlock は program file と別です。portable ZIP も利用できます。公式 [releases](https://github.com/woolen-yarn/kohdalab-camera/releases) から Setup/ZIP を取得し SHA-256 を確認、helper/license file を保持してください。checksum は published reference との byte identity を確認しますが publisher signing の代替ではありません。
+
+verified `package_windows.py` payload から明示的 NSIS compiler を使う build は次です。
+
+```sh
+python scripts/build_windows_installer.py --payload dist/windows \
+  --output dist/KohdaLab-Camera-Setup.exe --makensis /path/to/makensis
+```
+
+build tool は runtime hash/license presence を確認し compiler を download/install しません。[NSIS](https://nsis.sourceforge.io/Docs/Chapter4.html) の `RequestExecutionLevel user` により administrative setup requirement を避けます。
+
+## 検証済み installation と署名 / Verified installation and signing
+
+0.1.11 は [public Windows CI](https://github.com/woolen-yarn/kohdalab-camera/actions/runs/39187983298) で全 executable type の metadata/unsigned status、exported/installed uninstaller byte 一致、fresh install/update/uninstall/unrelated-file preservation を pass しました。exact CI runtime は workstation に install し startup-check 済みです（[v0.1.11 validation](../validation/validation-0.1.11.json)）。これは unsigned release であり new physical capture qualification はありません。0.1.10 では NSIS 3.12/zlib と全 **687 build inputs** を確認し、fresh per-user install、same-version update、uninstall と unrelated test file の保持を確認しました。installed runtime hash/desktop shortcut も一致し、startup report は acquisition を始めず GR300 WinUSB binding と sibling helper を検出しました（[scoped installation record](../validation/validation-0.1.10.json)）。これは 0.1.9 physical Live validation を新 binary へ延長するものではありません。
+
+調査した 0.1.10 GUI/helper/uninstaller/Setup は **NotSigned** です。user/machine personal certificate store に private key を持つ code-signing certificate はなく、checked file に Zone.Identifier stream もなかったため download-file SmartScreen behavior は示せません。7 日以内の available log の最新 200 event に Camera match はなく、SmartScreen Debug は disabled でした。matching event がないことは warning が起きない証明ではありません。release を通すため log setting/protection policy を変えないでください。
+
+prepared payload/installed app の audit は次です。
+
+```powershell
+.\scripts\audit_windows_distribution.ps1 -PayloadDirectory '.\windows' `
+  -OutputJson '.\signature-report.json' -RequireSigned
+```
+
+既存 execution policy が `.ps1` を block する machine では policy を保ち、標準 read-only command `Get-AuthenticodeSignature -LiteralPath ".\KohdaLab Camera.exe"` を interactively 実行するか、organization-approved signed-script environment を使います。Setup は PowerShell を必要としません。`-RequireSigned` は全 executable/DLL が Valid Authenticode signature を持たなければ fail し、publisher identity/timestamp も確認します。switch なしの report は unsigned status を記録しますが signing readiness を主張しません。
+
+signed release では publisher-owned certificate/signing service を使い、application executable と将来の bundled DLL を build/sign、signature/publisher/timestamp を確認して final signed bytes から runtime manifest を生成し、uninstaller-signing hook で installer を compile、generated uninstaller/final Setup を sign/verify します。checksum は全 signing step 後に publish し、private key/service credential は source/log/distribution archive の外に置きます。current release は unsigned です。owner は free SignPath Foundation program の準備を依頼していますが application は未提出です。certificate publisher は laboratory/university でなく SignPath Foundation です。詳細は [Code signing policy](../reference/code-signing.md) と [application preparation](../development/signpath-application.md) を参照してください。organization certificate は organization validation/enrollment を要する別選択肢です。enrollment/purchase/credential change は実施していません。signed release は NSIS uninstaller を含む全 pipeline を qualify し、unsigned build は unsigned と表記し続けます。
+
+[Microsoft's signing comparison](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options) は Store/MSIX、certificate、Artifact Signing option と geographic eligibility を、[SmartScreen reputation guidance](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation) は valid signature でも immediate reputation は保証されず EV certificate に automatic bypass はないことを説明します。Smart App Control/enterprise policy が追加 block を行うこともあります。起動を妨げる block はアプリが修復できません。診断時は exact warning、file hash、signature report を保持し、protection を disable したり Mark of the Web を黙って除去したりしないでください。
