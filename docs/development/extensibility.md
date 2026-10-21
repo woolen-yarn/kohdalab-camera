@@ -116,3 +116,33 @@ diagnostic details on demand.
 
 No additional physical backend, generic capability-driven controls or scientific
 measurement engine is implemented by the discovery refactor.
+
+---
+
+# camera platform の拡張 / Extending the camera platform（日本語）
+
+次の優先事項は他 manufacturer の camera 対応です。現在対応するのは compatibility documentation の SHODENSHA GR300 configuration だけで、本書は既存 boundary と二つ目の physical backend 前に必要な作業を区別し、新対応を発表するものではありません。
+
+## 現在の基盤と残る coupling / Current foundation and remaining coupling
+
+`device_catalog.rs` は picker/startup report の USB candidate identification を共有しますが、次は USB enumerate しない device も含む backend ごとの discovery です。connection は installed-driver/strict physical identity check を持ち、next は installed driver と互換の documented backend の選択です。`session::Factory`/`Transport`、bounded worker、lifecycle ownership は acquisition の基盤で、next は backend-specific setting/operation です。GR300 mode、sensor row の exposure、eighth の gain を一般設定として扱わず、backend ごとに unit/range/step/availability を明示します。frame は validated RAW/acquisition identity/display recipe から format/dimension/stride/bit depth/color interpretation へ、timing は host-side observation/acquisition-rate diagnostics から clock domain/device timestamp semantics へ拡張します。shared picker/image view/image adjustment/export flow は transport detail を露出せず selected backend が対応する control を示します。catalog は discovery list であり、USB ID 一致だけでは device open の許可や互換性の証明になりません。sensor/firmware/driver/physical-location check は backend に残し、catalog entry だけで camera を追加できません。
+
+## 最初の追加 camera: vertical implementation
+
+documented acquisition interface と許容できる SDK/redistribution term を持つ実在 camera 一台を選び、transport 実装前に manufacturer/model/OS/driver/SDK version/documentation provenance を記録します。manufacturer binary/private USB capture から protocol を推測せず、必要 API/license がなければ SDK integration を deferred に保ちます。general plugin system より先に、その device の discovery、connection、検証済み frame format 一種、live view、save、normal disconnect を実装します。二つの backend の経験から shared contract を定義し、arbitrary vendor DLL を load したり picker のために hardware resource を allocate したりしません。existing driver を保持し、backend と非互換の driver は silent replacement/fallback ではなく明確な説明を返します。
+
+### Settings/capabilities、ownership/data flow、acceptance
+
+device command/encoding は backend 内に閉じます。GR300 `exposure_rows`/`gain_eighths` を universal setting にせず、row を millisecond と改名したり別 sensor に同じ numeric range を流用しません。future capability description は acquisition mode、frame format、control unit/range/step、read-only value、変更時の acquisition stop 要否を報告し、GUI と backend の両方で validate します。preference は stable backend/model identity と schema version の下に保存し、USB product string が似ているだけで別 model setting を適用しません。migration は GR300 default/behavior を保持します。
+
+single session owner/current shutdown guardian を保持し、新 backend は stop/disconnect deadline、stale frame generation の拒否、driver call の UI thread 外実行を守ります。vendor callback が GUI state を直接更新せず、borrowed SDK buffer は文書化された lifetime 内だけ有効として、次 SDK operation 前に copy/ownership transfer します。preview work は bounded にし obsolete work を supersede 可能にし、export/future analysis は matching setting/recipe を持つ immutable frame snapshot を使用します。明示的 recording contract なしに preview dropping rule を lossless recording へ拡張しません。
+
+各 backend では deterministic fixture で setting validation/unsupported control/frame layout/conversion、backend substitute で connection failure/stale callback/acquisition 中 disconnect/shutdown を test し、実 model/driver で live view、supported setting apply、export、disconnect/reconnect を含む有限 hardware run を qualify します。image dimension/pixel integrity/normal cleanup を optical quality/performance observation から別に記録し、tested version/known limitation/driver requirement を持つ compatibility matrix を公開します。compile や USB ID match は qualification ではありません。
+
+## 後の measurement/instrument 拡張と順序 / Later extensions and delivery order
+
+current `measurement.rs` は host timing/acquisition rate の capture observation を記録し、distance/area/intensity/external instrument measurement とは分離します。image measurement では immutable frame identity（session、settings generation、frame sequence）に結ぶ versioned result record、algorithm version/ROI coordinate/unit/calibration identity、image coordinate と zoom/pan/display coordinate の mapping を導入します。measurement は zoom で変わらず、physical unit には optical configuration/resolution に有効な calibration が必要です。display adjustment recipe は calibration ではありません。analysis input は sensor RAW か来歴付き documented derived image かを明示します。
+
+external device は固有 lifecycle/typed sample を持ち、clock domain/uncertainty/missing-data status を含む explicit time/trigger で frame と結びます。host arrival time は simultaneous exposure/hardware synchronization を示しません。実装時は injectable clock source を検討し、別途検証済み migration まで既存 timestamp semantics を保ちます。result は original frame/calibration に結ぶ別 versioned metadata として export し、既存 RAW/image/recipe export semantics と簡潔な GUI（supported control/essential state を先、diagnostic は必要時）を保ちます。
+
+順序は、(1) 実装済み: connection eligibility/GUI を広げず discovery candidate definition を共有、(2) 次: documented additional camera と driver/API/license/frame-format requirement の選択、(3) 次に GR300 regression を保つ backend-specific setting/capability と二つ目 backend の end-to-end qualification、(4) 後に calibrated image measurement と external-instrument timing を別の再現可能 data product として追加、です。discovery refactor は additional physical backend、generic capability-driven control、scientific measurement engine を実装していません。
