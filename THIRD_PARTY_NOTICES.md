@@ -29,26 +29,12 @@ Resolved public crates, including target-specific dependencies. Declared license
 | android-activity | 0.6.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | android-properties | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | arboard | 3.6.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| ashpd | 0.11.1 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-broadcast | 0.7.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| async-channel | 2.5.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-executor | 1.14.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-fs | 2.2.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-io | 2.6.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-lock | 3.4.2 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-net | 2.0.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-process | 2.5.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-recursion | 1.2.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| async-signal | 0.2.14 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-task | 4.7.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| async-trait | 0.1.92 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | atomic-waker | 1.1.2 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | autocfg | 1.5.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | bitflags | 1.3.2 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | bitflags | 2.13.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | block2 | 0.5.1 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | block2 | 0.6.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| blocking | 1.7.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | bumpalo | 3.20.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | bytemuck | 1.25.2 | Zlib OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | bytemuck_derive | 1.12.1 | Zlib OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
@@ -86,17 +72,11 @@ Resolved public crates, including target-specific dependencies. Declared license
 | egui-winit | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | egui_glow | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | emath | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| endi | 1.1.1 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| enumflags2 | 0.7.12 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| enumflags2_derive | 0.7.12 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | epaint | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | epaint_default_fonts | 0.31.1 | (MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0 | registry+https://github.com/rust-lang/crates.io-index |
 | equivalent | 1.0.3 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | errno | 0.3.14 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | error-code | 3.4.0 | BSL-1.0 | registry+https://github.com/rust-lang/crates.io-index |
-| event-listener | 5.4.2 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| event-listener-strategy | 0.5.4 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| fastrand | 2.5.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | fax | 0.2.7 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | fdeflate | 0.3.7 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | find-msvc-tools | 0.1.14 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -105,15 +85,10 @@ Resolved public crates, including target-specific dependencies. Declared license
 | foreign-types-macros | 0.2.4 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | foreign-types-shared | 0.3.1 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | form_urlencoded | 1.2.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| futures-channel | 0.3.34 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | futures-core | 0.3.34 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| futures-io | 0.3.34 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| futures-lite | 2.6.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| futures-macro | 0.3.34 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | futures-task | 0.3.34 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | futures-util | 0.3.34 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | gethostname | 1.1.0 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| getrandom | 0.3.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | getrandom | 0.4.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | gl_generator | 0.14.0 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | glow | 0.16.0 | MIT OR Apache-2.0 OR Zlib | registry+https://github.com/rust-lang/crates.io-index |
@@ -124,7 +99,6 @@ Resolved public crates, including target-specific dependencies. Declared license
 | half | 2.7.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | hermit-abi | 0.5.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| hex | 0.4.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | icu_collections | 2.3.0 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | icu_locale_core | 2.3.0 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | icu_normalizer | 2.3.0 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -195,23 +169,19 @@ Resolved public crates, including target-specific dependencies. Declared license
 | objc2-user-notifications | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | once_cell | 1.21.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | orbclient | 0.3.55 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| ordered-stream | 0.2.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | owned_ttf_parser | 0.25.1 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| parking | 2.2.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | parking_lot | 0.12.5 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | parking_lot_core | 0.9.12 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | percent-encoding | 2.3.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | pin-project | 1.1.13 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | pin-project-internal | 1.1.13 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | pin-project-lite | 0.2.17 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| piper | 0.2.5 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | pkg-config | 0.3.34 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | plain | 0.2.3 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | png | 0.18.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | polling | 3.11.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | pollster | 0.4.0 | Apache-2.0/MIT | registry+https://github.com/rust-lang/crates.io-index |
 | potential_utf | 0.1.6 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
-| ppv-lite86 | 0.2.21 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | proc-macro-crate | 3.5.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | profiling | 1.0.18 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -219,16 +189,12 @@ Resolved public crates, including target-specific dependencies. Declared license
 | quick-error | 2.0.1 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | quick-xml | 0.41.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | quote | 1.0.47 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| r-efi | 5.3.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later | registry+https://github.com/rust-lang/crates.io-index |
 | r-efi | 6.0.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later | registry+https://github.com/rust-lang/crates.io-index |
-| rand | 0.9.5 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| rand_chacha | 0.9.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| rand_core | 0.9.5 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | raw-window-handle | 0.6.2 | MIT OR Apache-2.0 OR Zlib | registry+https://github.com/rust-lang/crates.io-index |
 | redox_syscall | 0.4.1 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | redox_syscall | 0.5.18 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | redox_syscall | 0.9.4 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| rfd | 0.15.4 | MIT | registry+https://github.com/rust-lang/crates.io-index |
+| rfd | 0.17.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | rustix | 0.38.44 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | rustix | 1.1.5 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
@@ -241,9 +207,7 @@ Resolved public crates, including target-specific dependencies. Declared license
 | serde_core | 1.0.229 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | serde_derive | 1.0.229 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | serde_json | 1.0.154 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| serde_repr | 0.1.21 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | shlex | 2.0.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| signal-hook-registry | 1.4.8 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | simd-adler32 | 0.3.10 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | simd_cesu8 | 1.2.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | simdutf8 | 0.1.5 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -258,7 +222,6 @@ Resolved public crates, including target-specific dependencies. Declared license
 | syn | 2.0.119 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | syn | 3.0.9 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | synstructure | 0.14.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| tempfile | 3.27.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | thiserror | 1.0.69 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | thiserror | 2.0.21 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | thiserror-impl | 1.0.69 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -270,19 +233,14 @@ Resolved public crates, including target-specific dependencies. Declared license
 | toml_edit | 0.25.17+spec-1.1.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | toml_parser | 1.1.5+spec-1.1.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | tracing | 0.1.44 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| tracing-attributes | 0.1.31 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | tracing-core | 0.1.36 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | ttf-parser | 0.25.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| uds_windows | 1.2.1 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | url | 2.5.8 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| urlencoding | 2.1.3 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
-| uuid | 1.28.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | version_check | 0.9.5 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | walkdir | 2.5.0 | Unlicense/MIT | registry+https://github.com/rust-lang/crates.io-index |
-| wasip2 | 1.0.4+wasi-0.2.12 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | wasm-bindgen | 0.2.129 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | wasm-bindgen-futures | 0.4.79 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | wasm-bindgen-macro | 0.2.129 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -331,7 +289,6 @@ Resolved public crates, including target-specific dependencies. Declared license
 | windows_x86_64_msvc | 0.53.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | winit | 0.30.13 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | winnow | 1.0.4 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| wit-bindgen | 0.57.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | writeable | 0.6.4 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | x11rb | 0.13.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | x11rb-protocol | 0.13.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -341,10 +298,6 @@ Resolved public crates, including target-specific dependencies. Declared license
 | xml-rs | 0.8.29 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | yoke | 0.8.3 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | yoke-derive | 0.8.4 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
-| zbus | 5.19.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| zbus_macros | 5.19.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| zbus_names | 4.3.4 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| zcheapstr | 1.1.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | zerocopy | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | zerocopy-derive | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | zerofrom | 0.1.8 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -356,8 +309,5 @@ Resolved public crates, including target-specific dependencies. Declared license
 | zmij | 1.0.23 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib | registry+https://github.com/rust-lang/crates.io-index |
 | zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib | registry+https://github.com/rust-lang/crates.io-index |
-| zvariant | 5.15.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| zvariant_derive | 5.15.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| zvariant_utils | 4.2.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 
 Bundled default fonts retain their own licenses in epaint_default_fonts-0.31.1/fonts: Ubuntu Font License, SIL Open Font License, Hack license, and emoji icon MIT license. The Windows candidate also links MinGW-w64 runtime support; its ZPL and contributor notices are in mingw-w64/. Rust standard library uses MIT OR Apache-2.0; corresponding notices are in rust-standard-library/.
