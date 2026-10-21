@@ -14,7 +14,7 @@ request was created as part of preparation.
 - Project license: MIT; dependency and toolchain notices are retained in
   `THIRD_PARTY_NOTICES.md` and `third-party-licenses/`.
 - Repository owner: https://github.com/woolen-yarn
-- Code signing policy: [code-signing-policy.md](code-signing-policy.md).
+- Code signing policy: [code-signing-policy.md](../reference/code-signing.md).
 - Contact: the maintainer must supply an email in the application form; no
   contact address or university representation is inferred from repository ownership.
 
@@ -65,7 +65,7 @@ to the fields shown there rather than treating it as a fixed form schema.
 - Source commit: `14d7cc156e496b6f2e8ea65c00414e05b4cf8cdb`.
 - Unsigned distribution GitHub artifact ID: `12159300328`.
 - Initial signing-input GitHub artifact ID: `12159116912`.
-- [Scoped validation and artifact digests](validation-0.1.11.json).
+- [Scoped validation and artifact digests](../validation/validation-0.1.11.json).
 
 Both artifact file checksum manifests and ZIP CRCs were verified after download.
 GitHub artifact retention is 30 days; rerun the workflow if artifacts have expired
@@ -95,8 +95,8 @@ pinned Actions and Rust, checks the source identity, builds both executables,
 compiles Setup with a hash-verified NSIS, and exports the unsigned uninstaller.
 It does not require SignPath credentials or access to a physical camera.
 
-The draft [artifact configuration](../.signpath/first-party-files.draft.xml) and
-[enrollment notes](../.signpath/README.md) describe the initial three-file signing
+The draft [artifact configuration](../../.signpath/first-party-files.draft.xml) and
+[enrollment notes](../../.signpath/README.md) describe the initial three-file signing
 request. The draft is well-formed XML, not a provider-validated configuration.
 
 After enrollment, ask SignPath to accept the original GitHub artifact ID with

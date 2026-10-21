@@ -11,7 +11,7 @@ fn settings(s:crate::controls::Settings)->serde_json::Value { serde_json::json!(
 pub(crate) fn record(s:&Snapshot,kind:&str)->Vec<u8> {
     let l=s.lifecycle.as_ref();
     let value=serde_json::json!({"schema":3,"candidate":CANDIDATE,"kind":kind,
-        "source_identity":include_str!("../RECORDER-SOURCE-ID" ).trim(),
+        "source_identity":include_str!("../../../RECORDER-SOURCE-ID" ).trim(),
         "runtime_identity":"unavailable in record; use reviewed package binding; runtime not attested",
         "first_failure":s.first_failure.as_ref().map(|_|serde_json::json!({"cause":s.first_cause,"code":s.first_failure_code.map(|v|format!("{v:?}")),"detail":"original UI text excluded from records; see safe lifecycle facts"})),
         "latest_message":{"state":format!("{:?}",s.state),"active":s.active,"restart_disabled":s.restart_disabled},

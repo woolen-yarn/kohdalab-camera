@@ -7,7 +7,7 @@ compression modules not selected by this installer. The NSIS compiler and its
 archive are development tools and are not bundled in Setup.
 
 The local `capability-platform` crate is part of this independently rebuilt
-application, licensed under MIT (see `platform/LICENSE`). Its source and manifest
+application, licensed under MIT (see `crates/capability-platform/LICENSE`). Its source and manifest
 must accompany source distributions. It is not a registry-vendored dependency
 and has no dependency on retained evidence directories. Its registry dependency
 is the checksum-pinned `windows-sys` 0.61.2 and `windows-link` 0.2.1 already listed

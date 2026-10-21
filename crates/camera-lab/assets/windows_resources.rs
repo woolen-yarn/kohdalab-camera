@@ -16,27 +16,27 @@ pub struct Metadata<'a> {
 
 /// Compile the common Windows resource template for a GNU Windows target.
 ///
-/// The root package version is deliberately used for both executables. The
+/// The application package version is deliberately used for both executables. The
 /// helper is released only alongside the GUI, so a separate helper-entry
 /// package version must not leak into its PE metadata.
-pub fn compile(workspace_root: &Path, metadata: Metadata<'_>) {
+pub fn compile(application_root: &Path, metadata: Metadata<'_>) {
     let target = env::var("TARGET").expect("Cargo must set TARGET for build scripts");
     if !target.ends_with("-pc-windows-gnu") {
         return;
     }
 
-    let resource_template = workspace_root.join("assets/windows.rc");
-    let manifest = workspace_root.join("assets/windows.manifest");
-    let icon = workspace_root.join("assets/camera.ico");
-    let root_manifest = workspace_root.join("Cargo.toml");
-    for path in [&resource_template, &manifest, &icon, &root_manifest] {
+    let resource_template = application_root.join("assets/windows.rc");
+    let manifest = application_root.join("assets/windows.manifest");
+    let icon = application_root.join("assets/camera.ico");
+    let application_manifest = application_root.join("Cargo.toml");
+    for path in [&resource_template, &manifest, &icon, &application_manifest] {
         println!("cargo:rerun-if-changed={}", path.display());
     }
     for name in windres_environment_names(&target) {
         println!("cargo:rerun-if-env-changed={name}");
     }
 
-    let version = root_package_version(&root_manifest);
+    let version = application_package_version(&application_manifest);
     let version_commas = pe_version_components(&version);
     let template = fs::read_to_string(&resource_template)
         .unwrap_or_else(|error| panic!("could not read {}: {error}", resource_template.display()));
@@ -68,7 +68,7 @@ pub fn compile(workspace_root: &Path, metadata: Metadata<'_>) {
 
     let mut command = Command::new(&windres);
     command
-        .current_dir(workspace_root)
+        .current_dir(application_root)
         .arg("-i")
         .arg(&rendered_resource)
         .arg("-o")
@@ -95,9 +95,10 @@ pub fn compile(workspace_root: &Path, metadata: Metadata<'_>) {
     );
 }
 
-fn root_package_version(root_manifest: &Path) -> String {
-    let contents = fs::read_to_string(root_manifest)
-        .unwrap_or_else(|error| panic!("could not read {}: {error}", root_manifest.display()));
+fn application_package_version(application_manifest: &Path) -> String {
+    let contents = fs::read_to_string(application_manifest).unwrap_or_else(|error| {
+        panic!("could not read {}: {error}", application_manifest.display())
+    });
     let mut in_package = false;
     for raw_line in contents.lines() {
         let line = raw_line.trim();
@@ -122,7 +123,7 @@ fn root_package_version(root_manifest: &Path) -> String {
     }
     panic!(
         "could not find a quoted package version in {}",
-        root_manifest.display()
+        application_manifest.display()
     );
 }
 

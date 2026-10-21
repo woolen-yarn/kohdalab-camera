@@ -267,7 +267,7 @@ def build_command(
         f"/DPAYLOAD_ROLLBACK_INCLUDE={rollback}",
         f"/DPAYLOAD_CLEANUP_BACKUP_INCLUDE={cleanup_backup}",
         f"/DPAYLOAD_UNINSTALL_INCLUDE={uninstall}",
-        f"/DICON_FILE={ROOT / 'assets/camera.ico'}",
+        f"/DICON_FILE={ROOT / 'crates/camera-lab/assets/camera.ico'}",
         str(script),
     ]
 

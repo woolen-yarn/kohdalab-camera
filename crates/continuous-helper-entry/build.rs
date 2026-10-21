@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 mod windows_resources {
-    include!("../assets/windows_resources.rs");
+    include!("../camera-lab/assets/windows_resources.rs");
 }
 
 fn main() {
@@ -10,9 +10,11 @@ fn main() {
     );
     let workspace_root = helper_root
         .parent()
-        .expect("helper-entry must remain directly under the workspace root");
+        .and_then(std::path::Path::parent)
+        .expect("helper-entry must remain under crates/ in the workspace root");
+    let application_root = workspace_root.join("crates/camera-lab");
     windows_resources::compile(
-        workspace_root,
+        &application_root,
         windows_resources::Metadata {
             binary: "continuous-helper",
             file_description: "KohdaLab Camera capture helper",

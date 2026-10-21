@@ -10,5 +10,5 @@ name = "continuous-helper"
 path = "src/main.rs"
 
 [dependencies]
-camera-lab = { path = ".." }
-capability-platform = { path = "../platform" }
+camera-lab = { path = "../camera-lab" }
+capability-platform = { path = "../capability-platform" }

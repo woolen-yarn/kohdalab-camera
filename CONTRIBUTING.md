@@ -23,12 +23,12 @@ Do not incorporate manufacturer binary reverse-engineering results, private USB
 traffic captures, proprietary initialization data, or legacy application assets.
 Keep vendor-specific details behind backend boundaries. Simulation and unit
 tests help development but do not qualify physical devices. Update
-[the support matrix](docs/camera-support.md) only to the extent supported by
+[the support matrix](docs/reference/hardware.md) only to the extent supported by
 actual validation.
 
 ## Changes and validation
 
-See [code structure and maintenance boundaries](docs/code-structure.md) before
+See [code structure and maintenance boundaries](docs/development/architecture.md) before
 moving responsibilities or shared defaults between modules.
 
 Read the relevant implementation before editing. Use targeted tests appropriate
