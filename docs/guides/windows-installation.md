@@ -84,7 +84,7 @@ Version 0.1.11 additionally passed [public Windows CI](https://github.com/woolen
 including metadata/unsigned-status checks on all executable types, matching
 exported/installed uninstaller bytes, fresh install, update, uninstall and
 unrelated-file preservation. The exact CI runtime was installed and startup-
-checked on the workstation. See [v0.1.11 validation](validation-0.1.11.json).
+checked on the workstation. See [v0.1.11 validation](../validation/validation-0.1.11.json).
 This remains an unsigned release without new physical capture qualification.
 
 Version 0.1.10 Setup was compiled with NSIS 3.12 using zlib after checking all
@@ -93,7 +93,7 @@ passed on Windows; an unrelated test file survived both update and uninstall.
 The final per-user installation matched both runtime hashes and its desktop
 shortcut targeted the installed application. The installed startup report found
 the GR300 WinUSB binding and sibling helper, without starting acquisition.
-See the [scoped installation record](validation-0.1.10.json). This does not extend
+See the [scoped installation record](../validation/validation-0.1.10.json). This does not extend
 the version 0.1.9 physical Live validation to new binaries.
 
 ## Signature audit and execution warnings
@@ -138,8 +138,8 @@ For a signed release, use a publisher-owned certificate or signing service:
 Current releases remain unsigned. The owner has requested preparation for the
 free SignPath Foundation program, without submitting an application yet. Its
 certificate publisher would be SignPath Foundation, not the laboratory or
-university. See the [Code signing policy](code-signing-policy.md) and
-[application preparation](signpath-application.md). A laboratory/organization
+university. See the [Code signing policy](../reference/code-signing.md) and
+[application preparation](../development/signpath-application.md). A laboratory/organization
 certificate remains a separate alternative requiring organization validation
 and enrollment. No enrollment, purchase or credential change was performed.
 The current installer does not itself provide a signing identity. A signed

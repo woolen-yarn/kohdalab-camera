@@ -8,8 +8,12 @@ import hashlib
 import sys
 
 root = Path(__file__).resolve().parents[1]
-paths = [root / name for name in ['Cargo.toml', 'Cargo.lock', 'build.rs']]
-for folder in ['src', 'helper-entry', 'platform', 'assets']:
+paths = [root / name for name in ['Cargo.toml', 'Cargo.lock']]
+for folder in [
+    'crates/camera-lab',
+    'crates/continuous-helper-entry',
+    'crates/capability-platform',
+]:
     paths.extend(p for p in (root / folder).rglob('*') if p.is_file()
                  and p.suffix in {'.rs', '.toml', '.lock', '.rc', '.manifest', '.ico', '.png'})
 digest = hashlib.sha256()

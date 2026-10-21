@@ -6,19 +6,19 @@ changes there should be small and checked against the existing regression tests.
 
 | Concern | Entry points |
 | --- | --- |
-| Application state, worker integration and event handling | `src/main.rs` |
-| Camera picker, presentation state and viewport transitions | `src/natural_ui.rs` |
-| Inspector controls and appearance | `src/parity_ui.rs` |
-| Fit, zoom and pan transforms | `src/image_view.rs` |
-| Saved user settings, schema version and initial Live size | `src/preferences.rs` |
-| Image corrections and display recipe | `src/display_recipe.rs` |
-| Bounded background preview work | `src/preview_pipeline.rs` |
-| Image/RAW/metadata export | `src/image_export.rs` |
-| Session state machine, worker and lifecycle guardian | `src/session.rs` |
-| Platform-specific continuous helper transport | `src/continuous_session/` |
-| Driver eligibility | `src/driver_policy.rs` |
-| USB discovery candidate catalog (not connection authority) | `src/device_catalog.rs` |
-| Windows PE resource generation for both executables | `assets/windows_resources.rs` |
+| Application state, worker integration and event handling | `crates/camera-lab/src/main.rs` |
+| Camera picker, presentation state and viewport transitions | `crates/camera-lab/src/natural_ui.rs` |
+| Inspector controls and appearance | `crates/camera-lab/src/parity_ui.rs` |
+| Fit, zoom and pan transforms | `crates/camera-lab/src/image_view.rs` |
+| Saved user settings, schema version and initial Live size | `crates/camera-lab/src/preferences.rs` |
+| Image corrections and display recipe | `crates/camera-lab/src/display_recipe.rs` |
+| Bounded background preview work | `crates/camera-lab/src/preview_pipeline.rs` |
+| Image/RAW/metadata export | `crates/camera-lab/src/image_export.rs` |
+| Session state machine, worker and lifecycle guardian | `crates/camera-lab/src/session.rs` |
+| Platform-specific continuous helper transport | `crates/camera-lab/src/continuous_session/` |
+| Driver eligibility | `crates/camera-lab/src/driver_policy.rs` |
+| USB discovery candidate catalog (not connection authority) | `crates/camera-lab/src/device_catalog.rs` |
+| Windows PE resource generation for both executables | `crates/camera-lab/assets/windows_resources.rs` |
 | Packaging and disposable-runner installation checks | `scripts/`, `.github/workflows/windows-unsigned.yml` |
 
 See [extending the camera platform](extensibility.md) for the next backend's
@@ -42,11 +42,11 @@ boundaries, remaining GR300-specific coupling and qualification requirements.
 
 ## Regression tests
 
-`src/app_tests.rs` contains the application regression tests as the existing
+`crates/camera-lab/src/app_tests.rs` contains the application regression tests as the existing
 `tests` module, keeping names and assertions intact while leaving production
 event handling easier to navigate. Focused UI, image-view and preference tests
 remain with their respective modules. Cross-module scenarios remain in
-`src/parity_tests.rs` and `src/integrated_ux_tests.rs`.
+`crates/camera-lab/src/parity_tests.rs` and `crates/camera-lab/src/integrated_ux_tests.rs`.
 
 Run `cargo test --locked --bin camera-lab` for application-side changes. Windows
 GUI tests also require the synthetic-frame helper and a new private fixture root;

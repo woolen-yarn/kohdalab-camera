@@ -5,11 +5,11 @@ mod windows_resources {
 }
 
 fn main() {
-    let workspace_root = std::path::PathBuf::from(
+    let application_root = std::path::PathBuf::from(
         std::env::var_os("CARGO_MANIFEST_DIR").expect("Cargo must set CARGO_MANIFEST_DIR"),
     );
     windows_resources::compile(
-        &workspace_root,
+        &application_root,
         windows_resources::Metadata {
             binary: "camera-lab",
             file_description: "KohdaLab Camera",

@@ -4,12 +4,12 @@ KohdaLab Camera is currently distributed for Windows x64. Its supported physical
 configuration is the owner-confirmed **SHODENSHA GR300**, using the tested
 Micron MT9T001 / USB `0547:4d33` configuration with an existing WinUSB binding.
 Other GR300 units, cameras with the same USB ID, and other camera models are not
-automatically supported. See [camera support](camera-support.md) for the exact
+automatically supported. See [camera support](../reference/hardware.md) for the exact
 scope.
 
 ## Start a session
 
-![Camera selection with Simulation selected](images/camera-selection.png)
+![Camera selection with Simulation selected](../images/camera-selection.png)
 
 The screenshots show the native development preview in Simulation on macOS.
 The distributed executable is Windows x64; window decorations differ.
@@ -29,7 +29,7 @@ drivers. The physical configuration requires the existing WinUSB setup.
 
 ## Everyday controls
 
-![Image controls in Simulation](images/image-controls.png)
+![Image controls in Simulation](../images/image-controls.png)
 
 The Live window keeps the image in the centre. Use the toolbar, or **F1–F5**, to
 open **Camera**, **Acquisition**, **Image**, **Export**, and **Advanced**.

@@ -16,7 +16,7 @@ These references inform the project's design decisions. The application uses
 egui; it does not reproduce a particular Apple product interface. The earlier
 GUI was a visual and interaction reference, not a source of proprietary internal
 implementation. Backend provenance is documented separately in
-[provenance and redistribution scope](provenance.md).
+[provenance and redistribution scope](../reference/provenance.md).
 
 ## Interaction decisions
 
@@ -42,7 +42,7 @@ Verification included 33 GUI tests, 17 targeted renderer and preview tests,
 native Simulation interaction checks, and exact reconstruction of all 786,432
 RGB pixels in a saved GR300 endpoint image. Version 0.1.7 did not repeat physical
 camera acquisition. The local CPU measurements do not establish a physical FPS
-improvement; see [rendering verification](rendering-performance.md).
+improvement; see [rendering verification](../validation/rendering-performance.md).
 
 ## Principles for future changes
 

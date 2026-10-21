@@ -11,7 +11,7 @@ Foundation certificates identify **SignPath Foundation**, not Tohoku University
 or KohdaLab, as the certificate publisher. Product metadata remains KohdaLab
 Camera. A laboratory/organization certificate is a separate future option.
 
-See the [application preparation](signpath-application.md) for evidence, proposed
+See the [application preparation](../development/signpath-application.md) for evidence, proposed
 roles and outstanding checks. Acceptance is at the Foundation's discretion.
 
 ## Intended signing scope

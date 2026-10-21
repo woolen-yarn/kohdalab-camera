@@ -26,4 +26,4 @@ enrollment. It is not a prerequisite for requesting eligibility review: disclose
 this plan in the application rather than claiming operational signing.
 
 Do not place API tokens, certificate keys, private images, or hardware-session
-records here. See [application preparation](../docs/signpath-application.md).
+records here. See [application preparation](../docs/development/signpath-application.md).

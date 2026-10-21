@@ -12,10 +12,10 @@
   shortcut target and startup report. Organize current source/output paths and
   archive earlier validation/staging data without deleting it.
 
-[CI and installation validation](validation-0.1.11.json) is scoped to build,
+[CI and installation validation](docs/validation/validation-0.1.11.json) is scoped to build,
 metadata and installation. Physical capture validation remains v0.1.9. This
 release remains unsigned; no SignPath application or account integration was
-submitted. See [application preparation](signpath-application.md).
+submitted. See [application preparation](docs/development/signpath-application.md).
 
 # KohdaLab Camera 0.1.10
 
@@ -35,7 +35,7 @@ Version 0.1.9 retains the last five-minute physical validation; new 0.1.10 check
 cover driver policy, UI regression and Windows startup/installation behavior.
 Fresh install, update, uninstall and unrelated-file preservation passed. The
 installed runtime hashes and shortcut were verified; all four executable types
-remain unsigned. See [installation validation](validation-0.1.10.json).
+remain unsigned. See [installation validation](docs/validation/validation-0.1.10.json).
 
 # KohdaLab Camera 0.1.9
 
@@ -50,8 +50,8 @@ physical validation of the exact published binaries completed 399.4 seconds of
 GR300 Live with 15,701 accepted frames, image adjustment and Fit controls,
 PNG/RAW/Bayer TIFF export, and normal Disconnect/Close. All saved pixels matched
 independent RAW reconstruction; both processes exited normally without a
-remaining protective lock. See [validation](validation-0.1.9.json) and
-[observed responsiveness](responsiveness.md).
+remaining protective lock. See [validation](docs/validation/validation-0.1.9.json) and
+[observed responsiveness](docs/validation/responsiveness.md).
 
 The initial zero-connection attempt was blocked by Windows App input delivery.
 The owner opened the picker, and held mouse clicks then allowed the finite run
@@ -124,7 +124,7 @@ completed 336.2 seconds of real GR300 Live acquisition, a PNG/RAW/Bayer TIFF exp
 with independent pixel agreement, and normal GUI/helper exit. No process or
 protective lock remained. The owner confirmed manual resizing and size retention.
 Color/optical qualification and picker round-trip resizing remain outside this
-run. See [the scoped validation record](validation-0.1.4.json).
+run. See [the scoped validation record](docs/validation/validation-0.1.4.json).
 
 # KohdaLab Camera 0.1.3
 
@@ -141,7 +141,7 @@ run. See [the scoped validation record](validation-0.1.4.json).
 
 Validation: 26 UI tests passed; rendering tests passed; simulation Image/Export
 panels were visually checked with mouse clicks. The 0.1.3 Windows build has not
-had a new physical-camera run. See [performance verification](rendering-performance.md).
+had a new physical-camera run. See [performance verification](docs/validation/rendering-performance.md).
 
 ## Additional 0.1.2 validation
 
@@ -149,7 +149,7 @@ The published build subsequently completed 333.2 seconds of Live acquisition on
 SHODENSHA GR300, with a pixel-checked endpoint export and normal native shutdown.
 Manual mouse operation was confirmed by the owner. The planned start export was
 canceled, so the full two-endpoint export plan remains incomplete. See
-[the later validation record](validation-0.1.2-five-minute.json).
+[the later validation record](docs/validation/validation-0.1.2-five-minute.json).
 
 The earlier observations below retain their original candidate scope.
 
@@ -171,7 +171,7 @@ no remaining camera process or protective interlock and normal WinUSB status.
 The 60-second preflight-to-Connect window was not proven, so this is not an
 acceptance PASS. The final GUI binary additionally includes the retained-
 simulation label fix and has not been physically retested. See
-`docs/validation-0.1.2.json` for the exact scope.
+`docs/validation/validation-0.1.2.json` for the exact scope.
 
 Ordinary mouse input through Windows App, physical arbitrary-resize persistence,
 and color/field-of-view calibration remain open. Long-duration testing is
