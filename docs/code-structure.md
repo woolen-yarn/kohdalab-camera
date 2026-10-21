@@ -17,8 +17,12 @@ changes there should be small and checked against the existing regression tests.
 | Session state machine, worker and lifecycle guardian | `src/session.rs` |
 | Platform-specific continuous helper transport | `src/continuous_session/` |
 | Driver eligibility | `src/driver_policy.rs` |
+| USB discovery candidate catalog (not connection authority) | `src/device_catalog.rs` |
 | Windows PE resource generation for both executables | `assets/windows_resources.rs` |
 | Packaging and disposable-runner installation checks | `scripts/`, `.github/workflows/windows-unsigned.yml` |
+
+See [extending the camera platform](extensibility.md) for the next backend's
+boundaries, remaining GR300-specific coupling and qualification requirements.
 
 ## Preserving behavior during cleanup
 

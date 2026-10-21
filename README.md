@@ -155,6 +155,8 @@ frame-rate calibration.
    a compatibility matrix and limitations for every backend and operating system.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a camera backend.
+The [extension plan](docs/extensibility.md) describes current boundaries and the
+implementation order for a camera from another manufacturer.
 
 ## Build and validation
 

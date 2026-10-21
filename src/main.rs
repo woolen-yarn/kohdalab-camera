@@ -428,7 +428,7 @@ impl App {
                 .map(Self::identity);
             match result {
                 Ok(devices) => {
-                    let (supported,other)=devices.into_iter().partition(|d|d.vendor_id()==0x0547 && d.product_id()==0x4d33);
+                    let (supported,other)=devices.into_iter().partition(|d|camera_lab::device_catalog::usb_candidate(d.vendor_id(),d.product_id()).is_some());
                     self.devices = supported;self.other_devices=other;
                     self.selected = Self::refreshed_selection(identity,self.devices.iter().map(Self::identity));
                 }
@@ -548,10 +548,11 @@ fn main() -> eframe::Result {
         let result=(|| -> Result<(),String> {
             let destination=std::env::args().nth(2).ok_or("Expected a new JSON output path")?;
             let devices=nusb::list_devices().wait().map_err(|e|e.to_string())?;
-            let cameras:Vec<_>=devices.filter(|d|d.vendor_id()==0x0547 && d.product_id()==0x4d33).map(|d| {
+            let cameras:Vec<_>=devices.filter(|d|camera_lab::device_catalog::usb_candidate(d.vendor_id(),d.product_id()).is_some()).map(|d| {
                 #[cfg(windows)] let driver=d.driver().map(str::to_owned);
                 #[cfg(not(windows))] let driver:Option<String>=None;
-                serde_json::json!({"product":d.product_string(),"usb_id":"0547:4d33","installed_driver":driver,
+                let usb_id=camera_lab::device_catalog::UsbId {vendor:d.vendor_id(),product:d.product_id()};
+                serde_json::json!({"product":d.product_string(),"usb_id":usb_id.to_string(),"installed_driver":driver,
                     "driver_connection_error":camera_lab::driver_policy::connection_error(&d)})
             }).collect();
             let helper=std::env::current_exe().map_err(|e|e.to_string())?.with_file_name("continuous-helper.exe");
