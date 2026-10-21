@@ -36,6 +36,15 @@ to the change; documentation-only edits do not require physical camera runs.
 Do not change recorded results, thresholds, or historical checksums to make a
 check pass. Preserve license notices in source and portable distributions.
 
+## Dependency updates
+
+Dependabot checks the Rust workspace weekly and GitHub Actions monthly.
+Dependency updates require review; automatic merging is not configured.
+For Cargo updates, refresh `RECORDER-SOURCE-ID` with
+`python scripts/update_source_identity.py`, review the dependency and license
+changes, and run the unsigned Windows workflow on the updated branch before
+merging. The workflow supports manual runs for dependency pull requests.
+
 ## Native input diagnostics
 
 For a bounded, simulation-only investigation of input delivery, build the
