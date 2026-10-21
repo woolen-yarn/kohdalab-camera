@@ -14,8 +14,28 @@ impl App {
             && self.session.state==camera_lab::session::State::Disconnected
             && self.session.requested_revision.is_none()
     }
-    fn picker_connect_ready(&self)->bool {self.can_connect() && (self.picker_simulation || (self.scan_rx.is_none() && self.selected.and_then(|i|self.devices.get(i)).is_some_and(|d|camera_lab::driver_policy::connection_error(d).is_none())))}
-    fn connect_picker(&mut self) {if self.picker_connect_ready() {if self.picker_simulation {self.request(Some(Source::Simulation));} else if let Some(d)=self.selected.and_then(|i|self.devices.get(i)).cloned() {self.request(Some(Source::Physical(d)));}}}
+    fn selected_physical_device(&self) -> Option<&nusb::DeviceInfo> {
+        self.selected.and_then(|index| self.devices.get(index))
+    }
+
+    fn picker_connect_ready(&self) -> bool {
+        self.can_connect()
+            && (self.picker_simulation
+                || (self.scan_rx.is_none()
+                    && self.selected_physical_device().is_some_and(|device| {
+                        camera_lab::driver_policy::connection_error(device).is_none()
+                    })))
+    }
+
+    fn connect_picker(&mut self) {
+        if self.picker_connect_ready() {
+            if self.picker_simulation {
+                self.request(Some(Source::Simulation));
+            } else if let Some(device) = self.selected_physical_device().cloned() {
+                self.request(Some(Source::Physical(device)));
+            }
+        }
+    }
     pub(super) fn change_camera(&mut self) {
         self.request(None);
         self.picker=true;
@@ -137,7 +157,7 @@ impl App {
                 });
             } else {ui.label("Software simulation · no camera required");}
             #[cfg(windows)]
-            if !self.picker_simulation {if let Some(d)=self.selected.and_then(|i|self.devices.get(i)) {
+            if !self.picker_simulation {if let Some(d)=self.selected_physical_device() {
                 if let Some(error)=camera_lab::driver_policy::connection_error(d) {ui.label(error);}
                 else {ui.weak("Using existing WinUSB driver").on_hover_text("Installed drivers are preserved. No driver installation or automatic replacement occurs.");}
             }}

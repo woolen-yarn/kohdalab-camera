@@ -2,6 +2,9 @@
 use camera_lab::{controls::{Mode,Settings},display_recipe::Recipe};
 use serde::{Deserialize,Serialize};
 use std::path::{Path,PathBuf};
+pub const SCHEMA_VERSION: u32 = 1;
+pub const DEFAULT_LIVE_SIZE: [f32; 2] = [1100., 760.];
+
 #[derive(Clone,Debug,PartialEq,Serialize,Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Preferences {
@@ -9,13 +12,13 @@ pub struct Preferences {
     pub recipe:Recipe,pub live_size:[f32;2],pub folder:Option<PathBuf>,pub next_sequence:u64,
 }
 impl Default for Preferences {
-    fn default()->Self {let s=Settings::default();Self{version:1,mode:s.mode.profile().id.into(),exposure:s.exposure_rows,gain:s.gain_eighths,recipe:Recipe::default(),live_size:[1100.,760.],folder:None,next_sequence:1}}
+    fn default()->Self {let s=Settings::default();Self{version:SCHEMA_VERSION,mode:s.mode.profile().id.into(),exposure:s.exposure_rows,gain:s.gain_eighths,recipe:Recipe::default(),live_size:DEFAULT_LIVE_SIZE,folder:None,next_sequence:1}}
 }
 impl Preferences {
     pub fn settings(&self)->Result<Settings,String> {Settings{mode:Mode::parse(&self.mode)?,exposure_rows:self.exposure,gain_eighths:self.gain}.validate()}
     pub fn validate(&self)->Result<(),String> {
         self.settings()?;self.recipe.validate()?;
-        if self.version!=1 || !self.live_size[0].is_finite() || !self.live_size[1].is_finite() || !(900.0..=8192.).contains(&self.live_size[0]) || !(620.0..=8192.).contains(&self.live_size[1]) || self.folder.as_ref().is_some_and(|p|!p.is_absolute()) || self.next_sequence==0 {return Err("Invalid saved preferences".into());}Ok(())
+        if self.version!=SCHEMA_VERSION || !self.live_size[0].is_finite() || !self.live_size[1].is_finite() || !(900.0..=8192.).contains(&self.live_size[0]) || !(620.0..=8192.).contains(&self.live_size[1]) || self.folder.as_ref().is_some_and(|p|!p.is_absolute()) || self.next_sequence==0 {return Err("Invalid saved preferences".into());}Ok(())
     }
     pub fn load(path:&Path)->Result<Self,String> {
         use std::io::Read;

@@ -28,6 +28,9 @@ actual validation.
 
 ## Changes and validation
 
+See [code structure and maintenance boundaries](docs/code-structure.md) before
+moving responsibilities or shared defaults between modules.
+
 Read the relevant implementation before editing. Use targeted tests appropriate
 to the change; documentation-only edits do not require physical camera runs.
 Do not change recorded results, thresholds, or historical checksums to make a
