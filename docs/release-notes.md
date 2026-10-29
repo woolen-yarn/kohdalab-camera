@@ -18,7 +18,7 @@ Windows x64 Setup and portable ZIP, corresponding source and checksums. No Mac e
 
 Local library: 147 passed, one hardware-dependent test ignored; GUI binary: 34 passed; common Rust contract: seven passed. Actual Mac fake GUI validated reads, authentication and unsupported mutations. Existing strict-clippy warnings are not presented as a passing check.
 
-The common Python SDK has seven device-free tests. Source/build identifiers, package manifests and SHA-256 evidence accompany the release. These checks do not newly qualify physical instruments, optical closure, camera calibration or scientific accuracy.
+The common Python SDK has nine device-free tests. Source/build identifiers, package manifests and SHA-256 evidence accompany the release. These checks do not newly qualify physical instruments, optical closure, camera calibration or scientific accuracy.
 
 ## 日本語
 

@@ -59,6 +59,8 @@ def main() -> int:
                 raise RuntimeError("Unexpected application identity")
             if description["safety"]["supports_ownership"] is not False:
                 raise RuntimeError("Camera must remain read-only for common API")
+            if status["cleanup"] == "verified":
+                raise RuntimeError("Read-only inspection must not assert cleanup proof")
             if not status or not isinstance(config, dict):
                 raise RuntimeError("Invalid status/config response")
             try:
