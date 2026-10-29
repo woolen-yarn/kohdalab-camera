@@ -22,7 +22,7 @@ Set-Content -LiteralPath $legacyExe -Value 'preserve-legacy-installation'
 try {
     $blocked = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
     if ($blocked.ExitCode -ne 1 -or (Test-Path -LiteralPath $install) -or
-        (Get-Content -LiteralPath $legacyExe) -ne 'preserve-legacy-installation') { throw 'Legacy installation guard failed' }
+        (Get-Content -LiteralPath $legacyExe) -ne 'preserve-legacy-installation') { throw "Legacy installation guard failed: exit=$($blocked.ExitCode), machine_path_exists=$(Test-Path -LiteralPath $install)" }
 } finally {
     Remove-Item -LiteralPath $legacyExe
     Remove-Item -LiteralPath $legacy

@@ -84,7 +84,7 @@ Function .onInit
     Abort
   ${EndIf}
   SetRegView 64
-  SetShellVarContext all
+  SetShellVarContext current
   ; Earlier releases installed for the current user. Require normal removal
   ; before creating a machine installation and common shortcuts.
   ReadRegStr $0 HKCU "${PRODUCT_REGKEY}" "InstallDir"
@@ -97,6 +97,7 @@ legacy_install_present:
   SetErrorLevel 1
   Quit
 legacy_install_clear:
+  SetShellVarContext all
   ; Keep this product's program files separate from every other KohdaLab app.
   ; Ignore caller-supplied /D paths for a machine installation.
   StrCpy $INSTDIR "$PROGRAMFILES64\Kohdalab\KohdaLab Camera"
