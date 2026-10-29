@@ -44,3 +44,8 @@
 - [CHANGELOG.md / 変更履歴](../CHANGELOG.md)
 
 English and Japanese share the links above. Machine-readable JSON evidence, source identifiers, and exact upstream license texts remain original. / 英日とも上の同じリンクをご利用ください。機械可読のJSON証跡、ソース識別子、上流ライセンス本文は原本を保持しています。
+
+## Suite integration / アプリ連携
+
+- [Common GUI control / 共通GUI API](reference/common-control-api.md)
+- [Common API validation / 共通APIの検証](validation/common-control-api.md)

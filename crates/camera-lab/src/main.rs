@@ -10,6 +10,7 @@ use camera_lab::{
 use eframe::egui;
 use nusb::MaybeFuture;
 use camera_lab::display_recipe::Recipe;
+use kohdalab_control_protocol::{is_common, prepare as prepare_common, response as common_response};
 mod parity_ui;
 mod natural_ui;
 mod preferences;
@@ -83,6 +84,7 @@ struct App {
     closing: bool,
     close_started: Option<std::time::Instant>,
     scan_rx: Option<Receiver<Result<Vec<nusb::DeviceInfo>, String>>>,
+    control_api: Option<camera_lab::control_api::Server>,
 }
 impl App {
     fn new(ctx: &egui::Context) -> Self {
@@ -222,6 +224,33 @@ impl App {
             closing: false,
             close_started: None,
             scan_rx: None,
+            control_api: if std::env::args().any(|arg| arg == "--gui-api") {
+                camera_lab::control_api::Server::start(None).ok()
+            } else { None },
+        }
+    }
+    fn process_control_api(&mut self) {
+        let requests: Vec<_> = self.control_api.as_ref().map(|api| api.requests.try_iter().take(8).collect()).unwrap_or_default();
+        for request in requests {
+            let original = request.body.clone();
+            let value = if request.deadline < std::time::Instant::now() {
+                common_response(&original, serde_json::json!({"ok":false,"error_code":"timeout","error":"Request expired before execution; no new action started"}))
+            } else {
+                match prepare_common(&original) {
+                    Err(error) => error,
+                    Ok(native) => {
+                        let method = native.get("_control_method").and_then(serde_json::Value::as_str).unwrap_or("");
+                        let result = match method {
+                            "describe" => serde_json::json!({"ok":true,"result":{"protocol":"kohdalab-control","control_protocol":1,"application":"kohdalab-camera","application_version":env!("CARGO_PKG_VERSION"),"api_version":1,"methods":["control.describe","control.status","control.config"],"safety":{"supports_ownership":false,"exclusive_control":false,"physical_auto_connect":false,"simulation_required_for_tests":true},"native":{"gui_owned":true}}}),
+                            "status" => { let s=self.worker.snapshot(); let phase=match s.state {camera_lab::session::State::Disconnected=>"disconnected",camera_lab::session::State::Connecting=>"initializing",camera_lab::session::State::Streaming=>"running",camera_lab::session::State::SettingsPending=>"initializing",camera_lab::session::State::Stopping=>"stopping",camera_lab::session::State::Error=>"error"}; let cleanup_unproved=s.lifecycle.as_ref().is_some_and(|l|l.unproved); serde_json::json!({"ok":true,"result":{"phase":phase,"busy":s.active,"ownership":{"owned":false},"cleanup":if cleanup_unproved{"unknown"}else{"verified"},"native":{"active":s.active,"message":s.message,"source_selected":self.source.is_some()}}}) }
+                            "config" => serde_json::json!({"ok":true,"result":{"mode":self.settings.mode.profile().id,"exposure_rows":self.settings.exposure_rows,"gain_eighths":self.settings.gain_eighths}}),
+                            _ => serde_json::json!({"ok":false,"error_code":"unsupported","error":"This Camera adapter exposes read-only control.* methods; use the GUI for device operations"}),
+                        };
+                        if is_common(&original) { common_response(&original, result) } else { result }
+                    }
+                }
+            };
+            let _ = request.reply.send(value);
         }
     }
     fn scan(&mut self) {
@@ -411,6 +440,7 @@ impl App {
         self.render_at(ctx, std::time::Instant::now);
     }
     fn render_at(&mut self, ctx: &egui::Context, mut clock: impl FnMut() -> std::time::Instant) {
+        self.process_control_api();
         #[cfg(feature = "input-diagnostics")]
         input_diagnostics::events(ctx);
         let now = clock();

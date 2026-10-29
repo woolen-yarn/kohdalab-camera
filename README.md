@@ -34,11 +34,19 @@ macOS の Simulation で撮影したネイティブ画面です。公開済み�
 
 | Channel / チャンネル | Version / バージョン | Platforms / プラットフォーム |
 | --- | --- | --- |
-| Stable / 安定版 | [0.1.12](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.12) | Windows x64 Setup / portable ZIP |
+| Stable / 安定版 | [0.1.13](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.13) | Windows x64 Setup / portable ZIP |
 
 Rust and Python are not required to run the packaged application. Current Windows artifacts are unsigned; download packages and checksums together from Releases.
 
+### Optional GUI control API
+
+Camera exposes an opt-in, loopback-only observer when started with `--gui-api`. It publishes a canonical descriptor under `~/.kohdalab/control` and serves `control.describe`, `control.status`, and `control.config` from the GUI thread's `Worker` snapshot. The adapter does not auto-connect to a camera, expose internal IPC, acquire ownership, or perform capture/stop mutations; those operations remain GUI-only until a separate safety review. `describe.safety.supports_ownership` is therefore `false`.
+
 パッケージ版の実行に Rust や Python は不要です。現行の Windows 成果物は未署名なので、Releases からパッケージとチェックサムを一緒に取得してください。
+
+### オプションのGUI制御API
+
+`--gui-api`を付けたときだけ、GUIスレッドの`Worker`スナップショットを読むloopback専用APIを起動します。`control.describe`・`control.status`・`control.config`のみを提供し、物理カメラへの自動接続、内部IPC公開、所有権取得、撮影・停止操作は行いません。`describe.safety.supports_ownership`は`false`です。
 
 ## Supported hardware / 対応機器
 
@@ -132,3 +140,7 @@ The applications share a root Cargo workspace, `crates/` source packages, focuse
 Project code is [MIT licensed](LICENSE). Native helpers and redistributed dependencies retain their own licenses; keep the accompanying notices and source. See [third-party notices](THIRD_PARTY_NOTICES.md) and [provenance](docs/reference/provenance.md).
 
 プロジェクトコードは [MIT licensed](LICENSE) です。ネイティブヘルパーと再配布依存物にはそれぞれのライセンスがあり、通知とソースを同梱したままにしてください。[third-party notices](THIRD_PARTY_NOTICES.md) と [provenance](docs/reference/provenance.md) も参照してください。
+
+## Common GUI control / 共通GUI制御
+
+[Control Protocol 1 and Python/Notebook examples / 共通APIとPython・Notebook](docs/reference/common-control-api.md). The existing application API remains supported; operation payloads and safety policy are app-specific. Camera is read-only. / 既存APIは維持し、操作引数と安全方針は各アプリに従います。Cameraは読み取り専用です。

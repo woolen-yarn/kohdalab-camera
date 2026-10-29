@@ -194,7 +194,9 @@ mod tests {
             assert_eq!(std::fs::read(bundle.join("raw.bin")).unwrap(),*f.raw);
             let m:Metadata=serde_json::from_slice(&std::fs::read(bundle.join("metadata.json")).unwrap()).unwrap();
             assert_eq!(m,f.metadata); assert_eq!(m.unix_millis,0);
-            assert_eq!(image::open(bundle.join(format!("{}.png",mode.profile().name))).unwrap().to_rgb8().as_raw(),f.display_rgb().as_ref());
+            // The legacy public export preserves the established sensor-to-RGB
+            // conversion; recipe-driven save_recipe is tested separately.
+            assert_eq!(image::open(bundle.join(format!("{}.png",mode.profile().name))).unwrap().to_rgb8().as_raw(), f.legacy_display_rgb().as_ref());
             for change in 0..6 { let mut bad=f.clone(); match change {
                 0=>bad.metadata.width/=2,1=>bad.metadata.sequence+=1,
                 2=>bad.metadata.acquisition.as_mut().unwrap().geometry.cfa="RGGB".into(),

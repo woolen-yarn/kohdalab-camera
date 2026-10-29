@@ -106,17 +106,17 @@ fn application_package_version(application_manifest: &Path) -> String {
             in_package = line == "[package]";
             continue;
         }
-        if in_package {
-            if let Some(value) = line.strip_prefix("version") {
-                let value = value.trim_start();
-                if let Some(value) = value.strip_prefix('=') {
-                    let value = value.trim();
-                    if let Some(version) = value
-                        .strip_prefix('"')
-                        .and_then(|value| value.strip_suffix('"'))
-                    {
-                        return version.to_owned();
-                    }
+        if in_package
+            && let Some(value) = line.strip_prefix("version")
+        {
+            let value = value.trim_start();
+            if let Some(value) = value.strip_prefix('=') {
+                let value = value.trim();
+                if let Some(version) = value
+                    .strip_prefix('"')
+                    .and_then(|value| value.strip_suffix('"'))
+                {
+                    return version.to_owned();
                 }
             }
         }
@@ -192,7 +192,7 @@ fn find_windres(target: &str) -> Option<OsString> {
     candidates.push(OsString::from("windres"));
     candidates
         .into_iter()
-        .find(|candidate| windres_is_available(candidate))
+        .find(windres_is_available)
 }
 
 fn windres_is_available(candidate: &OsString) -> bool {

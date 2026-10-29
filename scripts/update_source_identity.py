@@ -13,6 +13,7 @@ for folder in [
     'crates/camera-lab',
     'crates/continuous-helper-entry',
     'crates/capability-platform',
+    'crates/kohdalab-control-protocol',
 ]:
     paths.extend(p for p in (root / folder).rglob('*') if p.is_file()
                  and p.suffix in {'.rs', '.toml', '.lock', '.rc', '.manifest', '.ico', '.png'})
