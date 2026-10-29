@@ -116,5 +116,15 @@ class InstallerPayloadTests(unittest.TestCase):
             self.assertEqual(exit_code.exception.code, 2)
 
 
+    def test_validation_uses_fixed_machine_install_and_refuses_existing_app(self):
+        source = SCRIPT.with_name("validate_windows_release.ps1").read_text()
+        self.assertIn("GetFolderPath('ProgramFiles')", source)
+        self.assertIn("'Kohdalab\\KohdaLab Camera'", source)
+        self.assertIn("Uninstall\\KohdaLab Camera'", source)
+        self.assertIn("Refusing to validate over an existing Camera installation", source)
+        self.assertNotIn('"/D=$install"', source)
+        self.assertIn("WindowsBuiltInRole]::Administrator", source)
+
+
 if __name__ == "__main__":
     unittest.main()
