@@ -20,7 +20,7 @@ physical-session plan. Cache and tool locations stay stable for existing builds.
 ## Windows workstation
 
 The supported installed application lives under
-`%LOCALAPPDATA%\Programs\KohdaLab Camera`, with one desktop/Start Menu launch path.
+`%ProgramFiles%\Kohdalab\KohdaLab Camera`, with one desktop/Start Menu launch path.
 The workspace holds `source/` for the current public source snapshot, `windows/`
 for the current portable payload, and `release/` for the current downloaded
 distribution. These are distinct from the installed application's user data.

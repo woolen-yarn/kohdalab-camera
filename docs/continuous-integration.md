@@ -16,7 +16,7 @@ not sign, create a GitHub release, install drivers, or use a physical camera.
   by CI. A stale marker stops the build.
 - Camera driver-policy and headless GUI unit tests run without hardware. Both
   first-party executables embed the root package version and product name.
-- The NSIS 3.12 archive is hash-verified before extraction. Setup is per-user and
+- The NSIS 3.12 archive is hash-verified before extraction. Setup is machine-wide and
   does not start acquisition. The compiler exports the exact unsigned uninstaller
   without running Setup to obtain it.
 - A disposable install checks all four executable types' metadata and unsigned

@@ -1,24 +1,25 @@
 //! User preferences only; never stores device ownership or reconnect authority.
 use camera_lab::{controls::{Mode,Settings},display_recipe::Recipe};
 use serde::{Deserialize,Serialize};
-use std::path::{Path,PathBuf};
-pub const SCHEMA_VERSION: u32 = 1;
+use std::{io::Write,path::{Path,PathBuf}};
+pub const SCHEMA_VERSION: u32 = 2;
+pub const APPLICATION: &str = "kohdalab-camera";
 pub const DEFAULT_LIVE_SIZE: [f32; 2] = [1100., 760.];
 
 #[derive(Clone,Debug,PartialEq,Serialize,Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Preferences {
-    pub version:u32,pub mode:String,pub exposure:u16,pub gain:u16,
+    pub application:String,pub version:u32,pub mode:String,pub exposure:u16,pub gain:u16,
     pub recipe:Recipe,pub live_size:[f32;2],pub folder:Option<PathBuf>,pub next_sequence:u64,
 }
 impl Default for Preferences {
-    fn default()->Self {let s=Settings::default();Self{version:SCHEMA_VERSION,mode:s.mode.profile().id.into(),exposure:s.exposure_rows,gain:s.gain_eighths,recipe:Recipe::default(),live_size:DEFAULT_LIVE_SIZE,folder:None,next_sequence:1}}
+    fn default()->Self {let s=Settings::default();Self{application:APPLICATION.into(),version:SCHEMA_VERSION,mode:s.mode.profile().id.into(),exposure:s.exposure_rows,gain:s.gain_eighths,recipe:Recipe::default(),live_size:DEFAULT_LIVE_SIZE,folder:None,next_sequence:1}}
 }
 impl Preferences {
     pub fn settings(&self)->Result<Settings,String> {Settings{mode:Mode::parse(&self.mode)?,exposure_rows:self.exposure,gain_eighths:self.gain}.validate()}
     pub fn validate(&self)->Result<(),String> {
         self.settings()?;self.recipe.validate()?;
-        if self.version!=SCHEMA_VERSION || !self.live_size[0].is_finite() || !self.live_size[1].is_finite() || !(900.0..=8192.).contains(&self.live_size[0]) || !(620.0..=8192.).contains(&self.live_size[1]) || self.folder.as_ref().is_some_and(|p|!p.is_absolute()) || self.next_sequence==0 {return Err("Invalid saved preferences".into());}Ok(())
+        if self.application!=APPLICATION || self.version!=SCHEMA_VERSION || !self.live_size[0].is_finite() || !self.live_size[1].is_finite() || !(900.0..=8192.).contains(&self.live_size[0]) || !(620.0..=8192.).contains(&self.live_size[1]) || self.folder.as_ref().is_some_and(|p|!p.is_absolute()) || self.next_sequence==0 {return Err("Invalid saved preferences".into());}Ok(())
     }
     pub fn load(path:&Path)->Result<Self,String> {
         use std::io::Read;
@@ -28,17 +29,24 @@ impl Preferences {
         let p:Self=serde_json::from_slice(&data).map_err(|e|e.to_string())?;p.validate()?;Ok(p)
     }
     pub fn save(&self,path:&Path)->Result<(),String> {
-        self.validate()?;let parent=path.parent().ok_or("Missing preference directory")?;
+        self.validate()?;
+        if path.exists() {Self::load(path).map_err(|e|format!("Refusing to overwrite invalid saved preferences: {e}"))?;}
+        let parent=path.parent().ok_or("Missing preference directory")?;
         std::fs::create_dir_all(parent).map_err(|e|e.to_string())?;
-        // Single application writer; complete serialization precedes replacement.
+        // Fully write and sync a sibling first. `replace` never deletes the old
+        // file before the new one is ready, including on Windows.
         let data=serde_json::to_vec_pretty(self).map_err(|e|e.to_string())?;
         let tmp=path.with_extension(format!("{}.tmp",std::process::id()));
-        std::fs::write(&tmp,data).map_err(|e|e.to_string())?;
-        std::fs::rename(&tmp,path).map_err(|e|e.to_string())
+        let mut file=std::fs::OpenOptions::new().write(true).create_new(true).open(&tmp).map_err(|e|e.to_string())?;
+        if let Err(error)=file.write_all(&data).and_then(|_|file.sync_all()) {let _=std::fs::remove_file(&tmp);return Err(error.to_string());}
+        // Windows cannot reliably replace a destination while this handle is open.
+        drop(file);
+        if let Err(error)=replace(&tmp,path) {let _=std::fs::remove_file(&tmp);return Err(error.to_string());}
+        Ok(())
     }
     pub fn path()->Option<PathBuf> {
-        #[cfg(windows)] {std::env::var_os("APPDATA").map(|p|PathBuf::from(p).join("KohdaLab Camera/settings.json"))}
-        #[cfg(not(windows))] {std::env::var_os("HOME").map(|p|PathBuf::from(p).join("Library/Application Support/KohdaLab Camera/settings.json"))}
+        #[cfg(windows)] {std::env::var_os("USERPROFILE").map(|p|PathBuf::from(p).join(".kohdalab/camera/config.json"))}
+        #[cfg(not(windows))] {std::env::var_os("HOME").map(|p|PathBuf::from(p).join(".kohdalab/camera/config.json"))}
     }
     pub fn suggested_name(&self,full:bool)->String {
         let stem=if full {"full"}else{"capture"};
@@ -46,6 +54,17 @@ impl Preferences {
             if self.folder.as_ref().is_none_or(|d|!["", ".raw", ".json", ".original-RAW.tiff", ".capture"].iter().any(|suffix|d.join(format!("{name}{suffix}")).exists())) {return name;}}
         format!("{stem}_{}.png",std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos())
     }
+}
+#[cfg(not(windows))]
+fn replace(source:&Path,destination:&Path)->std::io::Result<()> {std::fs::rename(source,destination)}
+#[cfg(windows)]
+fn replace(source:&Path,destination:&Path)->std::io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    #[link(name="kernel32")]
+    unsafe extern "system" {fn MoveFileExW(existing:*const u16,new:*const u16,flags:u32)->i32;}
+    let wide=|path:&Path|path.as_os_str().encode_wide().chain(std::iter::once(0)).collect::<Vec<_>>();
+    let source=wide(source);let destination=wide(destination);
+    if unsafe{MoveFileExW(source.as_ptr(),destination.as_ptr(),1)}==0 {Err(std::io::Error::last_os_error())}else{Ok(())}
 }
 #[cfg(test)] mod tests {
     use super::*;
@@ -56,5 +75,11 @@ impl Preferences {
         std::fs::write(root.join("capture_0012.png.raw"),b"occupied").unwrap();assert_eq!(p.suggested_name(false),"capture_0013.png");
         let mut bad=p.clone();bad.exposure=0;assert!(bad.save(&path).is_err());assert_eq!(Preferences::load(&path).unwrap(),p);
         std::fs::write(&path,vec![b' ';65537]).unwrap();assert!(Preferences::load(&path).is_err());std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test] fn save_refuses_foreign_file_without_changing_it() {
+        let root=std::env::temp_dir().join(format!("camera-prefs-foreign-{}",std::process::id()));std::fs::create_dir_all(&root).unwrap();let path=root.join("config.json");
+        let foreign=b"{\"application\":\"kohdalab-iv\"}".to_vec();std::fs::write(&path,&foreign).unwrap();
+        assert!(Preferences::default().save(&path).is_err());assert_eq!(std::fs::read(&path).unwrap(),foreign);
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

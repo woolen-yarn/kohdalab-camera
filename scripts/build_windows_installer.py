@@ -1,4 +1,4 @@
-"""Build a verified, per-user NSIS installer from a packaged Windows payload.
+"""Build a verified machine-wide NSIS installer from a packaged Windows payload.
 
 The input must be the ``windows`` directory emitted by package_windows.py. This
 tool validates its release manifest before invoking an already-installed NSIS

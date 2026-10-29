@@ -34,7 +34,7 @@ The current published baseline is **0.1.11**, for **Windows x64**.
 - [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/kohdalab-camera-0.1.11-source.zip)
 - [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/SHA256SUMS.txt)
 
-Run Setup for a per-user installation, or extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
+Run Setup for an all-users installation, or extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
 `continuous-helper.exe` and the license files alongside it. Rust and Python are
 not required to run the portable application. The physical backend requires an
 existing WinUSB setup; the application does not install or change drivers.

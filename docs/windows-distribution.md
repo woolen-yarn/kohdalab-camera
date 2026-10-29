@@ -57,7 +57,7 @@ report, not a successful capture or signature certificate.
 ## Installer and portable ZIP
 
 The NSIS installer targets Windows x64 and installs per user under
-`%LOCALAPPDATA%\Programs\KohdaLab Camera`. It creates desktop/Start Menu shortcuts
+`%ProgramFiles%\Kohdalab\KohdaLab Camera`. It creates desktop/Start Menu shortcuts
 and an Apps uninstall entry under HKCU. It installs the application, helper and
 license notices, without driver installation or automatically starting Live.
 User settings, captures and device interlocks are separate from program files.

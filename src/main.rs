@@ -297,7 +297,7 @@ impl App {
         self.source.is_some() || self.session.active || self.busy || self.closing || self.scan_rx.is_some() || self.estimate_rx.is_some() || self.fake_until.is_some()
     }
     fn current_preferences(&self)->preferences::Preferences {
-        preferences::Preferences{version:preferences::SCHEMA_VERSION,mode:self.settings.mode.profile().id.into(),exposure:self.settings.exposure_rows,gain:self.settings.gain_eighths,recipe:self.recipe,live_size:[self.live_size.x,self.live_size.y],folder:self.save_folder.clone(),next_sequence:self.save_sequence}
+        preferences::Preferences{application:preferences::APPLICATION.into(),version:preferences::SCHEMA_VERSION,mode:self.settings.mode.profile().id.into(),exposure:self.settings.exposure_rows,gain:self.settings.gain_eighths,recipe:self.recipe,live_size:[self.live_size.x,self.live_size.y],folder:self.save_folder.clone(),next_sequence:self.save_sequence}
     }
     fn persist_preferences(&mut self,force:bool) {
         let Some(path)=self.preferences_path.clone() else{return;};

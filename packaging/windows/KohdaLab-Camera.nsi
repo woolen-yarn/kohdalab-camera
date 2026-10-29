@@ -1,9 +1,9 @@
-; KohdaLab Camera per-user Windows installer.
+; KohdaLab Camera Windows installer.
 ; The build script supplies explicit File/Delete includes after validating the payload.
 ; This installer deliberately does not install drivers, services, startup tasks, or policy changes.
 
 Unicode true
-RequestExecutionLevel user
+RequestExecutionLevel admin
 SetCompressor /SOLID zlib
 SetDatablockOptimize on
 
@@ -48,8 +48,7 @@ SetDatablockOptimize on
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "${OUTPUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\KohdaLab Camera"
-InstallDirRegKey HKCU "${PRODUCT_REGKEY}" "InstallDir"
+InstallDir "$PROGRAMFILES64\Kohdalab\KohdaLab Camera"
 Icon "${ICON_FILE}"
 UninstallIcon "${ICON_FILE}"
 BrandingText "KohdaLab Camera"
@@ -86,6 +85,10 @@ Function .onInit
     Abort
   ${EndIf}
   SetRegView 64
+  SetShellVarContext all
+  ; Keep this product's program files separate from every other KohdaLab app.
+  ; Ignore caller-supplied /D paths for a machine installation.
+  StrCpy $INSTDIR "$PROGRAMFILES64\Kohdalab\KohdaLab Camera"
 FunctionEnd
 
 ; This is intentionally a conservative preflight, rather than process enumeration.
@@ -111,7 +114,7 @@ done:
 FunctionEnd
 
 Section "KohdaLab Camera" SEC_APP
-  SetShellVarContext current
+  SetShellVarContext all
   SetRegView 64
   Call CheckInstalledRuntimeIsClosed
   IfFileExists "$INSTDIR.install-backup" payload_backup_present
@@ -139,16 +142,16 @@ payload_transaction_failed:
 payload_transaction_complete:
   !include "${PAYLOAD_CLEANUP_BACKUP_INCLUDE}"
   WriteUninstaller "$INSTDIR\Uninstall KohdaLab Camera.exe"
-  WriteRegStr HKCU "${PRODUCT_REGKEY}" "InstallDir" "$INSTDIR"
-  WriteRegStr HKCU "${PRODUCT_REGKEY}" "Version" "${PRODUCT_VERSION}"
-  WriteRegStr HKCU "${UNINSTALL_REGKEY}" "DisplayName" "${PRODUCT_NAME}"
-  WriteRegStr HKCU "${UNINSTALL_REGKEY}" "DisplayVersion" "${PRODUCT_VERSION}"
-  WriteRegStr HKCU "${UNINSTALL_REGKEY}" "Publisher" "${PRODUCT_PUBLISHER}"
-  WriteRegStr HKCU "${UNINSTALL_REGKEY}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKCU "${UNINSTALL_REGKEY}" "DisplayIcon" "$INSTDIR\${MAIN_EXE}"
-  WriteRegStr HKCU "${UNINSTALL_REGKEY}" "UninstallString" '"$INSTDIR\Uninstall KohdaLab Camera.exe"'
-  WriteRegDWORD HKCU "${UNINSTALL_REGKEY}" "NoModify" 1
-  WriteRegDWORD HKCU "${UNINSTALL_REGKEY}" "NoRepair" 1
+  WriteRegStr HKLM "${PRODUCT_REGKEY}" "InstallDir" "$INSTDIR"
+  WriteRegStr HKLM "${PRODUCT_REGKEY}" "Version" "${PRODUCT_VERSION}"
+  WriteRegStr HKLM "${UNINSTALL_REGKEY}" "DisplayName" "${PRODUCT_NAME}"
+  WriteRegStr HKLM "${UNINSTALL_REGKEY}" "DisplayVersion" "${PRODUCT_VERSION}"
+  WriteRegStr HKLM "${UNINSTALL_REGKEY}" "Publisher" "${PRODUCT_PUBLISHER}"
+  WriteRegStr HKLM "${UNINSTALL_REGKEY}" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKLM "${UNINSTALL_REGKEY}" "DisplayIcon" "$INSTDIR\${MAIN_EXE}"
+  WriteRegStr HKLM "${UNINSTALL_REGKEY}" "UninstallString" '"$INSTDIR\Uninstall KohdaLab Camera.exe"'
+  WriteRegDWORD HKLM "${UNINSTALL_REGKEY}" "NoModify" 1
+  WriteRegDWORD HKLM "${UNINSTALL_REGKEY}" "NoRepair" 1
   CreateDirectory "$SMPROGRAMS\KohdaLab Camera"
   CreateShortcut "$SMPROGRAMS\KohdaLab Camera\KohdaLab Camera.lnk" "$INSTDIR\${MAIN_EXE}"
   CreateShortcut "$DESKTOP\KohdaLab Camera.lnk" "$INSTDIR\${MAIN_EXE}"
@@ -160,6 +163,16 @@ Function un.onInit
     Abort
   ${EndIf}
   SetRegView 64
+  SetShellVarContext all
+  ; A temporary uninstaller retains its original install path. Refuse a path
+  ; supplied by another product or a caller.
+  StrCpy $0 $INSTDIR
+  StrCpy $INSTDIR "$PROGRAMFILES64\Kohdalab\KohdaLab Camera"
+  ${If} $0 != ""
+  ${AndIf} $0 != $INSTDIR
+    MessageBox MB_ICONSTOP|MB_OK "KohdaLab Camera can only be removed from its installed location."
+    Abort
+  ${EndIf}
 FunctionEnd
 
 Function un.CheckInstalledRuntimeIsClosed
@@ -182,7 +195,7 @@ done:
 FunctionEnd
 
 Section "Uninstall"
-  SetShellVarContext current
+  SetShellVarContext all
   SetRegView 64
   Call un.CheckInstalledRuntimeIsClosed
   Delete "$DESKTOP\KohdaLab Camera.lnk"
@@ -191,6 +204,6 @@ Section "Uninstall"
   !include "${PAYLOAD_UNINSTALL_INCLUDE}"
   Delete "$INSTDIR\Uninstall KohdaLab Camera.exe"
   RMDir "$INSTDIR"
-  DeleteRegKey HKCU "${UNINSTALL_REGKEY}"
-  DeleteRegKey HKCU "${PRODUCT_REGKEY}"
+  DeleteRegKey HKLM "${UNINSTALL_REGKEY}"
+  DeleteRegKey HKLM "${PRODUCT_REGKEY}"
 SectionEnd
