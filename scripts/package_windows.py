@@ -19,7 +19,7 @@ parser.add_argument('--target-dir', type=Path, default=root / 'target')
 parser.add_argument('--output', type=Path, required=True)
 parser.add_argument('--validation-report', type=Path)
 args = parser.parse_args()
-version = tomllib.loads((root / 'Cargo.toml').read_text())['package']['version']
+version = tomllib.loads((root / 'crates/camera-lab/Cargo.toml').read_text())['package']['version']
 if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root).strip():
     raise SystemExit('Commit source changes before packaging.')
 commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()

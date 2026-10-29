@@ -2,6 +2,7 @@ name: Windows unsigned build
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches: [main]
     paths:
@@ -9,7 +10,7 @@ on:
       - '**/*.rs'
       - '**/Cargo.toml'
       - 'Cargo.lock'
-      - 'assets/**'
+      - 'crates/camera-lab/assets/**'
       - 'packaging/**'
       - 'scripts/**'
       - 'RECORDER-SOURCE-ID'

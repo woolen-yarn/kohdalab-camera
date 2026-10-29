@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image
 
 root = Path(__file__).resolve().parents[1]
-assets = root / 'assets'
+assets = root / 'crates' / 'camera-lab' / 'assets'
 with Image.open(assets / 'kohdalab-camera-artwork.png') as artwork:
     icon = artwork.convert('RGBA').resize((256, 256), Image.Resampling.LANCZOS)
     icon.save(assets / 'kohdalab-camera.png')
