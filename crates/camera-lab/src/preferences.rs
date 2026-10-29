@@ -59,12 +59,7 @@ impl Preferences {
 fn replace(source:&Path,destination:&Path)->std::io::Result<()> {std::fs::rename(source,destination)}
 #[cfg(windows)]
 fn replace(source:&Path,destination:&Path)->std::io::Result<()> {
-    use std::os::windows::ffi::OsStrExt;
-    #[link(name="kernel32")]
-    unsafe extern "system" {fn MoveFileExW(existing:*const u16,new:*const u16,flags:u32)->i32;}
-    let wide=|path:&Path|path.as_os_str().encode_wide().chain(std::iter::once(0)).collect::<Vec<_>>();
-    let source=wide(source);let destination=wide(destination);
-    if unsafe{MoveFileExW(source.as_ptr(),destination.as_ptr(),1)}==0 {Err(std::io::Error::last_os_error())}else{Ok(())}
+    capability_platform::replace_file(source,destination)
 }
 #[cfg(test)] mod tests {
     use super::*;
