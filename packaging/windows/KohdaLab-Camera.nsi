@@ -71,7 +71,6 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "MIT licensed; see accompanying lice
 !endif
 
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_WELCOME
@@ -86,6 +85,18 @@ Function .onInit
   ${EndIf}
   SetRegView 64
   SetShellVarContext all
+  ; Earlier releases installed for the current user. Require normal removal
+  ; before creating a machine installation and common shortcuts.
+  ReadRegStr $0 HKCU "${PRODUCT_REGKEY}" "InstallDir"
+  ${If} $0 != ""
+    Goto legacy_install_present
+  ${EndIf}
+  IfFileExists "$LOCALAPPDATA\Programs\KohdaLab Camera\${MAIN_EXE}" legacy_install_present legacy_install_clear
+legacy_install_present:
+  MessageBox MB_ICONSTOP|MB_OK "An earlier per-user KohdaLab Camera installation is present. Close the application, uninstall that installation from Windows Settings, then run this Setup again. Saved settings and images are preserved." /SD IDOK
+  SetErrorLevel 1
+  Quit
+legacy_install_clear:
   ; Keep this product's program files separate from every other KohdaLab app.
   ; Ignore caller-supplied /D paths for a machine installation.
   StrCpy $INSTDIR "$PROGRAMFILES64\Kohdalab\KohdaLab Camera"

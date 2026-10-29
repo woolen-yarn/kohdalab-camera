@@ -124,6 +124,8 @@ class InstallerPayloadTests(unittest.TestCase):
         self.assertIn("Refusing to validate over an existing Camera installation", source)
         self.assertNotIn('"/D=$install"', source)
         self.assertIn("WindowsBuiltInRole]::Administrator", source)
+        template = SCRIPT.parents[1] / "packaging" / "windows" / "KohdaLab-Camera.nsi"
+        self.assertNotIn("!insertmacro MUI_PAGE_DIRECTORY", template.read_text())
 
 
 if __name__ == "__main__":

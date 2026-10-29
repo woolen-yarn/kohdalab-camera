@@ -182,7 +182,7 @@ output path は新規でなければなりません。report は application ver
 
 ## Installer と portable ZIP
 
-NSIS installer は Windows x64 向けで、`%ProgramFiles%\Kohdalab\KohdaLab Camera` に machine-wide install します。desktop/Start Menu shortcut と HKCU Apps uninstall entry を作成し、application/helper/license notice を install しますが driver install や Live 自動開始はしません。user setting、capture、device interlock は program file と別です。portable ZIP も利用できます。公式 [releases](https://github.com/woolen-yarn/kohdalab-camera/releases) から Setup/ZIP を取得し SHA-256 を確認、helper/license file を保持してください。checksum は published reference との byte identity を確認しますが publisher signing の代替ではありません。
+NSIS installer は Windows x64 向けで、`%ProgramFiles%\Kohdalab\KohdaLab Camera` に machine-wide install します。desktop/Start Menu shortcut と HKLM Apps uninstall entry を作成し、application/helper/license notice を install しますが driver install や Live 自動開始はしません。user setting、capture、device interlock は program file と別です。portable ZIP も利用できます。公式 [releases](https://github.com/woolen-yarn/kohdalab-camera/releases) から Setup/ZIP を取得し SHA-256 を確認、helper/license file を保持してください。checksum は published reference との byte identity を確認しますが publisher signing の代替ではありません。
 
 verified `package_windows.py` payload から明示的 NSIS compiler を使う build は次です。
 
@@ -191,7 +191,7 @@ python scripts/build_windows_installer.py --payload dist/windows \
   --output dist/KohdaLab-Camera-Setup.exe --makensis /path/to/makensis
 ```
 
-build tool は runtime hash/license presence を確認し compiler を download/install しません。[NSIS](https://nsis.sourceforge.io/Docs/Chapter4.html) の `RequestExecutionLevel user` により administrative setup requirement を避けます。
+build tool は runtime hash/license presence を確認し compiler を download/install しません。[NSIS](https://nsis.sourceforge.io/Docs/Chapter4.html) の `RequestExecutionLevel admin` により Setup に管理者承認を要求します。
 
 ## 検証済み installation と署名 / Verified installation and signing
 
@@ -217,3 +217,7 @@ signed release では publisher-owned certificate/signing service を使い、ap
 Use `%USERPROFILE%\.kohdalab\camera\config.json` for each user. Earlier settings are preserved at their old location and are not imported automatically. Before moving from the earlier per-user installer, close the application and uninstall that installation, then run the new all-users Setup. Settings and captures remain intact.
 
 各ユーザーの設定は `%USERPROFILE%\.kohdalab\camera\config.json` に保存します。旧設定は元の場所に保持し、自動移行しません。旧ユーザー別インストールから移行する場合はアプリを終了し、旧版をアンインストールしてから新版の全ユーザー向けSetupを実行してください。設定と保存画像は保持します。
+
+The legacy-install check uses the elevated installer's account. When a standard user supplies a different administrator account at UAC, manually uninstall that user's previous version before starting Setup; the elevated check cannot inspect every user's installation. The new configuration starts with defaults and leaves the old preference file untouched.
+
+旧版検出は昇格後のアカウントを対象にします。UAC で別の管理者アカウントを指定する場合は、Setup 起動前に元ユーザーの旧版を手動でアンインストールしてください。全ユーザーの旧版を一括検出するものではありません。新保存先では既定設定で開始し、旧設定ファイルは変更しません。

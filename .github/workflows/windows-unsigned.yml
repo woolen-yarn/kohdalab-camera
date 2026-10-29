@@ -68,6 +68,8 @@ jobs:
           $env:INTEGRATED_UX_FAKE_ROOT = Join-Path $env:RUNNER_TEMP ('camera-fixture-' + [Guid]::NewGuid().ToString('N'))
           cargo test --locked --target x86_64-pc-windows-gnu --lib driver_policy
           if ($LASTEXITCODE) { throw 'Driver policy tests failed' }
+          cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab preferences
+          if ($LASTEXITCODE) { throw 'Preferences tests failed' }
           cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab natural_ui -- --test-threads=1
           if ($LASTEXITCODE) { throw 'GUI tests failed' }
       - name: Build Windows application and helper

@@ -34,7 +34,7 @@ macOS の Simulation で撮影したネイティブ画面です。公開済み�
 
 | Channel / チャンネル | Version / バージョン | Platforms / プラットフォーム |
 | --- | --- | --- |
-| Stable / 安定版 | [0.1.11](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.11) | Windows x64 Setup / portable ZIP |
+| Stable / 安定版 | [0.1.12](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.12) | Windows x64 Setup / portable ZIP |
 
 Rust and Python are not required to run the packaged application. Current Windows artifacts are unsigned; download packages and checksums together from Releases.
 
@@ -75,14 +75,14 @@ Builds on another operating system do not establish physical-backend support. Se
 
 Settings use `~/.kohdalab/camera/config.json` on macOS and
 `%USERPROFILE%\.kohdalab\camera\config.json` on Windows. Existing preference
-files in earlier locations are retained but are not automatically imported.
+files in earlier locations are retained but are not automatically imported; the first start uses default settings.
 Windows Setup installs for all users under `%ProgramFiles%\Kohdalab\KohdaLab Camera`
 and requires administrator approval. The application itself runs as the current
 user. Updating or uninstalling preserves settings, captures and device interlocks.
 
 設定は macOS では `~/.kohdalab/camera/config.json`、Windows では
 `%USERPROFILE%\.kohdalab\camera\config.json` に保存します。旧保存先の設定は保持されますが、
-自動移行は行いません。Windows Setup は管理者承認を求め、全ユーザー向けに
+自動移行は行わず、初回起動時は既定設定を使います。Windows Setup は管理者承認を求め、全ユーザー向けに
 `%ProgramFiles%\Kohdalab\KohdaLab Camera` へインストールします。
 アプリ本体は起動したユーザーで動作し、更新・アンインストール時も設定・保存画像・保護ロックを保持します。
 

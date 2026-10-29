@@ -1,3 +1,24 @@
+# KohdaLab Camera 0.1.12
+
+- Update rfd and nusb with upstream license notices; refresh pinned GitHub Actions.
+- Organize Rust packages under `crates/` and provide the English/Japanese
+  documentation hub, compatibility information and contribution templates.
+- Store validated, application-specific settings at `~/.kohdalab/camera/config.json`
+  (Windows: `%USERPROFILE%\.kohdalab\camera\config.json`) and replace settings
+  atomically. Existing settings at earlier locations remain untouched. The first
+  start at the new location uses defaults; automatic import is not performed.
+- Install Windows Setup for all users in `%ProgramFiles%\Kohdalab\KohdaLab Camera`
+  with administrator approval. The application runs as the launching user.
+  Setup blocks an earlier per-user installation visible to the installing user;
+  uninstall that version normally before installing this release. On shared
+  machines, remove earlier per-user installations from each affected account.
+- Keep captures, settings and protective device interlocks outside installer
+  cleanup. Add Windows preference tests and legacy-installation guard validation.
+
+Windows CI validates synthetic GUI flows, settings, build metadata and installer
+lifecycle. Physical capture qualification remains the v0.1.9 record; this release
+has not repeated physical acquisition. Executables remain unsigned.
+
 # KohdaLab Camera 0.1.11
 
 - Add public, read-only GitHub Actions Windows GNU builds with pinned Rust and

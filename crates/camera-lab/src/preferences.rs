@@ -38,7 +38,7 @@ impl Preferences {
         let data=serde_json::to_vec_pretty(self).map_err(|e|e.to_string())?;
         let tmp=path.with_extension(format!("{}.tmp",std::process::id()));
         let mut file=std::fs::OpenOptions::new().write(true).create_new(true).open(&tmp).map_err(|e|e.to_string())?;
-        if let Err(error)=file.write_all(&data).and_then(|_|file.sync_all()) {let _=std::fs::remove_file(&tmp);return Err(error.to_string());}
+        if let Err(error)=file.write_all(&data).and_then(|_|file.sync_all()) {drop(file);let _=std::fs::remove_file(&tmp);return Err(error.to_string());}
         // Windows cannot reliably replace a destination while this handle is open.
         drop(file);
         if let Err(error)=replace(&tmp,path) {let _=std::fs::remove_file(&tmp);return Err(error.to_string());}

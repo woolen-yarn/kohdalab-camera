@@ -23,7 +23,7 @@ not sign, create a GitHub release, install drivers, or use a physical camera.
   status, runtime hashes, exported/installed uninstaller equality, startup report,
   same-version update, normal uninstall and unrelated-file preservation.
 
-The test installer creates shortcuts and HKCU application entries on the
+The test installer creates shortcuts and HKLM application entries on the
 disposable runner, then removes them through normal uninstall. Never run this
 CI validation script against a user's existing installation: it is designed for
 an isolated build runner. Local workstation updates use the normal Setup path.
@@ -69,7 +69,7 @@ human enrollment steps and provider-dependent signed-installer work.
 
 ## 入力と確認 / Inputs and checks
 
-Rust **1.99.1** と Windows GNU target を明示選択し、hosted image の GNU linker/resource compiler version を run log に記録します。Cargo は committed lockfile、first-party Actions は fixed commit SHA を使い、checkout credential は保持せず workflow token は read-only です。`.gitattributes` は checkout line ending を揃え、source identity は platform-independent relative-path order を用いて verification のみ行い CI が書換えません。stale marker は build を停止します。camera driver-policy/headless GUI unit test は hardware なしで実行し、両 first-party executable は root package version/product name を埋込みます。NSIS **3.12** archive は hash-verify 後に extract し、Setup は machine-wide で acquisition を始めません。compiler は Setup を実行せず exact unsigned uninstaller を export します。disposable install は 4 executable type の metadata/unsigned status、runtime hash、exported/installed uninstaller equality、startup report、same-version update、normal uninstall、unrelated-file preservation を確認します。installer が作る shortcut/HKCU entry は runner の normal uninstall で除去し、この script を user の既存 installation に対して実行してはいけません。
+Rust **1.99.1** と Windows GNU target を明示選択し、hosted image の GNU linker/resource compiler version を run log に記録します。Cargo は committed lockfile、first-party Actions は fixed commit SHA を使い、checkout credential は保持せず workflow token は read-only です。`.gitattributes` は checkout line ending を揃え、source identity は platform-independent relative-path order を用いて verification のみ行い CI が書換えません。stale marker は build を停止します。camera driver-policy/headless GUI unit test は hardware なしで実行し、両 first-party executable は root package version/product name を埋込みます。NSIS **3.12** archive は hash-verify 後に extract し、Setup は machine-wide で acquisition を始めません。compiler は Setup を実行せず exact unsigned uninstaller を export します。disposable install は 4 executable type の metadata/unsigned status、runtime hash、exported/installed uninstaller equality、startup report、same-version update、normal uninstall、unrelated-file preservation を確認します。installer が作る shortcut/HKLM entry は runner の normal uninstall で除去し、この script を user の既存 installation に対して実行してはいけません。
 
 ## Artifact と根拠 / Artifacts and evidence
 

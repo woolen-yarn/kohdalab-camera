@@ -14,6 +14,19 @@ $install = Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Kohdalab\Ko
 $productKey = 'HKLM:\Software\KohdaLab\Camera'
 $uninstallKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\KohdaLab Camera'
 if ((Test-Path -LiteralPath $install) -or (Test-Path -LiteralPath $productKey) -or (Test-Path -LiteralPath $uninstallKey)) { throw 'Refusing to validate over an existing Camera installation.' }
+$legacy = Join-Path $env:LOCALAPPDATA 'Programs\KohdaLab Camera'
+if (Test-Path -LiteralPath $legacy) { throw 'Refusing to validate over an existing per-user Camera directory.' }
+New-Item -ItemType Directory -Path $legacy -Force | Out-Null
+$legacyExe = Join-Path $legacy 'KohdaLab Camera.exe'
+Set-Content -LiteralPath $legacyExe -Value 'preserve-legacy-installation'
+try {
+    $blocked = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+    if ($blocked.ExitCode -ne 1 -or (Test-Path -LiteralPath $install) -or
+        (Get-Content -LiteralPath $legacyExe) -ne 'preserve-legacy-installation') { throw 'Legacy installation guard failed' }
+} finally {
+    Remove-Item -LiteralPath $legacyExe
+    Remove-Item -LiteralPath $legacy
+}
 
 function Assert-Metadata([string]$Path) {
     $file = Get-Item -LiteralPath $Path
@@ -33,8 +46,11 @@ $metadata = @(
     Assert-Metadata "$inputs/Uninstall KohdaLab Camera.exe"
     Assert-Metadata $setup
 )
-$p = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+$redirect = Join-Path $env:RUNNER_TEMP 'camera-noncanonical-install'
+if (Test-Path -LiteralPath $redirect) { throw 'Refusing to validate with an occupied redirect fixture.' }
+$p = Start-Process -FilePath $setup -ArgumentList @('/S',"/D=$redirect") -Wait -PassThru
 if ($p.ExitCode -ne 0) { throw "Install exit $($p.ExitCode)" }
+if (Test-Path -LiteralPath $redirect) { throw 'Setup accepted a noncanonical installation directory' }
 foreach ($entry in $manifest.runtime.PSObject.Properties) {
     if ((Get-FileHash -LiteralPath (Join-Path $install $entry.Name) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.Value) { throw 'Installed runtime mismatch' }
 }
@@ -52,5 +68,5 @@ $p = Start-Process -FilePath "$install/Uninstall KohdaLab Camera.exe" -ArgumentL
 $deadline = [DateTime]::UtcNow.AddSeconds(60)
 while ((Test-Path "$install/KohdaLab Camera.exe") -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 500 }
 if ((Test-Path "$install/KohdaLab Camera.exe") -or !(Test-Path "$install/user-sentinel.txt")) { throw 'Uninstall or user-file preservation failed' }
-$validation = [ordered]@{version=$version;scope='Disposable Windows CI installation and enumeration only; no physical capture';metadata=$metadata;runtime_hashes_match=$true;exported_uninstaller_matches=$true;fresh_install=$true;update=$true;uninstall=$true;unrelated_file_preserved=$true;usb_opens=0;helper_starts=0}
+$validation = [ordered]@{version=$version;scope='Disposable Windows CI installation and enumeration only; no physical capture';metadata=$metadata;runtime_hashes_match=$true;exported_uninstaller_matches=$true;legacy_install_blocked_without_changes=$true;fresh_install=$true;update=$true;uninstall=$true;unrelated_file_preserved=$true;usb_opens=0;helper_starts=0}
 $validation | ConvertTo-Json -Depth 6 | Set-Content "$distribution/ci-validation.json" -Encoding utf8
