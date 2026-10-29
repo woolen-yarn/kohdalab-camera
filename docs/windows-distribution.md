@@ -56,9 +56,9 @@ report, not a successful capture or signature certificate.
 
 ## Installer and portable ZIP
 
-The NSIS installer targets Windows x64 and installs per user under
+The NSIS installer targets Windows x64 and installs for all users under
 `%ProgramFiles%\Kohdalab\KohdaLab Camera`. It creates desktop/Start Menu shortcuts
-and an Apps uninstall entry under HKCU. It installs the application, helper and
+and an Apps uninstall entry under HKLM. It installs the application, helper and
 license notices, without driver installation or automatically starting Live.
 User settings, captures and device interlocks are separate from program files.
 
@@ -76,7 +76,7 @@ python scripts/build_windows_installer.py --payload dist/windows \
 
 The build tool verifies runtime hashes and license presence. It does not download
 or install a compiler. [NSIS](https://nsis.sourceforge.io/Docs/Chapter4.html)
-`RequestExecutionLevel user` avoids an administrative setup requirement.
+`RequestExecutionLevel admin` requires administrator approval for Setup. The application itself runs as the launching user. The installation directory is fixed; `/D` cannot redirect an install or uninstall to another application.
 
 ## Verified installation
 

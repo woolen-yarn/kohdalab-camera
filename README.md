@@ -103,6 +103,12 @@ to update active camera acquisition. Startup still requires **Load camera**.
 Save dialogs suggest numbered names such as `capture_0001.png`; existing files
 and sidecars are never overwritten.
 
+Settings default to `~/.kohdalab/camera/config.json` (Windows:
+`%USERPROFILE%\.kohdalab\camera\config.json`). Old preference locations are not
+automatically imported. Setup uses `C:\Program Files\Kohdalab\KohdaLab Camera`;
+on macOS place `KohdaLab Camera.app` in `/Applications`. Settings and captures
+are preserved when updating or uninstalling the application.
+
 Default settings: exposure **120 sensor rows**, brightness **1.20×**, gamma
 **2.2** and analog gain **1×**.
 
