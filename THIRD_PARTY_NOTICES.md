@@ -155,7 +155,7 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | num-traits | 0.2.19 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | num_enum | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | num_enum_derive | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| nusb | 0.2.8 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| nusb | 0.2.9 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | objc-sys | 0.3.5 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | objc2 | 0.5.3 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | objc2 | 0.6.5 | MIT | registry+https://github.com/rust-lang/crates.io-index |
