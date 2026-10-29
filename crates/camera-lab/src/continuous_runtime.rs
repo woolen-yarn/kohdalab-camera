@@ -720,7 +720,9 @@ mod tests {
                 self.settle(d)
             }
         }
-        for mode in [crate::controls::Mode::Full, crate::controls::Mode::Xga] {
+        // Exercise the two production acquisition profiles. Legacy crop modes
+        // remain private compatibility/test data and are rejected by Settings.
+        for mode in [crate::controls::Mode::Full, crate::controls::Mode::FullFieldSkip] {
             let clock = Arc::new(FakeClock::default());
             let (owner, mut lease, monitor) = session([1; 32], [2; 32], clock.clone());
             renew(&mut lease, 1);

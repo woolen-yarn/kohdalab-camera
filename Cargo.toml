@@ -3,6 +3,7 @@ members = [
     "crates/camera-lab",
     "crates/capability-platform",
     "crates/continuous-helper-entry",
+    "crates/kohdalab-control-protocol",
 ]
 default-members = ["crates/camera-lab"]
 resolver = "3"

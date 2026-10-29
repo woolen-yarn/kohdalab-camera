@@ -1,12 +1,13 @@
 [package]
 name = "camera-lab"
-version = "0.1.12"
+version = "0.1.13"
 edition = "2024"
 license = "MIT"
 default-run = "camera-lab"
 
 [dependencies]
 capability-platform = { version = "0.1.0", path = "../capability-platform" }
+kohdalab-control-protocol = { path = "../kohdalab-control-protocol" }
 
 eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow"] }
 nusb = "0.2.1"
@@ -14,6 +15,8 @@ rfd = "0.17"
 image = { version = "0.25", default-features = false, features = ["png", "tiff"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
 
 [features]
 input-diagnostics = []

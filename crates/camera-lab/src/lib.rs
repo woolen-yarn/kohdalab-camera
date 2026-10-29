@@ -20,6 +20,7 @@ pub mod device_catalog;
 pub mod product;
 pub mod measurement;
 pub mod image_export;
+pub mod control_api;
 use serde::{Deserialize, Serialize};
 use std::{path::Path, sync::Arc};
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

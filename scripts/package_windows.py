@@ -34,12 +34,15 @@ for source, destination in [('camera-lab.exe', 'KohdaLab Camera.exe'),
 for name in ['LICENSE', 'THIRD_PARTY_NOTICES.md']:
     shutil.copyfile(root / name, portable / name)
 shutil.copytree(root / 'third-party-licenses', portable / 'third-party-licenses')
+shutil.copytree(root / 'bindings' / 'control', portable / 'bindings' / 'control',
+                ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
 (portable / 'README.txt').write_text(
     f'KohdaLab Camera {version} — Windows x64\n\n'
     'Extract the entire ZIP and open KohdaLab Camera.exe.\n'
     'Keep continuous-helper.exe and all license files alongside the application.\n'
     'Physical support: SHODENSHA GR300 (tested unit; MT9T001, USB 0547:4d33).\n'
     'An existing WinUSB setup is required; no driver changes are automated.\n'
+    'The optional Python control SDK is included under bindings/control.\n'
     'F1–F5 select tabs; Tab and Enter provide keyboard navigation.\n'
     'Optical/color calibration remains unqualified; the owner confirmed manual resize persistence.\n'
     'See the release notes for version-specific tests and five-minute validation.\n'
