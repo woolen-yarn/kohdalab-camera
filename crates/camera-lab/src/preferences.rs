@@ -1,5 +1,6 @@
 //! User preferences only; never stores device ownership or reconnect authority.
 use camera_lab::{controls::{Mode,Settings},display_recipe::Recipe};
+use kohdalab_control_protocol::paths::AppPaths;
 use serde::{Deserialize,Serialize};
 use std::{io::Write,path::{Path,PathBuf}};
 use tempfile::NamedTempFile;
@@ -59,8 +60,7 @@ impl Preferences {
         }
     }
     pub fn path()->Option<PathBuf> {
-        #[cfg(windows)] {std::env::var_os("USERPROFILE").map(|p|PathBuf::from(p).join(".kohdalab/camera/config.json"))}
-        #[cfg(not(windows))] {std::env::var_os("HOME").map(|p|PathBuf::from(p).join(".kohdalab/camera/config.json"))}
+        AppPaths::for_app("camera").ok().map(|paths| paths.config_file())
     }
     pub fn suggested_name(&self,full:bool)->String {
         let stem=if full {"full"}else{"capture"};

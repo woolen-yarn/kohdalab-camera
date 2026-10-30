@@ -34,13 +34,13 @@ macOS の Simulation で撮影したネイティブ画面です。公開済み�
 
 | Channel / チャンネル | Version / バージョン | Platforms / プラットフォーム |
 | --- | --- | --- |
-| Stable / 安定版 | [0.1.14](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.14) | Windows x64 Setup / portable ZIP |
+| Stable / 安定版 | [0.1.15](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.15) | Windows x64 Setup / portable ZIP |
 
 Rust and Python are not required to run the packaged application. Current Windows artifacts are unsigned; download packages and checksums together from Releases.
 
 ### Optional GUI control API
 
-Camera exposes an opt-in, loopback-only observer when started with `--gui-api`. It publishes a canonical descriptor under `~/.kohdalab/control` and serves `control.describe`, `control.status`, and `control.config` from the GUI thread's `Worker` snapshot. The adapter does not auto-connect to a camera, expose internal IPC, acquire ownership, or perform capture/stop mutations; those operations remain GUI-only until a separate safety review. `describe.safety.supports_ownership` is therefore `false`.
+Camera exposes an opt-in, loopback-only observer when started with `--gui-api`. It publishes a canonical descriptor under `~/.kohdalab/camera/run` and serves `control.describe`, `control.status`, and `control.config` from the GUI thread's `Worker` snapshot. The adapter does not auto-connect to a camera, expose internal IPC, acquire ownership, or perform capture/stop mutations; those operations remain GUI-only until a separate safety review. `describe.safety.supports_ownership` is therefore `false`.
 
 パッケージ版の実行に Rust や Python は不要です。現行の Windows 成果物は未署名なので、Releases からパッケージとチェックサムを一緒に取得してください。
 
@@ -81,15 +81,15 @@ Builds on another operating system do not establish physical-backend support. Se
 
 ## Settings and installation / 設定とインストール
 
-On the first normal launch, the application creates a safe default profile automatically when absent. Existing valid, corrupt, or foreign files are never overwritten, and loading the profile does not connect hardware or start acquisition. Settings use `~/.kohdalab/camera/config.json` on macOS and
-`%USERPROFILE%\.kohdalab\camera\config.json` on Windows. Existing preference
+On the first normal launch, the application creates a safe default profile automatically when absent. Existing valid, corrupt, or foreign files are never overwritten, and loading the profile does not connect hardware or start acquisition. Settings use `~/.kohdalab/camera/config/config.json` on macOS and
+`%USERPROFILE%\.kohdalab\camera\config\config.json` on Windows. Existing preference
 files in earlier locations are retained but are not automatically imported; the first start uses default settings.
 Windows Setup installs for all users under `%ProgramFiles%\Kohdalab\KohdaLab Camera`
 and requires administrator approval. The application itself runs as the current
 user. Updating or uninstalling preserves settings, captures and device interlocks.
 
-通常の初回起動時にファイルがなければ安全な標準設定を自動作成します。既存・破損・他アプリの設定は上書きせず、読み込み時に機器へ接続したり撮影を開始したりしません。設定は macOS では `~/.kohdalab/camera/config.json`、Windows では
-`%USERPROFILE%\.kohdalab\camera\config.json` に保存します。旧保存先の設定は保持されますが、
+通常の初回起動時にファイルがなければ安全な標準設定を自動作成します。既存・破損・他アプリの設定は上書きせず、読み込み時に機器へ接続したり撮影を開始したりしません。設定は macOS では `~/.kohdalab/camera/config/config.json`、Windows では
+`%USERPROFILE%\.kohdalab\camera\config\config.json` に保存します。旧保存先の設定は保持されますが、
 自動移行は行わず、初回起動時は既定設定を使います。Windows Setup は管理者承認を求め、全ユーザー向けに
 `%ProgramFiles%\Kohdalab\KohdaLab Camera` へインストールします。
 アプリ本体は起動したユーザーで動作し、更新・アンインストール時も設定・保存画像・保護ロックを保持します。

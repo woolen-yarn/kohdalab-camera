@@ -50,8 +50,8 @@ fn write(root:&std::path::Path,name:&str,bytes:&[u8])->std::io::Result<()> {
 pub struct Recorder {tx:Option<mpsc::SyncSender<(&'static str,Vec<u8>)>>,status:Arc<Mutex<String>>,join:Option<thread::JoinHandle<()>>,first:bool,final_sent:bool}
 impl Recorder {
     pub fn new()->Self {
-        // Fixed candidate-specific namespace under executable directory. No export or lock paths.
-        let root=std::env::current_exe().map(|p|p.parent().unwrap().join(CANDIDATE));
+        // Fixed candidate namespace under the app-owned logs directory. No export or lock paths.
+        let root=kohdalab_control_protocol::paths::AppPaths::for_app("camera").map(|p|p.logs_dir().join(CANDIDATE));
         match root {Ok(root)=>Self::at(root),Err(_)=>Self::unavailable("runtime directory unavailable; no fallback writes")}
     }
     fn unavailable(reason:&str)->Self {Self{tx:None,status:Arc::new(Mutex::new(format!("FAILURE RECORD NOT PERSISTED: {reason}"))),join:None,first:false,final_sent:false}}
