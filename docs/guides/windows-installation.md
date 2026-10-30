@@ -214,9 +214,9 @@ signed release では publisher-owned certificate/signing service を使い、ap
 
 ## Configuration location / 設定の保存先
 
-Use `%USERPROFILE%\.kohdalab\camera\config.json` for each user. Earlier settings are preserved at their old location and are not imported automatically. Before moving from the earlier per-user installer, close the application and uninstall that installation, then run the new all-users Setup. Settings and captures remain intact.
+Use `%USERPROFILE%\.kohdalab\camera\config\config.json` for each user. Earlier settings are preserved at their old location and are not imported automatically. Before moving from the earlier per-user installer, close the application and uninstall that installation, then run the new all-users Setup. Settings and captures remain intact.
 
-各ユーザーの設定は `%USERPROFILE%\.kohdalab\camera\config.json` に保存します。旧設定は元の場所に保持し、自動移行しません。旧ユーザー別インストールから移行する場合はアプリを終了し、旧版をアンインストールしてから新版の全ユーザー向けSetupを実行してください。設定と保存画像は保持します。
+各ユーザーの設定は `%USERPROFILE%\.kohdalab\camera\config\config.json` に保存します。旧設定は元の場所に保持し、自動移行しません。旧ユーザー別インストールから移行する場合はアプリを終了し、旧版をアンインストールしてから新版の全ユーザー向けSetupを実行してください。設定と保存画像は保持します。
 
 The legacy-install check uses the elevated installer's account. When a standard user supplies a different administrator account at UAC, manually uninstall that user's previous version before starting Setup; the elevated check cannot inspect every user's installation. The new configuration starts with defaults and leaves the old preference file untouched.
 

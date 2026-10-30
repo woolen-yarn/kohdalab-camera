@@ -1,6 +1,6 @@
 //! Opt-in, loopback-only GUI control transport for Camera.
 //! The server only queues requests; the eframe App owns every Worker operation.
-use kohdalab_control_protocol::{descriptor, is_common, response as common_response};
+use kohdalab_control_protocol::{descriptor, is_common, paths::AppPaths, response as common_response};
 use serde_json::{Value, json};
 use std::{
     io::{Read, Write},
@@ -31,10 +31,13 @@ pub struct Server {
 }
 impl Server {
     pub fn start(directory: Option<PathBuf>) -> Result<Self, String> {
+        Self::start_with_wake(directory, || {})
+    }
+    pub fn start_with_wake(directory: Option<PathBuf>, wake: impl Fn() + Send + Sync + 'static) -> Result<Self, String> {
+        let wake: Arc<dyn Fn() + Send + Sync> = Arc::new(wake);
         let dir = directory
             .or_else(|| {
-                std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
-                    .map(|p| PathBuf::from(p).join(".kohdalab").join("control"))
+                AppPaths::for_app("camera").ok().map(|paths| paths.run_dir())
             })
             .ok_or("Cannot locate user profile")?;
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -75,9 +78,10 @@ impl Server {
                                         let s = s.clone();
                                         let t = token.clone();
                                         let p = peers.clone();
+                                        let wake = wake.clone();
                                         thread::spawn(move || {
                                             let _guard = Permit(p);
-                                            let _ = serve(stream, &t, &s);
+                                            let _ = serve(stream, &t, &s, wake.as_ref());
                                         });
                                         break;
                                     }
@@ -120,6 +124,7 @@ fn serve(
     mut stream: TcpStream,
     token: &str,
     sender: &mpsc::SyncSender<Request>,
+    wake: &(dyn Fn() + Send + Sync),
 ) -> Result<(), String> {
     let deadline = Instant::now() + TIMEOUT;
     let body = match read(&mut stream, deadline).and_then(|b| {
@@ -156,9 +161,11 @@ fn serve(
         deadline,
         reply,
     }) {
-        Ok(()) => rx
-            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
-            .unwrap_or_else(|_| error("timeout", "GUI request timed out")),
+        Ok(()) => {
+            wake();
+            rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                .unwrap_or_else(|_| error("timeout", "GUI request timed out"))
+        },
         Err(mpsc::TrySendError::Full(_)) => error("busy", "GUI request queue is full"),
         Err(mpsc::TrySendError::Disconnected(_)) => error("unavailable", "GUI API is stopping"),
     };
@@ -195,6 +202,27 @@ fn read(stream: &mut TcpStream, deadline: Instant) -> Result<Vec<u8>, String> {
 mod tests {
     use super::*;
     use std::io::{BufRead, BufReader};
+    #[test]
+    fn authenticated_request_wakes_an_idle_consumer() {
+        let directory = tempfile::tempdir().unwrap();
+        let (wake, woken) = mpsc::sync_channel(1);
+        let server = Server::start_with_wake(Some(directory.path().into()), move || {
+            let _ = wake.try_send(());
+        }).unwrap();
+        let descriptor: Value = serde_json::from_slice(&std::fs::read(&server.descriptor).unwrap()).unwrap();
+        let peer = thread::spawn(move || {
+            let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, descriptor["port"].as_u64().unwrap() as u16)).unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+            writeln!(stream, "{}", json!({"control_protocol":1,"method":"control.describe","token":descriptor["token"]})).unwrap();
+            let mut reply = String::new();
+            BufReader::new(stream).read_line(&mut reply).unwrap();
+            assert!(!reply.is_empty());
+        });
+        woken.recv_timeout(Duration::from_secs(2)).unwrap();
+        let request = server.requests.recv_timeout(Duration::from_secs(1)).unwrap();
+        request.reply.send(json!({"ok":true,"result":{}})).unwrap();
+        peer.join().unwrap();
+    }
     #[test]
     fn descriptor_is_canonical_and_bad_token_never_reaches_gui() {
         let dir = tempfile::tempdir().unwrap();

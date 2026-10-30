@@ -226,7 +226,10 @@ impl App {
             close_started: None,
             scan_rx: None,
             control_api: if std::env::args().any(|arg| arg == "--gui-api") {
-                camera_lab::control_api::Server::start(None).ok()
+                camera_lab::control_api::Server::start_with_wake(None, {
+                    let wake = ctx.clone();
+                    move || wake.request_repaint()
+                }).ok()
             } else { None },
         }
     }
