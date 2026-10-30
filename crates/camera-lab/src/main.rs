@@ -128,9 +128,10 @@ impl App {
         {
             app.preferences_path=preferences::Preferences::path();
             if let Some(path)=&app.preferences_path {
+                let creation_error=preferences::Preferences::ensure_default(path).err();
                 match preferences::Preferences::load(path) {
-                    Ok(p)=>app.restore_preferences(p),
-                    Err(_)=>app.status="Saved settings could not be loaded; defaults restored.".into(),
+                    Ok(p)=>{ app.restore_preferences(p); if let Some(error)=creation_error { app.status=format!("Default settings could not be created: {error}"); } },
+                    Err(error)=>app.status=creation_error.map_or_else(||format!("Saved settings could not be loaded: {error}"),|create|format!("Default settings could not be created: {create}; saved settings could not be loaded: {error}")),
                 }
             }
             app.scan();

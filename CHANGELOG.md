@@ -1,5 +1,11 @@
 # KohdaLab Camera 0.1.12
 
+## 0.1.14
+
+- Automatically create the missing application-specific default configuration on first normal GUI launch.
+- Preserve existing/corrupt profiles with atomic no-clobber creation and report initialization errors. Do not connect hardware or enable outputs.
+
+
 ## 0.1.13 — 2026-10-29
 
 - Add the authenticated local Control Protocol 1 adapter and shared Python SDK. Camera exposes read-only status/configuration; other apps retain their native ownership and safety policies.
