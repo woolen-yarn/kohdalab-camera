@@ -1,25 +1,17 @@
-# KohdaLab Camera 0.1.13
+# KohdaLab Camera 0.1.14
 
-## Changes / 変更内容
+## Changes
 
-Add an opt-in, authenticated read-only GUI control adapter for describe/status/config and bundle the shared Python SDK. Correct stale test expectations against the existing public mode/export contract; document historical screenshot provenance.
+On first normal GUI launch, a missing `~/.kohdalab/camera/config.json` (`%USERPROFILE%\.kohdalab\camera\config.json` on Windows) is automatically created from safe built-in defaults. No manual JSON preparation is needed.
 
-## Compatibility and migration / 互換性と移行
+## Compatibility and safety
 
-Start with `--gui-api` to opt in. Capture/start/stop and ownership are intentionally unsupported by this adapter; the acquisition helper IPC remains private. Existing acquisition/export and app-specific config/install paths remain.
+Initialization publishes a complete file atomically without replacing an existing profile. Existing invalid, foreign or unsupported profiles remain intact and errors are reported. The continuous fake GUI and input-diagnostics launches do not initialize production defaults. Creating/loading settings does not connect hardware, enable outputs, acquire images or move shutters. Existing acquisition, data formats, native/common APIs and cleanup policies are unchanged.
 
-## Downloads / ダウンロード
+## Downloads and validation
 
-Windows x64 Setup and portable ZIP, corresponding source and checksums. No Mac executable is published by this release. Windows artifacts remain unsigned.
-
-[Release packages](https://github.com/woolen-yarn/kohdalab-camera/releases). Existing older releases remain available.
-
-## Validation and provenance / 検証と出所
-
-Local library: 147 passed, one hardware-dependent test ignored; GUI binary: 34 passed; common Rust contract: seven passed. Actual Mac fake GUI validated reads, authentication and unsupported mutations. Existing strict-clippy warnings are not presented as a passing check.
-
-The common Python SDK has nine device-free tests. Source/build identifiers, package manifests and SHA-256 evidence accompany the release. These checks do not newly qualify physical instruments, optical closure, camera calibration or scientific accuracy.
+This release provides Windows x64 Setup, portable ZIP and corresponding source/build kit. No macOS Camera distribution is provided. Platform tests and artifact provenance qualify the exact packaged source; first-launch regression checks include concurrent creation, preservation and unusable directories. No new physical-device qualification is claimed. Windows executables remain unsigned.
 
 ## 日本語
 
-共通GUI APIの読み取り専用窓口を追加しました。画像取得・停止等は公開APIの対象外で、既存の取得・保存動作は維持します。配布は未署名のWindows x64版です。Macの検証画面はMac版配布を意味しません。
+初回の通常GUI起動時に、アプリ専用の標準設定を自動作成します。既存・不正・未対応の設定は保持し、エラーを表示します。設定作成・読込による装置接続・出力ON・撮影・シャッター移動は行いません。従来の測定・保存形式・API・終了処理は変更しません。
