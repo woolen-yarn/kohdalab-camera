@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 pub enum Source {
     Physical(nusb::DeviceInfo),
     Simulation,
-    #[cfg(all(test,not(windows)))]
+    #[cfg(all(test, not(windows)))]
     HostFake,
     /// Explicit fake path: never enumerates devices or selects user_root.
     #[cfg(windows)]
@@ -52,7 +52,21 @@ pub struct Lifecycle {
     pub backend_cause: Option<crate::diagnostic::Cause>,
 }
 #[derive(Clone, Copy, Debug)]
-pub enum FailureCode { Backend, Parent, Unknown, StopRequest, FrameContract, FrameValidation, CleanupUnproved, Supervisor, TransportPoll, CleanupDeadline, OpenGeneration, GuiFailure, WorkerPanic }
+pub enum FailureCode {
+    Backend,
+    Parent,
+    Unknown,
+    StopRequest,
+    FrameContract,
+    FrameValidation,
+    CleanupUnproved,
+    Supervisor,
+    TransportPoll,
+    CleanupDeadline,
+    OpenGeneration,
+    GuiFailure,
+    WorkerPanic,
+}
 #[derive(Clone)]
 pub struct Snapshot {
     pub owner_revision: Option<u64>,
@@ -123,11 +137,13 @@ pub enum Event {
     Frame(Frame),
     Done { clean: bool },
 }
-pub(crate) fn continuous_failure_message(error:&str,label:&str)->String {
-    format!("Continuous acquisition failed: {error}. Ownership retained until collection. Evidence: {label}")
+pub(crate) fn continuous_failure_message(error: &str, label: &str) -> String {
+    format!(
+        "Continuous acquisition failed: {error}. Ownership retained until collection. Evidence: {label}"
+    )
 }
 pub trait Transport: Send {
-    fn set_frame_notify(&self, _t:std::thread::Thread) {}
+    fn set_frame_notify(&self, _t: std::thread::Thread) {}
     fn diagnostic_invalid(&self) -> bool {
         false
     }
@@ -141,18 +157,44 @@ pub trait Transport: Send {
     fn stop(&mut self) -> Result<(), String>;
 }
 pub trait Factory: Send {
-    fn settings_digest(&mut self, settings:Settings)->Option<String> {
-        #[cfg(windows)] {settings_digest_with(settings, |bytes|capability_platform::digest(bytes).map_err(|_|()))}
-        #[cfg(not(windows))] {let _=settings;None}
+    fn settings_digest(&mut self, settings: Settings) -> Option<String> {
+        #[cfg(windows)]
+        {
+            settings_digest_with(settings, |bytes| {
+                capability_platform::digest(bytes).map_err(|_| ())
+            })
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = settings;
+            None
+        }
     }
     fn open(&mut self, request: &Request) -> Result<Box<dyn Transport>, String>;
-    fn open_generation(&mut self, request: &Request, _generation:u64) -> Result<Box<dyn Transport>,String> {
+    fn open_generation(
+        &mut self,
+        request: &Request,
+        _generation: u64,
+    ) -> Result<Box<dyn Transport>, String> {
         self.open(request)
     }
 }
-#[cfg(any(windows,test))]
-fn settings_digest_with(settings:Settings, hash:impl FnOnce(&[u8])->Result<[u8;32],()>)->Option<String> {
-    hash(format!("settings-v2-geometry1:{}:{}:{}",settings.mode.profile().id,settings.exposure_rows,settings.gain_eighths).as_bytes()).ok().map(|v|v.iter().map(|b|format!("{b:02x}")).collect())
+#[cfg(any(windows, test))]
+fn settings_digest_with(
+    settings: Settings,
+    hash: impl FnOnce(&[u8]) -> Result<[u8; 32], ()>,
+) -> Option<String> {
+    hash(
+        format!(
+            "settings-v2-geometry1:{}:{}:{}",
+            settings.mode.profile().id,
+            settings.exposure_rows,
+            settings.gain_eighths
+        )
+        .as_bytes(),
+    )
+    .ok()
+    .map(|v| v.iter().map(|b| format!("{b:02x}")).collect())
 }
 struct Active {
     id: u64,
@@ -186,11 +228,11 @@ impl<F: Factory> Engine<F> {
         if self.blocked {
             return;
         }
-        self.snapshot.settings_digest=None;
-        self.snapshot.startup_intent=None;
-        if let Some(r)=request.as_ref() {
-            self.snapshot.startup_intent=Some(r.startup_intent);
-            self.snapshot.settings_digest=self.factory.settings_digest(r.settings);
+        self.snapshot.settings_digest = None;
+        self.snapshot.startup_intent = None;
+        if let Some(r) = request.as_ref() {
+            self.snapshot.startup_intent = Some(r.startup_intent);
+            self.snapshot.settings_digest = self.factory.settings_digest(r.settings);
         }
         self.snapshot.requested = request.as_ref().map(|r| r.settings);
         self.snapshot.requested_revision = request.as_ref().map(|_| id);
@@ -215,7 +257,18 @@ impl<F: Factory> Engine<F> {
         );
     }
     fn fail(&mut self, code: FailureCode, message: String) {
-        if self.snapshot.first_failure.is_none() { self.snapshot.first_cause=Some(self.snapshot.lifecycle.as_ref().and_then(|l|l.first_cause).unwrap_or(crate::diagnostic::Cause::unknown())); self.snapshot.first_failure_code=Some(code); self.snapshot.first_failure_original_bytes=Some(message.len()); self.snapshot.first_failure = Some(crate::failure_record::bounded(&message)); }
+        if self.snapshot.first_failure.is_none() {
+            self.snapshot.first_cause = Some(
+                self.snapshot
+                    .lifecycle
+                    .as_ref()
+                    .and_then(|l| l.first_cause)
+                    .unwrap_or(crate::diagnostic::Cause::unknown()),
+            );
+            self.snapshot.first_failure_code = Some(code);
+            self.snapshot.first_failure_original_bytes = Some(message.len());
+            self.snapshot.first_failure = Some(crate::failure_record::bounded(&message));
+        }
         self.desired = None;
         self.snapshot.state = State::Error;
         self.snapshot.message = message;
@@ -239,7 +292,10 @@ impl<F: Factory> Engine<F> {
                 a.stopping = true;
                 a.stop_at = Some(now);
                 if let Err(e) = a.transport.stop() {
-                    self.fail(FailureCode::StopRequest, format!("Stop request failed: {e}"));
+                    self.fail(
+                        FailureCode::StopRequest,
+                        format!("Stop request failed: {e}"),
+                    );
                 }
             }
             let result = self.active.as_mut().unwrap().transport.poll();
@@ -275,13 +331,23 @@ impl<F: Factory> Engine<F> {
                                 }.into();
                                 let mut frame = frame;
                                 if let Some(contract) = &mut frame.metadata.acquisition {
-                                    if contract.settings().ok() != Some(a.request.settings) || contract.settings_generation != a.id || contract.startup_intent != Some(a.request.startup_intent) {
-                                        self.fail(FailureCode::FrameContract, "Frame settings contract mismatch".into());
+                                    if contract.settings().ok() != Some(a.request.settings)
+                                        || contract.settings_generation != a.id
+                                        || contract.startup_intent != Some(a.request.startup_intent)
+                                    {
+                                        self.fail(
+                                            FailureCode::FrameContract,
+                                            "Frame settings contract mismatch".into(),
+                                        );
                                         return;
                                     }
                                     contract.request_revision = Some(a.id);
                                 } else if physical {
-                                    self.fail(FailureCode::FrameContract, "Current physical frame lacks typed acquisition contract".into());
+                                    self.fail(
+                                        FailureCode::FrameContract,
+                                        "Current physical frame lacks typed acquisition contract"
+                                            .into(),
+                                    );
                                     return;
                                 }
                                 frame.metadata.source = format!(
@@ -306,10 +372,13 @@ impl<F: Factory> Engine<F> {
                     if !clean {
                         self.blocked = true;
                         self.snapshot.restart_disabled = true;
-                        self.fail(FailureCode::CleanupUnproved, format!(
-                            "Cleanup unproved; restart disabled. {}",
-                            self.snapshot.message
-                        ));
+                        self.fail(
+                            FailureCode::CleanupUnproved,
+                            format!(
+                                "Cleanup unproved; restart disabled. {}",
+                                self.snapshot.message
+                            ),
+                        );
                     } else if self.desired.as_ref().is_some_and(|(id, _)| *id == a.id) {
                         self.desired = None; // Bounded natural end never reconnects automatically.
                         self.snapshot.state = State::Disconnected;
@@ -339,7 +408,18 @@ impl<F: Factory> Engine<F> {
                     if unproved {
                         self.blocked = true;
                         self.snapshot.restart_disabled = true;
-                        let code=match self.snapshot.lifecycle.as_ref().and_then(|l|l.first_cause).map(|c|c.origin) {Some(crate::diagnostic::Origin::Backend)=>FailureCode::Backend,Some(crate::diagnostic::Origin::Parent)=>FailureCode::Parent,Some(crate::diagnostic::Origin::Helper)=>FailureCode::Supervisor,_=>FailureCode::Unknown};
+                        let code = match self
+                            .snapshot
+                            .lifecycle
+                            .as_ref()
+                            .and_then(|l| l.first_cause)
+                            .map(|c| c.origin)
+                        {
+                            Some(crate::diagnostic::Origin::Backend) => FailureCode::Backend,
+                            Some(crate::diagnostic::Origin::Parent) => FailureCode::Parent,
+                            Some(crate::diagnostic::Origin::Helper) => FailureCode::Supervisor,
+                            _ => FailureCode::Unknown,
+                        };
                         self.fail(code, message);
                     } else if self.snapshot.state != State::Error {
                         self.snapshot.message = message;
@@ -356,7 +436,8 @@ impl<F: Factory> Engine<F> {
             {
                 self.blocked = true;
                 self.snapshot.restart_disabled = true;
-                self.fail(FailureCode::CleanupDeadline, 
+                self.fail(
+                    FailureCode::CleanupDeadline,
                     "Cleanup deadline exceeded; ownership retained, no replacement allowed".into(),
                 );
             }
@@ -372,11 +453,11 @@ impl<F: Factory> Engine<F> {
             self.snapshot.state = State::Connecting;
             self.snapshot.message =
                 "Starting continuous owner; preparation and checked live data pending".into();
-            self.snapshot.owner_revision=Some(id);
-            self.snapshot.owner_settings=Some(request.settings);
-            self.snapshot.owner_startup_intent=Some(request.startup_intent);
-            self.snapshot.owner_settings_digest=self.snapshot.settings_digest.clone();
-            match self.factory.open_generation(&request,id) {
+            self.snapshot.owner_revision = Some(id);
+            self.snapshot.owner_settings = Some(request.settings);
+            self.snapshot.owner_startup_intent = Some(request.startup_intent);
+            self.snapshot.owner_settings_digest = self.snapshot.settings_digest.clone();
+            match self.factory.open_generation(&request, id) {
                 Ok(transport) => {
                     transport.set_frame_notify(std::thread::current());
                     self.active = Some(Active {
@@ -421,7 +502,9 @@ impl ContinuousTransport {
 }
 #[cfg(windows)]
 impl Transport for ContinuousTransport {
-    fn set_frame_notify(&self,t:std::thread::Thread) {self.session.set_frame_notify(t);}
+    fn set_frame_notify(&self, t: std::thread::Thread) {
+        self.session.set_frame_notify(t);
+    }
     fn diagnostic_invalid(&self) -> bool {
         self.session.poll().diagnostic_invalid
     }
@@ -451,8 +534,14 @@ impl Transport for ContinuousTransport {
             parent_error: s.first_error.clone(),
             terminal: s.terminal,
         };
-        self.lifecycle=crate::diagnostic::lifecycle(&facts, &s.causes);
-        if let Some(event)=crate::diagnostic::transport_event(&self.lifecycle,&mut self.error_reported,&self.label) {return Ok(event);}
+        self.lifecycle = crate::diagnostic::lifecycle(&facts, &s.causes);
+        if let Some(event) = crate::diagnostic::transport_event(
+            &self.lifecycle,
+            &mut self.error_reported,
+            &self.label,
+        ) {
+            return Ok(event);
+        }
         if let Some(mut f) = s.frame
             && f.metadata.sequence > self.sequence
         {
@@ -539,13 +628,19 @@ impl Transport for Sim {
 }
 impl Factory for RealFactory {
     fn open(&mut self, request: &Request) -> Result<Box<dyn Transport>, String> {
-        self.open_generation(request,1)
+        self.open_generation(request, 1)
     }
-    fn open_generation(&mut self, request: &Request, generation:u64) -> Result<Box<dyn Transport>,String> {
+    fn open_generation(
+        &mut self,
+        request: &Request,
+        generation: u64,
+    ) -> Result<Box<dyn Transport>, String> {
         request.settings.validate()?;
         match &request.source {
             Source::Physical(info) => {
-                if let Some(error)=crate::driver_policy::connection_error(info) {return Err(error.into());}
+                if let Some(error) = crate::driver_policy::connection_error(info) {
+                    return Err(error.into());
+                }
                 #[cfg(windows)]
                 {
                     let identity = crate::continuous_session::Identity::from_device(info)
@@ -588,7 +683,7 @@ impl Factory for RealFactory {
                 .map_err(|e| e.to_string())?,
                 format!("SIMULATED fixture; evidence={}", root.display()),
             ))),
-            #[cfg(all(test,not(windows)))]
+            #[cfg(all(test, not(windows)))]
             Source::HostFake => Err("host FAKE requires injected factory".into()),
             Source::Simulation => Ok(Box::new(Sim {
                 simulation: Simulation { sequence: 0 },
@@ -660,18 +755,19 @@ impl Default for Worker {
         Self::new()
     }
 }
-fn publish_failed(shared:&mut Shared, failed:&Snapshot, seen:u64) {
-    let old=shared.snapshot.frame.take();
-    let mut snapshot=failed.clone();
+fn publish_failed(shared: &mut Shared, failed: &Snapshot, seen: u64) {
+    let old = shared.snapshot.frame.take();
+    let mut snapshot = failed.clone();
     if shared.revision != seen {
-        snapshot.frame=None;
-        snapshot.requested=shared.snapshot.requested;
-        snapshot.requested_revision=shared.snapshot.requested_revision;
-        snapshot.settings_digest=shared.snapshot.settings_digest.clone();
-        snapshot.startup_intent=shared.snapshot.startup_intent;
+        snapshot.frame = None;
+        snapshot.requested = shared.snapshot.requested;
+        snapshot.requested_revision = shared.snapshot.requested_revision;
+        snapshot.settings_digest = shared.snapshot.settings_digest.clone();
+        snapshot.startup_intent = shared.snapshot.startup_intent;
+    } else if snapshot.frame.is_none() {
+        snapshot.frame = old;
     }
-    else if snapshot.frame.is_none() {snapshot.frame=old;}
-    shared.snapshot=snapshot;
+    shared.snapshot = snapshot;
 }
 impl Worker {
     pub fn new() -> Self {
@@ -680,7 +776,10 @@ impl Worker {
     pub fn with_factory(factory: impl Factory + 'static) -> Self {
         Self::with_factory_recorder(factory, crate::failure_record::Recorder::new())
     }
-    pub fn with_factory_recorder(factory: impl Factory + 'static, mut recorder: crate::failure_record::Recorder) -> Self {
+    pub fn with_factory_recorder(
+        factory: impl Factory + 'static,
+        mut recorder: crate::failure_record::Recorder,
+    ) -> Self {
         let shared = Arc::new(Mutex::new(Shared {
             wake_gui: None,
             revision: 0,
@@ -718,14 +817,19 @@ impl Worker {
                     }
                     engine.tick();
                     if gui_failed {
-                        engine.fail(FailureCode::GuiFailure, "GUI failed; restart disabled; actual collection required".into());
+                        engine.fail(
+                            FailureCode::GuiFailure,
+                            "GUI failed; restart disabled; actual collection required".into(),
+                        );
                         engine.snapshot.state = State::Error;
                         engine.snapshot.message =
                             "GUI failed; restart disabled; actual collection required".into();
                     }
                     recorder.observe(&mut engine.snapshot);
                     let done = closing && !engine.snapshot.active;
-                    if done { recorder.finish(&mut engine.snapshot); }
+                    if done {
+                        recorder.finish(&mut engine.snapshot);
+                    }
                     let mut s = state.lock().unwrap();
                     // A newer UI request invalidates frames produced during this tick.
                     if s.revision == seen {
@@ -743,11 +847,17 @@ impl Worker {
                         s.snapshot.message =
                             "GUI failed; restart disabled; actual collection required".into();
                     }
-                    let wake = if engine.snapshot.frame.is_some() { s.wake_gui.clone() } else { None };
+                    let wake = if engine.snapshot.frame.is_some() {
+                        s.wake_gui.clone()
+                    } else {
+                        None
+                    };
                     engine.snapshot.frame = None;
                     s.closed = done;
                     drop(s);
-                    if let Some(wake) = wake { wake(); }
+                    if let Some(wake) = wake {
+                        wake();
+                    }
                     if done {
                         break;
                     }
@@ -783,9 +893,9 @@ impl Worker {
                     std::thread::sleep(Duration::from_millis(33));
                 }
                 recorder.finish(&mut engine.snapshot);
-                let mut s=state.lock().unwrap_or_else(|e|e.into_inner());
+                let mut s = state.lock().unwrap_or_else(|e| e.into_inner());
                 publish_failed(&mut s, &engine.snapshot, seen);
-                s.closed=true;
+                s.closed = true;
             }
         });
         Self {
@@ -812,8 +922,8 @@ impl Worker {
         }
         s.revision += 1;
         s.requested_at = now;
-        s.snapshot.settings_digest=None;
-        s.snapshot.startup_intent=request.as_ref().map(|r|r.startup_intent);
+        s.snapshot.settings_digest = None;
+        s.snapshot.startup_intent = request.as_ref().map(|r| r.startup_intent);
         s.snapshot.requested = request.as_ref().map(|r| r.settings);
         s.snapshot.requested_revision = request.as_ref().map(|_| s.revision);
         s.snapshot.progress = None;
@@ -934,7 +1044,7 @@ mod continuous_worker_tests {
         assert!(
             worker
                 .request(Some(Request {
-                startup_intent: crate::startup::Intent::Normal,
+                    startup_intent: crate::startup::Intent::Normal,
                     source: Source::Simulation,
                     settings: Settings::default()
                 }))
@@ -1564,230 +1674,926 @@ mod tests {
     }
 }
 
-#[cfg(all(test,not(windows)))]
+#[cfg(all(test, not(windows)))]
 mod v034_tests {
- use super::*;
- struct Make;
- struct Fake {generation:u64,settings:Settings,stopped:bool,intent:crate::startup::Intent}
- impl Factory for Make {
-  fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{unreachable!()}
-  fn open_generation(&mut self,r:&Request,g:u64)->Result<Box<dyn Transport>,String>{
-   match r.source {Source::Simulation=>Ok(Box::new(Sim{simulation:Simulation{sequence:0},stopped:false})),Source::HostFake=>{assert_eq!(g,3);Ok(Box::new(Fake{generation:g,settings:r.settings,stopped:false,intent:r.startup_intent}))},_=>panic!("no device access")}
-  }
- }
- impl Transport for Fake {
-  fn stop(&mut self)->Result<(),String>{self.stopped=true;Ok(())}
-  fn poll(&mut self)->Result<Event,String>{if self.stopped{return Ok(Event::Done{clean:true});}
-   let mut f=Simulation{sequence:0}.next_frame()?;
-   let a=crate::sensor_contract::Acquisition::new(self.settings,[3;32],self.generation,1)?.with_startup(self.intent);
-   let (w,h)=self.settings.dimensions();f.raw=Arc::new(vec![0;usize::from(w)*usize::from(h)]);f.metadata.width=w.into();f.metadata.height=h.into();f.metadata.format="BayerGRBG8".into();f.metadata.sequence=1;f.metadata.acquisition=Some(a);Ok(Event::Frame(f))}
- }
- #[test] fn worker_simulation_none_fake_generation3(){
-  let w=Worker::with_factory(Make);let r=|source|Request{source,settings:Settings::default(),startup_intent:crate::startup::Intent::Normal};
-  assert_eq!(w.request(Some(r(Source::Simulation))).unwrap(),1);
-  let wait=|p:&dyn Fn(&Snapshot)->bool|{let end=Instant::now()+Duration::from_secs(5);loop{let s=w.snapshot();if p(&s){return s;}assert!(Instant::now()<end,"{}",s.message);thread_yield();}};
-  wait(&|s|s.frame.is_some());assert_eq!(w.request(None).unwrap(),2);wait(&|s|!s.active);
-  assert_eq!(w.request(Some(r(Source::HostFake))).unwrap(),3);let s=wait(&|s|s.frame.is_some());let (revision,f)=s.frame.unwrap();assert_eq!(revision,3);assert_eq!(f.metadata.acquisition.unwrap().settings_generation,3);w.close();wait(&|s|!s.active);
- }
- fn thread_yield(){std::thread::sleep(Duration::from_millis(2));}
- #[test] fn first_backend_error_survives_failed_cleanup(){
-  struct F;struct T(u8);
-  impl Factory for F{fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{Ok(Box::new(T(0)))}}
-  impl Transport for T{fn stop(&mut self)->Result<(),String>{Err("later STOP failure".into())}fn poll(&mut self)->Result<Event,String>{self.0+=1;if self.0==1{Err("preopen backend failure".into())}else{Ok(Event::Done{clean:false})}}}
-  let root=std::env::temp_dir().join(format!("v034-engine-record-{}",std::process::id()));let mut recorder=crate::failure_record::Recorder::at(root.clone());
-  let mut e=Engine::new(F);e.request(3,Some(Request{source:Source::Simulation,settings:Settings::default(),startup_intent:crate::startup::Intent::Normal}));e.tick();e.tick();assert_eq!(e.snapshot.first_failure.as_deref(),Some("preopen backend failure"));assert_eq!(e.snapshot.owner_revision,Some(3));recorder.observe(&mut e.snapshot);e.request(4,None);e.tick();assert!(e.snapshot.restart_disabled);assert!(!e.snapshot.active);assert_eq!(e.snapshot.first_failure.as_deref(),Some("preopen backend failure"));recorder.finish(&mut e.snapshot);
-  let read=|name:&str|->serde_json::Value{serde_json::from_slice(&std::fs::read(root.join("slot-00").join(name)).unwrap()).unwrap()};let first=read("first.json");let final_record=read("collection.json");assert_eq!(first["first_failure"]["code"],"TransportPoll");assert_eq!(first["first_failure"],final_record["first_failure"]);assert_eq!(final_record["owner_revision"],3);assert_eq!(final_record["latest_message"]["restart_disabled"],true);std::fs::remove_dir_all(root).unwrap();
- }
+    use super::*;
+    struct Make;
+    struct Fake {
+        generation: u64,
+        settings: Settings,
+        stopped: bool,
+        intent: crate::startup::Intent,
+    }
+    impl Factory for Make {
+        fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+            unreachable!()
+        }
+        fn open_generation(&mut self, r: &Request, g: u64) -> Result<Box<dyn Transport>, String> {
+            match r.source {
+                Source::Simulation => Ok(Box::new(Sim {
+                    simulation: Simulation { sequence: 0 },
+                    stopped: false,
+                })),
+                Source::HostFake => {
+                    assert_eq!(g, 3);
+                    Ok(Box::new(Fake {
+                        generation: g,
+                        settings: r.settings,
+                        stopped: false,
+                        intent: r.startup_intent,
+                    }))
+                }
+                _ => panic!("no device access"),
+            }
+        }
+    }
+    impl Transport for Fake {
+        fn stop(&mut self) -> Result<(), String> {
+            self.stopped = true;
+            Ok(())
+        }
+        fn poll(&mut self) -> Result<Event, String> {
+            if self.stopped {
+                return Ok(Event::Done { clean: true });
+            }
+            let mut f = Simulation { sequence: 0 }.next_frame()?;
+            let a = crate::sensor_contract::Acquisition::new(
+                self.settings,
+                [3; 32],
+                self.generation,
+                1,
+            )?
+            .with_startup(self.intent);
+            let (w, h) = self.settings.dimensions();
+            f.raw = Arc::new(vec![0; usize::from(w) * usize::from(h)]);
+            f.metadata.width = w.into();
+            f.metadata.height = h.into();
+            f.metadata.format = "BayerGRBG8".into();
+            f.metadata.sequence = 1;
+            f.metadata.acquisition = Some(a);
+            Ok(Event::Frame(f))
+        }
+    }
+    #[test]
+    fn worker_simulation_none_fake_generation3() {
+        let w = Worker::with_factory(Make);
+        let r = |source| Request {
+            source,
+            settings: Settings::default(),
+            startup_intent: crate::startup::Intent::Normal,
+        };
+        assert_eq!(w.request(Some(r(Source::Simulation))).unwrap(), 1);
+        let wait = |p: &dyn Fn(&Snapshot) -> bool| {
+            let end = Instant::now() + Duration::from_secs(5);
+            loop {
+                let s = w.snapshot();
+                if p(&s) {
+                    return s;
+                }
+                assert!(Instant::now() < end, "{}", s.message);
+                thread_yield();
+            }
+        };
+        wait(&|s| s.frame.is_some());
+        assert_eq!(w.request(None).unwrap(), 2);
+        wait(&|s| !s.active);
+        assert_eq!(w.request(Some(r(Source::HostFake))).unwrap(), 3);
+        let s = wait(&|s| s.frame.is_some());
+        let (revision, f) = s.frame.unwrap();
+        assert_eq!(revision, 3);
+        assert_eq!(f.metadata.acquisition.unwrap().settings_generation, 3);
+        w.close();
+        wait(&|s| !s.active);
+    }
+    fn thread_yield() {
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    #[test]
+    fn first_backend_error_survives_failed_cleanup() {
+        struct F;
+        struct T(u8);
+        impl Factory for F {
+            fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+                Ok(Box::new(T(0)))
+            }
+        }
+        impl Transport for T {
+            fn stop(&mut self) -> Result<(), String> {
+                Err("later STOP failure".into())
+            }
+            fn poll(&mut self) -> Result<Event, String> {
+                self.0 += 1;
+                if self.0 == 1 {
+                    Err("preopen backend failure".into())
+                } else {
+                    Ok(Event::Done { clean: false })
+                }
+            }
+        }
+        let root = std::env::temp_dir().join(format!("v034-engine-record-{}", std::process::id()));
+        let mut recorder = crate::failure_record::Recorder::at(root.clone());
+        let mut e = Engine::new(F);
+        e.request(
+            3,
+            Some(Request {
+                source: Source::Simulation,
+                settings: Settings::default(),
+                startup_intent: crate::startup::Intent::Normal,
+            }),
+        );
+        e.tick();
+        e.tick();
+        assert_eq!(
+            e.snapshot.first_failure.as_deref(),
+            Some("preopen backend failure")
+        );
+        assert_eq!(e.snapshot.owner_revision, Some(3));
+        recorder.observe(&mut e.snapshot);
+        e.request(4, None);
+        e.tick();
+        assert!(e.snapshot.restart_disabled);
+        assert!(!e.snapshot.active);
+        assert_eq!(
+            e.snapshot.first_failure.as_deref(),
+            Some("preopen backend failure")
+        );
+        recorder.finish(&mut e.snapshot);
+        let read = |name: &str| -> serde_json::Value {
+            serde_json::from_slice(&std::fs::read(root.join("slot-00").join(name)).unwrap())
+                .unwrap()
+        };
+        let first = read("first.json");
+        let final_record = read("collection.json");
+        assert_eq!(first["first_failure"]["code"], "TransportPoll");
+        assert_eq!(first["first_failure"], final_record["first_failure"]);
+        assert_eq!(final_record["owner_revision"], 3);
+        assert_eq!(final_record["latest_message"]["restart_disabled"], true);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
 
-#[cfg(all(test,not(windows)))]
+#[cfg(all(test, not(windows)))]
 mod v034_binding_test {
- use super::*;
- #[test] fn stale_typed_generation_cannot_be_presented(){
-  struct F;struct T;
-  impl Factory for F{fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{Ok(Box::new(T))}}
-  impl Transport for T{fn stop(&mut self)->Result<(),String>{Ok(())}fn poll(&mut self)->Result<Event,String>{
-   let settings=Settings::default();let (w,h)=settings.dimensions();let a=crate::sensor_contract::Acquisition::new(settings,[2;32],2,1)?.with_startup(crate::startup::Intent::Normal);
-   Ok(Event::Frame(Frame{raw:Arc::new(vec![0;usize::from(w)*usize::from(h)]),metadata:crate::Metadata{acquisition:Some(a),source:"host fake".into(),simulated:true,sequence:1,measurement:None,unix_millis:0,width:w.into(),height:h.into(),format:"BayerGRBG8".into()}}))}}
-  let mut e=Engine::new(F);e.request(3,Some(Request{source:Source::HostFake,settings:Settings::default(),startup_intent:crate::startup::Intent::Normal}));e.tick();e.tick();assert!(e.snapshot.frame.is_none());assert_eq!(e.snapshot.first_failure.as_deref(),Some("Frame settings contract mismatch"));assert!(e.snapshot.active);
- }
+    use super::*;
+    #[test]
+    fn stale_typed_generation_cannot_be_presented() {
+        struct F;
+        struct T;
+        impl Factory for F {
+            fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+                Ok(Box::new(T))
+            }
+        }
+        impl Transport for T {
+            fn stop(&mut self) -> Result<(), String> {
+                Ok(())
+            }
+            fn poll(&mut self) -> Result<Event, String> {
+                let settings = Settings::default();
+                let (w, h) = settings.dimensions();
+                let a = crate::sensor_contract::Acquisition::new(settings, [2; 32], 2, 1)?
+                    .with_startup(crate::startup::Intent::Normal);
+                Ok(Event::Frame(Frame {
+                    raw: Arc::new(vec![0; usize::from(w) * usize::from(h)]),
+                    metadata: crate::Metadata {
+                        acquisition: Some(a),
+                        source: "host fake".into(),
+                        simulated: true,
+                        sequence: 1,
+                        measurement: None,
+                        unix_millis: 0,
+                        width: w.into(),
+                        height: h.into(),
+                        format: "BayerGRBG8".into(),
+                    },
+                }))
+            }
+        }
+        let mut e = Engine::new(F);
+        e.request(
+            3,
+            Some(Request {
+                source: Source::HostFake,
+                settings: Settings::default(),
+                startup_intent: crate::startup::Intent::Normal,
+            }),
+        );
+        e.tick();
+        e.tick();
+        assert!(e.snapshot.frame.is_none());
+        assert_eq!(
+            e.snapshot.first_failure.as_deref(),
+            Some("Frame settings contract mismatch")
+        );
+        assert!(e.snapshot.active);
+    }
 }
 
-#[cfg(test)] mod v035_tests {
- use super::*;
- struct Inject {panic:bool}
- impl Factory for Inject {
-  fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{unreachable!()}
-  fn open_generation(&mut self,_:&Request,_:u64)->Result<Box<dyn Transport>,String>{
-   if self.panic {panic!("injected pre-owner panic");}
-   Err("Continuous acquisition failed: backend preopen. Evidence: bus=SENTINEL_BUS ports=SENTINEL_PORT /Users/SENTINEL_USER/private".into())
-  }
- }
- fn req()->Request{Request{source:Source::Simulation,settings:Settings::default(),startup_intent:crate::startup::Intent::Normal}}
- fn wait(w:&Worker,p:impl Fn(&Snapshot)->bool)->Snapshot {let end=Instant::now()+Duration::from_secs(5);loop{let s=w.snapshot();if p(&s){return s;}assert!(Instant::now()<end,"{}",s.message);std::thread::sleep(Duration::from_millis(2));}}
- #[test] fn worker_production_open_error_excludes_identity_both_records(){
-  let root=std::env::temp_dir().join(format!("v035-identity-{}",std::process::id()));
-  let w=Worker::with_factory_recorder(Inject{panic:false},crate::failure_record::Recorder::at(root.clone()));
-  w.request(Some(req())).unwrap();let s=wait(&w,|s|s.first_failure.is_some());assert!(s.first_failure.unwrap().contains("SENTINEL_BUS"));
-  w.close();wait(&w,|_|w.closed());let mut guardian=w.guardian();guardian.wait();
-  for name in ["first.json","collection.json"] {let bytes=std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();for sentinel in ["SENTINEL_BUS","SENTINEL_PORT","SENTINEL_USER","/Users/"]{assert!(!bytes.contains(sentinel));}let v:serde_json::Value=serde_json::from_str(&bytes).unwrap();assert_eq!(v["first_failure"]["code"],"OpenGeneration");}
-  std::fs::remove_dir_all(root).unwrap();
- }
- #[test] fn worker_physical_style_lifecycle_message_safe_records(){
-  struct F;struct T(bool);
-  impl Factory for F{fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{Ok(Box::new(T(false)))}}
-  impl Transport for T {
-   fn stop(&mut self)->Result<(),String>{Ok(())}
-   fn lifecycle(&self)->Option<Lifecycle>{Some(Lifecycle{helper_fault:Some(crate::continuous::Fault::Initialization),backend_error:Some("preopen SENTINEL_BUS /Users/SENTINEL_USER".into()),parent_error:Some("SENTINEL_PORT".into()),terminal_kind:Some(crate::diagnostic::Terminal::Unproved),..Default::default()})}
-   fn poll(&mut self)->Result<Event,String>{if self.0{return Ok(Event::Done{clean:false});}self.0=true;Ok(Event::Lifecycle{message:continuous_failure_message("preopen IO timeout","bus=SENTINEL_BUS ports=SENTINEL_PORT /Users/SENTINEL_USER/private"),unproved:true})}
-  }
-  let root=std::env::temp_dir().join(format!("v035-lifecycle-{}",std::process::id()));let w=Worker::with_factory_recorder(F,crate::failure_record::Recorder::at(root.clone()));w.request(Some(req())).unwrap();let s=wait(&w,|s|s.first_failure.is_some());assert!(s.first_failure.unwrap().contains("SENTINEL_BUS"));w.close();wait(&w,|_|w.closed());let mut g=w.guardian();g.wait();
-  for name in ["first.json","collection.json"]{let raw=std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();for value in ["SENTINEL_BUS","SENTINEL_PORT","SENTINEL_USER","/Users/"]{assert!(!raw.contains(value));}let v:serde_json::Value=serde_json::from_str(&raw).unwrap();assert_eq!(v["first_failure"]["code"],"Unknown");assert_eq!(v["helper_fault"],"Initialization");assert_eq!(v["terminal_kind"],"Unproved");}
-  std::fs::remove_dir_all(root).unwrap();
- }
- #[test] fn worker_open_panic_publishes_full_failure_and_failed_persistence(){
-  let root=std::env::temp_dir().join(format!("v035-panic-{}",std::process::id()));std::fs::write(&root,b"blocked").unwrap();
-  let w=Worker::with_factory_recorder(Inject{panic:true},crate::failure_record::Recorder::at(root.clone()));w.request(Some(req())).unwrap();
-  let s=wait(&w,|_|w.closed());assert!(!s.active);assert!(s.restart_disabled);assert!(s.first_failure.as_deref().unwrap().contains("worker panicked"));assert!(s.first_failure_original_bytes.unwrap()>0);assert!(s.persistence.starts_with("FAILURE RECORD NOT PERSISTED"));assert!(s.frame.is_none());assert_eq!(s.owner_revision,Some(1));
-  let mut guardian=w.guardian();guardian.wait();std::fs::remove_file(root).unwrap();
- }
- #[test] fn request_none_clears_facts_owner_remains_revision_bound(){
-  struct F;struct T;impl Factory for F{fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{Ok(Box::new(T))}}
-  impl Transport for T{fn stop(&mut self)->Result<(),String>{Ok(())}fn poll(&mut self)->Result<Event,String>{Ok(Event::Waiting)}}
-  let mut e=Engine::new(F);e.request(1,Some(req()));e.snapshot.settings_digest=Some("digest-A".into());e.tick();
-  let mut b=req();b.settings.exposure_rows+=1;e.request(2,Some(b.clone()));e.tick();assert_eq!(e.snapshot.owner_revision,Some(1));assert_eq!(e.snapshot.owner_settings,Some(req().settings));assert_eq!(e.snapshot.owner_settings_digest.as_deref(),Some("digest-A"));assert_eq!(e.snapshot.requested_revision,Some(2));assert_eq!(e.snapshot.requested,Some(b.settings));
-  let b_json:serde_json::Value=serde_json::from_slice(&crate::failure_record::record(&e.snapshot,"test")).unwrap();assert_eq!(b_json["owner_revision"],1);assert_eq!(b_json["requested_revision"],2);assert_eq!(b_json["owner_settings_digest"],"digest-A");#[cfg(not(windows))] assert!(b_json["settings_digest"].is_null());
-  #[cfg(windows)] {let canonical=format!("settings-v2-geometry1:{}:{}:{}",b.settings.mode.profile().id,b.settings.exposure_rows,b.settings.gain_eighths);let expected=capability_platform::digest(canonical.as_bytes()).expect("Windows digest success required in canonical-B test").iter().map(|v|format!("{v:02x}")).collect::<String>();assert_eq!(b_json["settings_digest"],expected);}
-  e.request(3,None);assert!(e.snapshot.requested.is_none());assert!(e.snapshot.requested_revision.is_none());assert!(e.snapshot.settings_digest.is_none());assert!(e.snapshot.startup_intent.is_none());assert_eq!(e.snapshot.owner_revision,Some(1));assert_eq!(e.snapshot.owner_settings_digest.as_deref(),Some("digest-A"));
-  let stopped:serde_json::Value=serde_json::from_slice(&crate::failure_record::record(&e.snapshot,"test")).unwrap();for field in ["requested_settings","requested_revision","settings_digest","startup_intent"]{assert!(stopped[field].is_null(),"{field}");}assert_eq!(stopped["owner_revision"],1);assert_eq!(stopped["owner_settings_digest"],"digest-A");
-  assert_eq!(settings_digest_with(req().settings,|_|Err(())),None);assert_eq!(settings_digest_with(req().settings,|bytes|{assert!(std::str::from_utf8(bytes).unwrap().starts_with("settings-v2-geometry1:"));Ok([7;32])}),Some("07".repeat(32)));
-  #[cfg(not(windows))] {let mut e=Engine::new(F);e.request(1,Some(req()));assert!(e.snapshot.settings_digest.is_none());}
- }
+#[cfg(test)]
+mod v035_tests {
+    use super::*;
+    struct Inject {
+        panic: bool,
+    }
+    impl Factory for Inject {
+        fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+            unreachable!()
+        }
+        fn open_generation(&mut self, _: &Request, _: u64) -> Result<Box<dyn Transport>, String> {
+            if self.panic {
+                panic!("injected pre-owner panic");
+            }
+            Err("Continuous acquisition failed: backend preopen. Evidence: bus=SENTINEL_BUS ports=SENTINEL_PORT /Users/SENTINEL_USER/private".into())
+        }
+    }
+    fn req() -> Request {
+        Request {
+            source: Source::Simulation,
+            settings: Settings::default(),
+            startup_intent: crate::startup::Intent::Normal,
+        }
+    }
+    fn wait(w: &Worker, p: impl Fn(&Snapshot) -> bool) -> Snapshot {
+        let end = Instant::now() + Duration::from_secs(5);
+        loop {
+            let s = w.snapshot();
+            if p(&s) {
+                return s;
+            }
+            assert!(Instant::now() < end, "{}", s.message);
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    }
+    #[test]
+    fn worker_production_open_error_excludes_identity_both_records() {
+        let root = std::env::temp_dir().join(format!("v035-identity-{}", std::process::id()));
+        let w = Worker::with_factory_recorder(
+            Inject { panic: false },
+            crate::failure_record::Recorder::at(root.clone()),
+        );
+        w.request(Some(req())).unwrap();
+        let s = wait(&w, |s| s.first_failure.is_some());
+        assert!(s.first_failure.unwrap().contains("SENTINEL_BUS"));
+        w.close();
+        wait(&w, |_| w.closed());
+        let mut guardian = w.guardian();
+        guardian.wait();
+        for name in ["first.json", "collection.json"] {
+            let bytes = std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();
+            for sentinel in ["SENTINEL_BUS", "SENTINEL_PORT", "SENTINEL_USER", "/Users/"] {
+                assert!(!bytes.contains(sentinel));
+            }
+            let v: serde_json::Value = serde_json::from_str(&bytes).unwrap();
+            assert_eq!(v["first_failure"]["code"], "OpenGeneration");
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn worker_physical_style_lifecycle_message_safe_records() {
+        struct F;
+        struct T(bool);
+        impl Factory for F {
+            fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+                Ok(Box::new(T(false)))
+            }
+        }
+        impl Transport for T {
+            fn stop(&mut self) -> Result<(), String> {
+                Ok(())
+            }
+            fn lifecycle(&self) -> Option<Lifecycle> {
+                Some(Lifecycle {
+                    helper_fault: Some(crate::continuous::Fault::Initialization),
+                    backend_error: Some("preopen SENTINEL_BUS /Users/SENTINEL_USER".into()),
+                    parent_error: Some("SENTINEL_PORT".into()),
+                    terminal_kind: Some(crate::diagnostic::Terminal::Unproved),
+                    ..Default::default()
+                })
+            }
+            fn poll(&mut self) -> Result<Event, String> {
+                if self.0 {
+                    return Ok(Event::Done { clean: false });
+                }
+                self.0 = true;
+                Ok(Event::Lifecycle {
+                    message: continuous_failure_message(
+                        "preopen IO timeout",
+                        "bus=SENTINEL_BUS ports=SENTINEL_PORT /Users/SENTINEL_USER/private",
+                    ),
+                    unproved: true,
+                })
+            }
+        }
+        let root = std::env::temp_dir().join(format!("v035-lifecycle-{}", std::process::id()));
+        let w = Worker::with_factory_recorder(F, crate::failure_record::Recorder::at(root.clone()));
+        w.request(Some(req())).unwrap();
+        let s = wait(&w, |s| s.first_failure.is_some());
+        assert!(s.first_failure.unwrap().contains("SENTINEL_BUS"));
+        w.close();
+        wait(&w, |_| w.closed());
+        let mut g = w.guardian();
+        g.wait();
+        for name in ["first.json", "collection.json"] {
+            let raw = std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();
+            for value in ["SENTINEL_BUS", "SENTINEL_PORT", "SENTINEL_USER", "/Users/"] {
+                assert!(!raw.contains(value));
+            }
+            let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+            assert_eq!(v["first_failure"]["code"], "Unknown");
+            assert_eq!(v["helper_fault"], "Initialization");
+            assert_eq!(v["terminal_kind"], "Unproved");
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn worker_open_panic_publishes_full_failure_and_failed_persistence() {
+        let root = std::env::temp_dir().join(format!("v035-panic-{}", std::process::id()));
+        std::fs::write(&root, b"blocked").unwrap();
+        let w = Worker::with_factory_recorder(
+            Inject { panic: true },
+            crate::failure_record::Recorder::at(root.clone()),
+        );
+        w.request(Some(req())).unwrap();
+        let s = wait(&w, |_| w.closed());
+        assert!(!s.active);
+        assert!(s.restart_disabled);
+        assert!(
+            s.first_failure
+                .as_deref()
+                .unwrap()
+                .contains("worker panicked")
+        );
+        assert!(s.first_failure_original_bytes.unwrap() > 0);
+        assert!(s.persistence.starts_with("FAILURE RECORD NOT PERSISTED"));
+        assert!(s.frame.is_none());
+        assert_eq!(s.owner_revision, Some(1));
+        let mut guardian = w.guardian();
+        guardian.wait();
+        std::fs::remove_file(root).unwrap();
+    }
+    #[test]
+    fn request_none_clears_facts_owner_remains_revision_bound() {
+        struct F;
+        struct T;
+        impl Factory for F {
+            fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+                Ok(Box::new(T))
+            }
+        }
+        impl Transport for T {
+            fn stop(&mut self) -> Result<(), String> {
+                Ok(())
+            }
+            fn poll(&mut self) -> Result<Event, String> {
+                Ok(Event::Waiting)
+            }
+        }
+        let mut e = Engine::new(F);
+        e.request(1, Some(req()));
+        e.snapshot.settings_digest = Some("digest-A".into());
+        e.tick();
+        let mut b = req();
+        b.settings.exposure_rows += 1;
+        e.request(2, Some(b.clone()));
+        e.tick();
+        assert_eq!(e.snapshot.owner_revision, Some(1));
+        assert_eq!(e.snapshot.owner_settings, Some(req().settings));
+        assert_eq!(
+            e.snapshot.owner_settings_digest.as_deref(),
+            Some("digest-A")
+        );
+        assert_eq!(e.snapshot.requested_revision, Some(2));
+        assert_eq!(e.snapshot.requested, Some(b.settings));
+        let b_json: serde_json::Value =
+            serde_json::from_slice(&crate::failure_record::record(&e.snapshot, "test")).unwrap();
+        assert_eq!(b_json["owner_revision"], 1);
+        assert_eq!(b_json["requested_revision"], 2);
+        assert_eq!(b_json["owner_settings_digest"], "digest-A");
+        #[cfg(not(windows))]
+        assert!(b_json["settings_digest"].is_null());
+        #[cfg(windows)]
+        {
+            let canonical = format!(
+                "settings-v2-geometry1:{}:{}:{}",
+                b.settings.mode.profile().id,
+                b.settings.exposure_rows,
+                b.settings.gain_eighths
+            );
+            let expected = capability_platform::digest(canonical.as_bytes())
+                .expect("Windows digest success required in canonical-B test")
+                .iter()
+                .map(|v| format!("{v:02x}"))
+                .collect::<String>();
+            assert_eq!(b_json["settings_digest"], expected);
+        }
+        e.request(3, None);
+        assert!(e.snapshot.requested.is_none());
+        assert!(e.snapshot.requested_revision.is_none());
+        assert!(e.snapshot.settings_digest.is_none());
+        assert!(e.snapshot.startup_intent.is_none());
+        assert_eq!(e.snapshot.owner_revision, Some(1));
+        assert_eq!(
+            e.snapshot.owner_settings_digest.as_deref(),
+            Some("digest-A")
+        );
+        let stopped: serde_json::Value =
+            serde_json::from_slice(&crate::failure_record::record(&e.snapshot, "test")).unwrap();
+        for field in [
+            "requested_settings",
+            "requested_revision",
+            "settings_digest",
+            "startup_intent",
+        ] {
+            assert!(stopped[field].is_null(), "{field}");
+        }
+        assert_eq!(stopped["owner_revision"], 1);
+        assert_eq!(stopped["owner_settings_digest"], "digest-A");
+        assert_eq!(settings_digest_with(req().settings, |_| Err(())), None);
+        assert_eq!(
+            settings_digest_with(req().settings, |bytes| {
+                assert!(
+                    std::str::from_utf8(bytes)
+                        .unwrap()
+                        .starts_with("settings-v2-geometry1:")
+                );
+                Ok([7; 32])
+            }),
+            Some("07".repeat(32))
+        );
+        #[cfg(not(windows))]
+        {
+            let mut e = Engine::new(F);
+            e.request(1, Some(req()));
+            assert!(e.snapshot.settings_digest.is_none());
+        }
+    }
 }
 
 #[cfg(test)]
 mod v036_tests {
- use super::*;
- use crate::diagnostic::{self as d,Accumulator,Cause,Stage,Reason,Terminal};
- struct Inject {parent:Option<Cause>,text:Option<&'static str>,terminal:Terminal,malformed:bool,flags:u8,exit:u32,release:bool,deleted:bool}
- struct BytesTransport {input:Inject,causes:Accumulator,facts:d::Facts,step:u8,reported:bool}
- impl Transport for BytesTransport {
-  fn stop(&mut self)->Result<(),String>{Ok(())}
-  fn lifecycle(&self)->Option<Lifecycle>{Some(d::lifecycle(&self.facts,&self.causes))}
-  fn poll(&mut self)->Result<Event,String>{
-   let mut raw=[0u8;128];raw[68]=self.input.flags;
-   if self.step==0 {
-    if let Some(c)=self.input.parent {self.causes.retain(c);}
-    d::write_terminal_error(&mut raw,self.input.text);
-    if self.input.malformed {raw[70]=58;}
-    let _=self.causes.terminal(&raw);
-    self.facts.parent_error=Some(self.input.text.unwrap_or("parent SENTINEL_BUS /Users/SENTINEL_USER").into());
-   } else {
-    // A later different helper fault must not rewrite first cause, including unknown.
-    raw[68]=16;raw[69]=4;self.causes.terminal(&raw).unwrap();
-    self.facts.collected=true;self.facts.exit=Some(self.input.exit);
-    self.facts.release_committed=self.input.release;self.facts.marker_deleted=self.input.deleted;
-    self.facts.terminal=Some(self.input.terminal);
-   }
-   let lifecycle=d::lifecycle(&self.facts,&self.causes);self.step+=1;
-   Ok(d::transport_event(&lifecycle,&mut self.reported,"SENTINEL_PORT").unwrap_or(Event::Waiting))
-  }
- }
- struct InjectFactory(Option<Inject>);
- impl Factory for InjectFactory {
-  fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{Ok(Box::new(BytesTransport{input:self.0.take().unwrap(),causes:Accumulator::default(),facts:d::Facts::default(),step:0,reported:false}))}
- }
- fn request()->Request {Request{source:Source::Simulation,settings:Settings::default(),startup_intent:crate::startup::Intent::Normal}}
- fn wait(w:&Worker,p:impl Fn(&Snapshot)->bool)->Snapshot {let deadline=Instant::now()+Duration::from_secs(5);loop{let s=w.snapshot();if p(&s){return s;}assert!(Instant::now()<deadline,"worker timeout");std::thread::sleep(Duration::from_millis(2));}}
- #[test] fn v036_production_terminal_dispatch_worker_recorder_first_cause() {
-  let cases=[
-   (None,Some("@OP SENTINEL_BUS /Users/SENTINEL_USER"),d::backend_code("@OP x")),
-   (None,Some("@DS SENTINEL_BUS /Users/SENTINEL_USER"),d::backend_code("@DS x")),
-   (Some(Cause::parent(Stage::Initialization,Reason::Deadline)),None,Cause::parent(Stage::Initialization,Reason::Deadline)),
-   (Some(Cause::parent(Stage::Owner,Reason::Unresponsive)),None,Cause::parent(Stage::Owner,Reason::Unresponsive)),
-   (Some(Cause::parent(Stage::Channel,Reason::Lost)),None,Cause::parent(Stage::Channel,Reason::Lost)),
-   (None,Some("unknown SENTINEL_BUS /Users/SENTINEL_USER"),Cause::unknown()),
-   (None,None,Cause::parent(Stage::Terminal,Reason::Malformed))];
-  for (index,(parent,text,expected)) in cases.into_iter().enumerate() {
-   let root=std::env::temp_dir().join(format!("v036-path-{}-{index}",std::process::id()));
-   let w=Worker::with_factory_recorder(InjectFactory(Some(Inject{parent,text,terminal:Terminal::FailedClean,malformed:index==6,flags:16,exit:2,release:true,deleted:false})),crate::failure_record::Recorder::at(root.clone()));
-   w.request(Some(request())).unwrap();wait(&w,|s|s.first_failure.is_some());w.close();wait(&w,|_|w.closed());let mut g=w.guardian();g.wait();
-   let mut first=None;
-   for name in ["first.json","collection.json"] {
-    let raw=std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();
-    for sentinel in ["SENTINEL_BUS","SENTINEL_PORT","SENTINEL_USER","/Users/"] {assert!(!raw.contains(sentinel));}
-    let v:serde_json::Value=serde_json::from_str(&raw).unwrap();assert_eq!(v["first_failure"]["cause"],serde_json::json!(expected));
-    if name=="first.json" {assert_eq!(v["proof_flags"],if index==6 {0}else{16});assert!(v["terminal_kind"].is_null());assert!(v["exit"].is_null());assert_eq!(v["collected"],false);assert_eq!(v["release_committed"],false);assert_eq!(v["marker_deleted"],false);first=Some(v["first_failure"].clone());}
-    else {assert_eq!(v["first_failure"],first.clone().unwrap());assert_eq!(v["helper_fault"],"Initialization");assert_eq!(v["terminal_kind"],"FailedClean");assert_eq!(v["exit"],2);assert_eq!(v["proof_flags"],16);assert_eq!(v["release_committed"],true);assert_eq!(v["marker_deleted"],false);assert_eq!(v["collected"],true);}
-   }
-   std::fs::remove_dir_all(root).unwrap();
-  }
- }
- #[test] fn v036_all_terminal_facts_to_collection() {
-  for (index,(terminal,exit,proof,release,deleted)) in [(Terminal::CleanCancellation,0,15,true,true),(Terminal::FailedClean,2,23,true,false),(Terminal::Unproved,3,16,false,false)].into_iter().enumerate() {
-   let mut acc=Accumulator::default();let mut packet=[0u8;128];packet[68]=proof;acc.terminal(&packet).unwrap();
-   let l=d::lifecycle(&d::Facts{terminal:Some(terminal),exit:Some(exit),release_committed:release,marker_deleted:deleted,collected:true,..Default::default()},&acc);
-   let mut reported=true;assert!(matches!(d::transport_event(&l,&mut reported,"inert"),Some(Event::Done{clean}) if clean==(terminal==Terminal::CleanCancellation)));
-   let root=std::env::temp_dir().join(format!("v036-facts-{}-{index}",std::process::id()));let mut recorder=crate::failure_record::Recorder::at(root.clone());
-   let mut snapshot=Snapshot::default();snapshot.first_failure=Some("inert collection observation".into());snapshot.lifecycle=Some(l);recorder.observe(&mut snapshot);recorder.finish(&mut snapshot);
-   let v:serde_json::Value=serde_json::from_slice(&std::fs::read(root.join("slot-00/collection.json")).unwrap()).unwrap();
-   assert_eq!(v["terminal_kind"],serde_json::json!(terminal));assert_eq!(v["exit"],exit);assert_eq!(v["proof_flags"],proof);assert_eq!(v["release_committed"],release);assert_eq!(v["marker_deleted"],deleted);assert_eq!(v["collected"],true);assert!(v["marker_present"].is_null());std::fs::remove_dir_all(root).unwrap();
-  }
- }
- #[test] fn v036_request_hash_dependency_revision_owner_binding() {
-  struct Idle;impl Transport for Idle{fn poll(&mut self)->Result<Event,String>{Ok(Event::Waiting)}fn stop(&mut self)->Result<(),String>{Ok(())}}
-  struct HashFactory(bool);
-  impl Factory for HashFactory {
-   fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{Ok(Box::new(Idle))}
-   fn settings_digest(&mut self,s:Settings)->Option<String>{settings_digest_with(s,|bytes|{assert!(std::str::from_utf8(bytes).unwrap().starts_with("settings-v2-geometry1:"));if self.0{Ok([9;32])}else{Err(())}})}
-  }
-  let mut e=Engine::new(HashFactory(true));e.request(1,Some(request()));e.tick();assert_eq!(e.snapshot.owner_settings_digest,Some("09".repeat(32)));
-  e.factory.0=false;let mut b=request();b.settings.exposure_rows+=1;e.request(2,Some(b.clone()));assert_eq!(e.snapshot.requested,Some(b.settings));assert_eq!(e.snapshot.requested_revision,Some(2));assert!(e.snapshot.settings_digest.is_none());assert_eq!(e.snapshot.owner_revision,Some(1));assert_eq!(e.snapshot.owner_settings_digest,Some("09".repeat(32)));
-  e.request(3,None);assert!(e.snapshot.settings_digest.is_none());assert!(e.snapshot.requested_revision.is_none());assert_eq!(e.snapshot.owner_settings_digest,Some("09".repeat(32)));
- }
+    use super::*;
+    use crate::diagnostic::{self as d, Accumulator, Cause, Reason, Stage, Terminal};
+    struct Inject {
+        parent: Option<Cause>,
+        text: Option<&'static str>,
+        terminal: Terminal,
+        malformed: bool,
+        flags: u8,
+        exit: u32,
+        release: bool,
+        deleted: bool,
+    }
+    struct BytesTransport {
+        input: Inject,
+        causes: Accumulator,
+        facts: d::Facts,
+        step: u8,
+        reported: bool,
+    }
+    impl Transport for BytesTransport {
+        fn stop(&mut self) -> Result<(), String> {
+            Ok(())
+        }
+        fn lifecycle(&self) -> Option<Lifecycle> {
+            Some(d::lifecycle(&self.facts, &self.causes))
+        }
+        fn poll(&mut self) -> Result<Event, String> {
+            let mut raw = [0u8; 128];
+            raw[68] = self.input.flags;
+            if self.step == 0 {
+                if let Some(c) = self.input.parent {
+                    self.causes.retain(c);
+                }
+                d::write_terminal_error(&mut raw, self.input.text);
+                if self.input.malformed {
+                    raw[70] = 58;
+                }
+                let _ = self.causes.terminal(&raw);
+                self.facts.parent_error = Some(
+                    self.input
+                        .text
+                        .unwrap_or("parent SENTINEL_BUS /Users/SENTINEL_USER")
+                        .into(),
+                );
+            } else {
+                // A later different helper fault must not rewrite first cause, including unknown.
+                raw[68] = 16;
+                raw[69] = 4;
+                self.causes.terminal(&raw).unwrap();
+                self.facts.collected = true;
+                self.facts.exit = Some(self.input.exit);
+                self.facts.release_committed = self.input.release;
+                self.facts.marker_deleted = self.input.deleted;
+                self.facts.terminal = Some(self.input.terminal);
+            }
+            let lifecycle = d::lifecycle(&self.facts, &self.causes);
+            self.step += 1;
+            Ok(
+                d::transport_event(&lifecycle, &mut self.reported, "SENTINEL_PORT")
+                    .unwrap_or(Event::Waiting),
+            )
+        }
+    }
+    struct InjectFactory(Option<Inject>);
+    impl Factory for InjectFactory {
+        fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+            Ok(Box::new(BytesTransport {
+                input: self.0.take().unwrap(),
+                causes: Accumulator::default(),
+                facts: d::Facts::default(),
+                step: 0,
+                reported: false,
+            }))
+        }
+    }
+    fn request() -> Request {
+        Request {
+            source: Source::Simulation,
+            settings: Settings::default(),
+            startup_intent: crate::startup::Intent::Normal,
+        }
+    }
+    fn wait(w: &Worker, p: impl Fn(&Snapshot) -> bool) -> Snapshot {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let s = w.snapshot();
+            if p(&s) {
+                return s;
+            }
+            assert!(Instant::now() < deadline, "worker timeout");
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    }
+    #[test]
+    fn v036_production_terminal_dispatch_worker_recorder_first_cause() {
+        let cases = [
+            (
+                None,
+                Some("@OP SENTINEL_BUS /Users/SENTINEL_USER"),
+                d::backend_code("@OP x"),
+            ),
+            (
+                None,
+                Some("@DS SENTINEL_BUS /Users/SENTINEL_USER"),
+                d::backend_code("@DS x"),
+            ),
+            (
+                Some(Cause::parent(Stage::Initialization, Reason::Deadline)),
+                None,
+                Cause::parent(Stage::Initialization, Reason::Deadline),
+            ),
+            (
+                Some(Cause::parent(Stage::Owner, Reason::Unresponsive)),
+                None,
+                Cause::parent(Stage::Owner, Reason::Unresponsive),
+            ),
+            (
+                Some(Cause::parent(Stage::Channel, Reason::Lost)),
+                None,
+                Cause::parent(Stage::Channel, Reason::Lost),
+            ),
+            (
+                None,
+                Some("unknown SENTINEL_BUS /Users/SENTINEL_USER"),
+                Cause::unknown(),
+            ),
+            (
+                None,
+                None,
+                Cause::parent(Stage::Terminal, Reason::Malformed),
+            ),
+        ];
+        for (index, (parent, text, expected)) in cases.into_iter().enumerate() {
+            let root =
+                std::env::temp_dir().join(format!("v036-path-{}-{index}", std::process::id()));
+            let w = Worker::with_factory_recorder(
+                InjectFactory(Some(Inject {
+                    parent,
+                    text,
+                    terminal: Terminal::FailedClean,
+                    malformed: index == 6,
+                    flags: 16,
+                    exit: 2,
+                    release: true,
+                    deleted: false,
+                })),
+                crate::failure_record::Recorder::at(root.clone()),
+            );
+            w.request(Some(request())).unwrap();
+            wait(&w, |s| s.first_failure.is_some());
+            w.close();
+            wait(&w, |_| w.closed());
+            let mut g = w.guardian();
+            g.wait();
+            let mut first = None;
+            for name in ["first.json", "collection.json"] {
+                let raw = std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();
+                for sentinel in ["SENTINEL_BUS", "SENTINEL_PORT", "SENTINEL_USER", "/Users/"] {
+                    assert!(!raw.contains(sentinel));
+                }
+                let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+                assert_eq!(v["first_failure"]["cause"], serde_json::json!(expected));
+                if name == "first.json" {
+                    assert_eq!(v["proof_flags"], if index == 6 { 0 } else { 16 });
+                    assert!(v["terminal_kind"].is_null());
+                    assert!(v["exit"].is_null());
+                    assert_eq!(v["collected"], false);
+                    assert_eq!(v["release_committed"], false);
+                    assert_eq!(v["marker_deleted"], false);
+                    first = Some(v["first_failure"].clone());
+                } else {
+                    assert_eq!(v["first_failure"], first.clone().unwrap());
+                    assert_eq!(v["helper_fault"], "Initialization");
+                    assert_eq!(v["terminal_kind"], "FailedClean");
+                    assert_eq!(v["exit"], 2);
+                    assert_eq!(v["proof_flags"], 16);
+                    assert_eq!(v["release_committed"], true);
+                    assert_eq!(v["marker_deleted"], false);
+                    assert_eq!(v["collected"], true);
+                }
+            }
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
+    #[test]
+    fn v036_all_terminal_facts_to_collection() {
+        for (index, (terminal, exit, proof, release, deleted)) in [
+            (Terminal::CleanCancellation, 0, 15, true, true),
+            (Terminal::FailedClean, 2, 23, true, false),
+            (Terminal::Unproved, 3, 16, false, false),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut acc = Accumulator::default();
+            let mut packet = [0u8; 128];
+            packet[68] = proof;
+            acc.terminal(&packet).unwrap();
+            let l = d::lifecycle(
+                &d::Facts {
+                    terminal: Some(terminal),
+                    exit: Some(exit),
+                    release_committed: release,
+                    marker_deleted: deleted,
+                    collected: true,
+                    ..Default::default()
+                },
+                &acc,
+            );
+            let mut reported = true;
+            assert!(
+                matches!(d::transport_event(&l,&mut reported,"inert"),Some(Event::Done{clean}) if clean==(terminal==Terminal::CleanCancellation))
+            );
+            let root =
+                std::env::temp_dir().join(format!("v036-facts-{}-{index}", std::process::id()));
+            let mut recorder = crate::failure_record::Recorder::at(root.clone());
+            let mut snapshot = Snapshot::default();
+            snapshot.first_failure = Some("inert collection observation".into());
+            snapshot.lifecycle = Some(l);
+            recorder.observe(&mut snapshot);
+            recorder.finish(&mut snapshot);
+            let v: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(root.join("slot-00/collection.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(v["terminal_kind"], serde_json::json!(terminal));
+            assert_eq!(v["exit"], exit);
+            assert_eq!(v["proof_flags"], proof);
+            assert_eq!(v["release_committed"], release);
+            assert_eq!(v["marker_deleted"], deleted);
+            assert_eq!(v["collected"], true);
+            assert!(v["marker_present"].is_null());
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
+    #[test]
+    fn v036_request_hash_dependency_revision_owner_binding() {
+        struct Idle;
+        impl Transport for Idle {
+            fn poll(&mut self) -> Result<Event, String> {
+                Ok(Event::Waiting)
+            }
+            fn stop(&mut self) -> Result<(), String> {
+                Ok(())
+            }
+        }
+        struct HashFactory(bool);
+        impl Factory for HashFactory {
+            fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+                Ok(Box::new(Idle))
+            }
+            fn settings_digest(&mut self, s: Settings) -> Option<String> {
+                settings_digest_with(s, |bytes| {
+                    assert!(
+                        std::str::from_utf8(bytes)
+                            .unwrap()
+                            .starts_with("settings-v2-geometry1:")
+                    );
+                    if self.0 { Ok([9; 32]) } else { Err(()) }
+                })
+            }
+        }
+        let mut e = Engine::new(HashFactory(true));
+        e.request(1, Some(request()));
+        e.tick();
+        assert_eq!(e.snapshot.owner_settings_digest, Some("09".repeat(32)));
+        e.factory.0 = false;
+        let mut b = request();
+        b.settings.exposure_rows += 1;
+        e.request(2, Some(b.clone()));
+        assert_eq!(e.snapshot.requested, Some(b.settings));
+        assert_eq!(e.snapshot.requested_revision, Some(2));
+        assert!(e.snapshot.settings_digest.is_none());
+        assert_eq!(e.snapshot.owner_revision, Some(1));
+        assert_eq!(e.snapshot.owner_settings_digest, Some("09".repeat(32)));
+        e.request(3, None);
+        assert!(e.snapshot.settings_digest.is_none());
+        assert!(e.snapshot.requested_revision.is_none());
+        assert_eq!(e.snapshot.owner_settings_digest, Some("09".repeat(32)));
+    }
 }
 
-#[cfg(test)] mod v037_tests {
- use super::*;
- use crate::diagnostic::{self as d, Cause, ParentReport as P};
- struct F(usize); struct T{case:usize,step:u8,a:d::Accumulator,f:d::Facts,reported:bool}
- impl Factory for F {fn open(&mut self,_:&Request)->Result<Box<dyn Transport>,String>{Ok(Box::new(T{case:self.0,step:0,a:Default::default(),f:Default::default(),reported:false}))}}
- impl Transport for T {
- fn stop(&mut self)->Result<(),String>{Ok(())}
- fn lifecycle(&self)->Option<Lifecycle>{Some(d::lifecycle(&self.f,&self.a))}
- fn poll(&mut self)->Result<Event,String>{
- if self.step==0 {
-  if self.case>=6 {let reports=[P::OwnerUnresponsive,P::OwnerUnresponsive,P::ChallengeLost,P::ChallengeUnanswered,P::ChallengeStalled,P::ChallengeMalformed];
-   let r=reports[self.case-6];d::report_parent(&mut self.a,&mut self.f.parent_error,r);
-   // The evaluate path and supervisor both use this exact owner report mutation.
-   if self.case==6 || self.case==7 {d::report_parent(&mut self.a,&mut self.f.parent_error,P::OwnerUnresponsive);}
-  } else {
-   if self.case==3 {d::report_parent(&mut self.a,&mut self.f.parent_error,P::OwnerUnresponsive);}
-   let mut p=[0;128];p[68]=16;
-   if [0,2,3,5].contains(&self.case){d::write_terminal_error(&mut p,Some(if self.case==5 {"raw SENTINEL_BUS /Users/SENTINEL_USER"}else{"@OP SENTINEL_BUS /Users/SENTINEL_USER"}));}
-   if [1,2,3].contains(&self.case){p[69]=4;}
-   if self.case==4 {p[70]=58;}
-   let _=d::report_terminal(&mut self.a,&mut self.f.parent_error,&p);
-  }
- } else {
-  let mut p=[0;128];p[68]=16;p[69]=5;d::report_terminal(&mut self.a,&mut self.f.parent_error,&p).unwrap();
-  self.f.collected=true;self.f.terminal=Some(d::Terminal::FailedClean);self.f.exit=Some(2);
- }
- self.step+=1;Ok(d::transport_event(&d::lifecycle(&self.f,&self.a),&mut self.reported,"SENTINEL_PORT").unwrap_or(Event::Waiting))
- }}
- #[test] fn v037_real_reports_worker_both_records() {
- let helper=Cause{origin:d::Origin::Helper,stage:d::Stage::Supervisor,reason:d::Reason::SupervisorFault,category:Some(4)};
- let expected=[d::backend_code("@OP x"),helper,d::backend_code("@OP x"),P::OwnerUnresponsive.cause(),Cause::parent(d::Stage::Terminal,d::Reason::Malformed),Cause::unknown(),P::OwnerUnresponsive.cause(),P::OwnerUnresponsive.cause(),P::ChallengeLost.cause(),P::ChallengeUnanswered.cause(),P::ChallengeStalled.cause(),P::ChallengeMalformed.cause()];
- for (case,cause) in expected.into_iter().enumerate(){
- let root=std::env::temp_dir().join(format!("v037-reports-{}-{case}",std::process::id()));
- let w=Worker::with_factory_recorder(F(case),crate::failure_record::Recorder::at(root.clone()));
- w.request(Some(Request{source:Source::Simulation,settings:Settings::default(),startup_intent:crate::startup::Intent::Normal})).unwrap();
- let end=Instant::now()+Duration::from_secs(5);while w.snapshot().first_failure.is_none(){assert!(Instant::now()<end);std::thread::sleep(Duration::from_millis(2));}
- assert_eq!(w.snapshot().first_cause,Some(cause));w.close();while !w.closed(){assert!(Instant::now()<end);std::thread::sleep(Duration::from_millis(2));}let mut g=w.guardian();g.wait();
- if [0,2,3].contains(&case){assert_eq!(w.snapshot().lifecycle.as_ref().unwrap().backend_cause,Some(d::backend_code("@OP x")));assert!(w.snapshot().lifecycle.as_ref().unwrap().backend_error.as_ref().unwrap().contains("SENTINEL_BUS"));}
- assert_eq!(w.snapshot().first_cause,Some(cause));assert_eq!(w.snapshot().lifecycle.unwrap().helper_fault,Some(crate::continuous::Fault::NoTransfer));
- let mut first=None;for name in ["first.json","collection.json"]{let raw=std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();for text in ["SENTINEL_BUS","SENTINEL_PORT","SENTINEL_USER","/Users/"]{assert!(!raw.contains(text));}let v:serde_json::Value=serde_json::from_str(&raw).unwrap();assert_eq!(v["first_failure"]["cause"],serde_json::json!(cause));if let Some(ref f)=first{assert_eq!(&v["first_failure"],f);}else{first=Some(v["first_failure"].clone());}}
- std::fs::remove_dir_all(root).unwrap();
- }
- }
+#[cfg(test)]
+mod v037_tests {
+    use super::*;
+    use crate::diagnostic::{self as d, Cause, ParentReport as P};
+    struct F(usize);
+    struct T {
+        case: usize,
+        step: u8,
+        a: d::Accumulator,
+        f: d::Facts,
+        reported: bool,
+    }
+    impl Factory for F {
+        fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+            Ok(Box::new(T {
+                case: self.0,
+                step: 0,
+                a: Default::default(),
+                f: Default::default(),
+                reported: false,
+            }))
+        }
+    }
+    impl Transport for T {
+        fn stop(&mut self) -> Result<(), String> {
+            Ok(())
+        }
+        fn lifecycle(&self) -> Option<Lifecycle> {
+            Some(d::lifecycle(&self.f, &self.a))
+        }
+        fn poll(&mut self) -> Result<Event, String> {
+            if self.step == 0 {
+                if self.case >= 6 {
+                    let reports = [
+                        P::OwnerUnresponsive,
+                        P::OwnerUnresponsive,
+                        P::ChallengeLost,
+                        P::ChallengeUnanswered,
+                        P::ChallengeStalled,
+                        P::ChallengeMalformed,
+                    ];
+                    let r = reports[self.case - 6];
+                    d::report_parent(&mut self.a, &mut self.f.parent_error, r);
+                    // The evaluate path and supervisor both use this exact owner report mutation.
+                    if self.case == 6 || self.case == 7 {
+                        d::report_parent(
+                            &mut self.a,
+                            &mut self.f.parent_error,
+                            P::OwnerUnresponsive,
+                        );
+                    }
+                } else {
+                    if self.case == 3 {
+                        d::report_parent(
+                            &mut self.a,
+                            &mut self.f.parent_error,
+                            P::OwnerUnresponsive,
+                        );
+                    }
+                    let mut p = [0; 128];
+                    p[68] = 16;
+                    if [0, 2, 3, 5].contains(&self.case) {
+                        d::write_terminal_error(
+                            &mut p,
+                            Some(if self.case == 5 {
+                                "raw SENTINEL_BUS /Users/SENTINEL_USER"
+                            } else {
+                                "@OP SENTINEL_BUS /Users/SENTINEL_USER"
+                            }),
+                        );
+                    }
+                    if [1, 2, 3].contains(&self.case) {
+                        p[69] = 4;
+                    }
+                    if self.case == 4 {
+                        p[70] = 58;
+                    }
+                    let _ = d::report_terminal(&mut self.a, &mut self.f.parent_error, &p);
+                }
+            } else {
+                let mut p = [0; 128];
+                p[68] = 16;
+                p[69] = 5;
+                d::report_terminal(&mut self.a, &mut self.f.parent_error, &p).unwrap();
+                self.f.collected = true;
+                self.f.terminal = Some(d::Terminal::FailedClean);
+                self.f.exit = Some(2);
+            }
+            self.step += 1;
+            Ok(d::transport_event(
+                &d::lifecycle(&self.f, &self.a),
+                &mut self.reported,
+                "SENTINEL_PORT",
+            )
+            .unwrap_or(Event::Waiting))
+        }
+    }
+    #[test]
+    fn v037_real_reports_worker_both_records() {
+        let helper = Cause {
+            origin: d::Origin::Helper,
+            stage: d::Stage::Supervisor,
+            reason: d::Reason::SupervisorFault,
+            category: Some(4),
+        };
+        let expected = [
+            d::backend_code("@OP x"),
+            helper,
+            d::backend_code("@OP x"),
+            P::OwnerUnresponsive.cause(),
+            Cause::parent(d::Stage::Terminal, d::Reason::Malformed),
+            Cause::unknown(),
+            P::OwnerUnresponsive.cause(),
+            P::OwnerUnresponsive.cause(),
+            P::ChallengeLost.cause(),
+            P::ChallengeUnanswered.cause(),
+            P::ChallengeStalled.cause(),
+            P::ChallengeMalformed.cause(),
+        ];
+        for (case, cause) in expected.into_iter().enumerate() {
+            let root =
+                std::env::temp_dir().join(format!("v037-reports-{}-{case}", std::process::id()));
+            let w = Worker::with_factory_recorder(
+                F(case),
+                crate::failure_record::Recorder::at(root.clone()),
+            );
+            w.request(Some(Request {
+                source: Source::Simulation,
+                settings: Settings::default(),
+                startup_intent: crate::startup::Intent::Normal,
+            }))
+            .unwrap();
+            let end = Instant::now() + Duration::from_secs(5);
+            while w.snapshot().first_failure.is_none() {
+                assert!(Instant::now() < end);
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            assert_eq!(w.snapshot().first_cause, Some(cause));
+            w.close();
+            while !w.closed() {
+                assert!(Instant::now() < end);
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            let mut g = w.guardian();
+            g.wait();
+            if [0, 2, 3].contains(&case) {
+                assert_eq!(
+                    w.snapshot().lifecycle.as_ref().unwrap().backend_cause,
+                    Some(d::backend_code("@OP x"))
+                );
+                assert!(
+                    w.snapshot()
+                        .lifecycle
+                        .as_ref()
+                        .unwrap()
+                        .backend_error
+                        .as_ref()
+                        .unwrap()
+                        .contains("SENTINEL_BUS")
+                );
+            }
+            assert_eq!(w.snapshot().first_cause, Some(cause));
+            assert_eq!(
+                w.snapshot().lifecycle.unwrap().helper_fault,
+                Some(crate::continuous::Fault::NoTransfer)
+            );
+            let mut first = None;
+            for name in ["first.json", "collection.json"] {
+                let raw = std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();
+                for text in ["SENTINEL_BUS", "SENTINEL_PORT", "SENTINEL_USER", "/Users/"] {
+                    assert!(!raw.contains(text));
+                }
+                let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+                assert_eq!(v["first_failure"]["cause"], serde_json::json!(cause));
+                if let Some(ref f) = first {
+                    assert_eq!(&v["first_failure"], f);
+                } else {
+                    first = Some(v["first_failure"].clone());
+                }
+            }
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
 }

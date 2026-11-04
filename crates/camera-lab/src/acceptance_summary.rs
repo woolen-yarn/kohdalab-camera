@@ -141,31 +141,49 @@ fn capture(t: &Telemetry) -> [u64; 28] {
     w[0] |= 2 << 20;
     if let Some(t) = t.tail_provenance.filter(|t| t.valid()) {
         w[0] |= u64::from(t.initial_sync) << 24 | u64::from(t.intervening_boundary) << 40;
-        w[27] |= u64::from(t.intervening_overflow) << 1 | u64::from(t.tail_bytes) << 17
-            | u64::from(t.tail_state) << 39 | u64::from(t.saturated) << 42 | 1 << 43;
+        w[27] |= u64::from(t.intervening_overflow) << 1
+            | u64::from(t.tail_bytes) << 17
+            | u64::from(t.tail_state) << 39
+            | u64::from(t.saturated) << 42
+            | 1 << 43;
     }
     w
 }
 
-fn decode_tail(w: &[u64;28]) -> Option<crate::tail_provenance::TailProvenance> {
-    if (w[0] >> 20) & 15 != 2 || w[27] & (1 << 43) == 0 { return None; }
+fn decode_tail(w: &[u64; 28]) -> Option<crate::tail_provenance::TailProvenance> {
+    if (w[0] >> 20) & 15 != 2 || w[27] & (1 << 43) == 0 {
+        return None;
+    }
     let t = crate::tail_provenance::TailProvenance {
-        initial_sync: (w[0] >> 24) as u16, intervening_boundary: (w[0] >> 40) as u16,
-        intervening_overflow: (w[27] >> 1) as u16, tail_bytes: ((w[27] >> 17) & 0x3fffff) as u32,
-        tail_state: ((w[27] >> 39) & 7) as u8, saturated: w[27] & (1 << 42) != 0,
+        initial_sync: (w[0] >> 24) as u16,
+        intervening_boundary: (w[0] >> 40) as u16,
+        intervening_overflow: (w[27] >> 1) as u16,
+        tail_bytes: ((w[27] >> 17) & 0x3fffff) as u32,
+        tail_state: ((w[27] >> 39) & 7) as u8,
+        saturated: w[27] & (1 << 42) != 0,
     };
-    let aggregate = u64::from(t.initial_sync) + u64::from(t.intervening_boundary)
-        + u64::from(t.intervening_overflow) + u64::from(t.tail_bytes != 0);
-    (t.valid() && (t.saturated || (aggregate == w[18] && u64::from(t.intervening_overflow) == w[19]))
-        && (t.tail_state != 2 || w[13] > 0)).then_some(t)
+    let aggregate = u64::from(t.initial_sync)
+        + u64::from(t.intervening_boundary)
+        + u64::from(t.intervening_overflow)
+        + u64::from(t.tail_bytes != 0);
+    (t.valid()
+        && (t.saturated || (aggregate == w[18] && u64::from(t.intervening_overflow) == w[19]))
+        && (t.tail_state != 2 || w[13] > 0))
+        .then_some(t)
 }
 
-fn valid_words(w: &[u64;28]) -> bool {
+fn valid_words(w: &[u64; 28]) -> bool {
     match (w[0] >> 20) & 15 {
         0 => w[0] >> 20 == 0 && w[27] <= 1,
-        2 => w[0] >> 56 == 0 && w[27] >> 44 == 0 &&
-            if w[27] & (1 << 43) != 0 { decode_tail(w).is_some() }
-            else { w[0] >> 24 == 0 && w[27] <= 1 },
+        2 => {
+            w[0] >> 56 == 0
+                && w[27] >> 44 == 0
+                && if w[27] & (1 << 43) != 0 {
+                    decode_tail(w).is_some()
+                } else {
+                    w[0] >> 24 == 0 && w[27] <= 1
+                }
+        }
         _ => false,
     }
 }
@@ -242,33 +260,45 @@ mod tests {
     use super::*;
     #[test]
     fn v020_packed_provenance_legacy_unknown_and_bounded_roundtrip() {
-        use crate::acquisition_telemetry::{Binding,Telemetry,Session};
-        let mut t=Telemetry::new(Binding::new(Default::default(),false));
-        t.tail_provenance=Some(crate::tail_provenance::TailProvenance {
-            initial_sync:1,intervening_boundary:2,intervening_overflow:3,
-            tail_bytes:3145728,tail_state:2,saturated:false,
+        use crate::acquisition_telemetry::{Binding, Session, Telemetry};
+        let mut t = Telemetry::new(Binding::new(Default::default(), false));
+        t.tail_provenance = Some(crate::tail_provenance::TailProvenance {
+            initial_sync: 1,
+            intervening_boundary: 2,
+            intervening_overflow: 3,
+            tail_bytes: 3145728,
+            tail_state: 2,
+            saturated: false,
         });
-        t.discarded_fragment_events=7;
-        t.overflow_events=3;
-        t.accepted_frames=1;
-        let mut session=Session::default();session.records[3]=Some(t);
-        let d=Diagnostic::capture(&session);let mut decoder=Decoder::default();
-        for i in 0..20 { decoder.push(&payload(&d,i)).unwrap(); }
-        let phase=decoder.finish().unwrap().phase(3).unwrap();
-        assert_eq!(phase.boundary_fragment_events,7);
-        assert_eq!(phase.tail_provenance.unwrap().tail_state,2);
-        assert_eq!(std::mem::size_of::<Diagnostic>(),1120);
-        assert_eq!((0..20).map(|i|payload(&d,i).len()).sum::<usize>(),1200);
-        for (word,bits) in [(0,1u64<<56),(27,1<<44),(27,7<<39)] {
-            let mut bad=d;bad.words[3][word]|=bits;
-            let mut decoder=Decoder::default();
-            assert!((0..20).any(|i|decoder.push(&payload(&bad,i)).is_err()));
+        t.discarded_fragment_events = 7;
+        t.overflow_events = 3;
+        t.accepted_frames = 1;
+        let mut session = Session::default();
+        session.records[3] = Some(t);
+        let d = Diagnostic::capture(&session);
+        let mut decoder = Decoder::default();
+        for i in 0..20 {
+            decoder.push(&payload(&d, i)).unwrap();
+        }
+        let phase = decoder.finish().unwrap().phase(3).unwrap();
+        assert_eq!(phase.boundary_fragment_events, 7);
+        assert_eq!(phase.tail_provenance.unwrap().tail_state, 2);
+        assert_eq!(std::mem::size_of::<Diagnostic>(), 1120);
+        assert_eq!((0..20).map(|i| payload(&d, i).len()).sum::<usize>(), 1200);
+        for (word, bits) in [(0, 1u64 << 56), (27, 1 << 44), (27, 7 << 39)] {
+            let mut bad = d;
+            bad.words[3][word] |= bits;
+            let mut decoder = Decoder::default();
+            assert!((0..20).any(|i| decoder.push(&payload(&bad, i)).is_err()));
             assert!(decoder.finish().is_none());
         }
-        let mut legacy=d; legacy.words[3][0]&=(1<<20)-1;legacy.words[3][27]&=1;
+        let mut legacy = d;
+        legacy.words[3][0] &= (1 << 20) - 1;
+        legacy.words[3][27] &= 1;
         assert!(legacy.phase(3).unwrap().tail_provenance.is_none());
         assert!(valid_words(&legacy.words[3]));
-        let mut unknown=d;unknown.words[3][0]^=1<<20;
+        let mut unknown = d;
+        unknown.words[3][0] ^= 1 << 20;
         assert!(!valid_words(&unknown.words[3]));
     }
     #[test]

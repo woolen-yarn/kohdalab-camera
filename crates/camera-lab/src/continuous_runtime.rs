@@ -68,7 +68,9 @@ impl OwnerPort {
     pub fn publish_frame(&self, mut frame: crate::Frame) -> Result<(), String> {
         self.checkpoint()?;
         frame.validate()?;
-        if let Ok(m)=self.0.measurement.lock() {m.bind(&mut frame);}
+        if let Ok(m) = self.0.measurement.lock() {
+            m.bind(&mut frame);
+        }
         let mut slot = self.0.frame.lock().map_err(|_| "Frame mailbox poisoned")?;
         self.checkpoint()?;
         *slot = Some(frame);
@@ -129,7 +131,9 @@ impl OwnerPort {
     }
     pub fn complete_frame(&self) -> Result<(), String> {
         self.report(true)?;
-        if let Ok(mut m)=self.0.measurement.lock() {m.complete();}
+        if let Ok(mut m) = self.0.measurement.lock() {
+            m.complete();
+        }
         Ok(())
     }
 }
@@ -150,14 +154,21 @@ impl Monitor {
         }
     }
     /// Bounded coalesced readiness; timeout retains phase/STOP supervision cadence.
-    pub fn wait_frame(&self, timeout:Duration) {
-        let slot=self.0.frame.lock().unwrap_or_else(|e|e.into_inner());
-        let _ = self.0.frame_ready.wait_timeout_while(slot,timeout,|f|!self.cancelled() && (f.is_none() || !self.0.frame_publication_ready.load(Ordering::Acquire)));
+    pub fn wait_frame(&self, timeout: Duration) {
+        let slot = self.0.frame.lock().unwrap_or_else(|e| e.into_inner());
+        let _ = self.0.frame_ready.wait_timeout_while(slot, timeout, |f| {
+            !self.cancelled()
+                && (f.is_none() || !self.0.frame_publication_ready.load(Ordering::Acquire))
+        });
     }
     pub fn take_frame(&self) -> Option<crate::Frame> {
-        if !self.0.frame_publication_ready.load(Ordering::Acquire) {return None;}
+        if !self.0.frame_publication_ready.load(Ordering::Acquire) {
+            return None;
+        }
         let mut slot = self.0.frame.lock().unwrap_or_else(|e| e.into_inner());
-        if self.cancelled() { return None; }
+        if self.cancelled() {
+            return None;
+        }
         slot.take()
     }
     pub fn stop(&self) {
@@ -226,7 +237,9 @@ impl LeasePort {
                             if self.guards.enable_live(now) {
                                 // Presentation cannot outrun the supervisor's existing
                                 // enable acceptance, particularly an immediate Full STOP.
-                                self.shared.frame_publication_ready.store(true,Ordering::Release);
+                                self.shared
+                                    .frame_publication_ready
+                                    .store(true, Ordering::Release);
                                 self.shared.frame_ready.notify_one();
                             }
                         }
@@ -422,78 +435,145 @@ mod tests {
     use std::sync::atomic::AtomicU64;
     #[test]
     fn early_stop_pending_enable_cancels_cleanly() {
-        let (owner,mut lease,monitor)=session([1;32],[2;32],Arc::new(FakeClock::default()));
-        renew(&mut lease,1);owner.enable_live().unwrap();owner.complete_frame().unwrap();
-        monitor.stop();lease.tick();assert_eq!(monitor.first_fault(),None);
-        assert!(lease.enabled);assert!(lease.guards.cancelled);
-        assert!(monitor.take_frame().is_none());assert!(owner.complete_frame().is_err());
+        let (owner, mut lease, monitor) = session([1; 32], [2; 32], Arc::new(FakeClock::default()));
+        renew(&mut lease, 1);
+        owner.enable_live().unwrap();
+        owner.complete_frame().unwrap();
+        monitor.stop();
+        lease.tick();
+        assert_eq!(monitor.first_fault(), None);
+        assert!(lease.enabled);
+        assert!(lease.guards.cancelled);
+        assert!(monitor.take_frame().is_none());
+        assert!(owner.complete_frame().is_err());
     }
     #[test]
     fn early_stop_before_enable_rejects_producer_without_fault() {
-        let (owner,mut lease,monitor)=session([1;32],[2;32],Arc::new(FakeClock::default()));
-        renew(&mut lease,1);monitor.stop();
-        assert!(owner.enable_live().is_err());lease.tick();
-        assert!(!lease.enabled);assert_eq!(monitor.first_fault(),None);
+        let (owner, mut lease, monitor) = session([1; 32], [2; 32], Arc::new(FakeClock::default()));
+        renew(&mut lease, 1);
+        monitor.stop();
+        assert!(owner.enable_live().is_err());
+        lease.tick();
+        assert!(!lease.enabled);
+        assert_eq!(monitor.first_fault(), None);
         // The negative guard contract remains strict even after clean STOP.
         assert!(!lease.guards.enable_live(Duration::ZERO));
-        assert_eq!(lease.guards.first_fault,Some(Fault::Protocol));
+        assert_eq!(lease.guards.first_fault, Some(Fault::Protocol));
     }
     #[test]
     fn early_stop_enable_accepted_before_first_frame_and_after_first_frame() {
-        for first_frame in [false,true] {
-            let (owner,mut lease,monitor)=session([1;32],[2;32],Arc::new(FakeClock::default()));
-            renew(&mut lease,1);owner.enable_live().unwrap();lease.tick();
+        for first_frame in [false, true] {
+            let (owner, mut lease, monitor) =
+                session([1; 32], [2; 32], Arc::new(FakeClock::default()));
+            renew(&mut lease, 1);
+            owner.enable_live().unwrap();
+            lease.tick();
             assert!(lease.enabled);
-            if first_frame {owner.complete_frame().unwrap();lease.tick();}
-            monitor.stop();lease.tick();assert_eq!(monitor.first_fault(),None);
-            assert!(owner.complete_frame().is_err());assert!(monitor.take_frame().is_none());
+            if first_frame {
+                owner.complete_frame().unwrap();
+                lease.tick();
+            }
+            monitor.stop();
+            lease.tick();
+            assert_eq!(monitor.first_fault(), None);
+            assert!(owner.complete_frame().is_err());
+            assert!(monitor.take_frame().is_none());
         }
     }
     #[test]
     fn early_stop_preserves_sticky_fault_and_validates_pending_bad_event() {
-        let (owner,mut lease,monitor)=session([1;32],[2;32],Arc::new(FakeClock::default()));
-        renew(&mut lease,1);owner.enable_live().unwrap();
-        lease.guards.fault(Fault::Lease);lease.publish();monitor.stop();lease.tick();
-        assert_eq!(monitor.first_fault(),Some(Fault::Lease));
-        let (owner,mut lease,monitor)=session([1;32],[2;32],Arc::new(FakeClock::default()));
-        renew(&mut lease,1);owner.enable_live().unwrap();owner.complete_frame().unwrap();
-        owner.0.reports.lock().unwrap().frame=Some((1,Duration::from_secs(1)));
-        monitor.stop();lease.tick();assert_eq!(monitor.first_fault(),Some(Fault::Protocol));
+        let (owner, mut lease, monitor) = session([1; 32], [2; 32], Arc::new(FakeClock::default()));
+        renew(&mut lease, 1);
+        owner.enable_live().unwrap();
+        lease.guards.fault(Fault::Lease);
+        lease.publish();
+        monitor.stop();
+        lease.tick();
+        assert_eq!(monitor.first_fault(), Some(Fault::Lease));
+        let (owner, mut lease, monitor) = session([1; 32], [2; 32], Arc::new(FakeClock::default()));
+        renew(&mut lease, 1);
+        owner.enable_live().unwrap();
+        owner.complete_frame().unwrap();
+        owner.0.reports.lock().unwrap().frame = Some((1, Duration::from_secs(1)));
+        monitor.stop();
+        lease.tick();
+        assert_eq!(monitor.first_fault(), Some(Fault::Protocol));
     }
     #[test]
     fn early_stop_producer_waiting_on_enable_mutex_rechecks_cancellation() {
-        let (owner,mut lease,monitor)=session([1;32],[2;32],Arc::new(FakeClock::default()));
-        renew(&mut lease,1);
-        let held=monitor.0.reports.lock().unwrap();
-        let (tx,rx)=std::sync::mpsc::sync_channel(1);
-        let thread=std::thread::spawn(move || {tx.send(()).unwrap();owner.enable_live()});
+        let (owner, mut lease, monitor) = session([1; 32], [2; 32], Arc::new(FakeClock::default()));
+        renew(&mut lease, 1);
+        let held = monitor.0.reports.lock().unwrap();
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        let thread = std::thread::spawn(move || {
+            tx.send(()).unwrap();
+            owner.enable_live()
+        });
         rx.recv_timeout(Duration::from_secs(1)).unwrap();
         // Model cancellation becoming visible after the initial checkpoint but
         // before report-lock acquisition (also used by the fault side channel).
-        monitor.0.cancelled.store(true,Ordering::Release);drop(held);
-        assert!(thread.join().unwrap().is_err());lease.tick();
-        assert!(!lease.enabled);assert_eq!(monitor.first_fault(),None);
+        monitor.0.cancelled.store(true, Ordering::Release);
+        drop(held);
+        assert!(thread.join().unwrap().is_err());
+        lease.tick();
+        assert!(!lease.enabled);
+        assert_eq!(monitor.first_fault(), None);
     }
     #[test]
     fn frame_notifications_coalesce_and_stop_keeps_authority() {
-        let (owner,mut lease,monitor)=session([1;32],[2;32],Arc::new(FakeClock::default()));
-        renew(&mut lease,1);owner.enable_live().unwrap();
-        let (entered,ready)=std::sync::mpsc::sync_channel(1);let waiting=monitor.clone();
-        let thread=std::thread::spawn(move || {entered.send(()).unwrap();waiting.wait_frame(Duration::from_secs(2));});
+        let (owner, mut lease, monitor) = session([1; 32], [2; 32], Arc::new(FakeClock::default()));
+        renew(&mut lease, 1);
+        owner.enable_live().unwrap();
+        let (entered, ready) = std::sync::mpsc::sync_channel(1);
+        let waiting = monitor.clone();
+        let thread = std::thread::spawn(move || {
+            entered.send(()).unwrap();
+            waiting.wait_frame(Duration::from_secs(2));
+        });
         ready.recv_timeout(Duration::from_secs(1)).unwrap();
         for sequence in 1..=4 {
             owner.complete_frame().unwrap();
-            let a=crate::sensor_contract::Acquisition::new(crate::controls::Settings::default(),[1;32],1,sequence).unwrap();
-            owner.publish_frame(crate::Frame{raw:Arc::new(vec![1;1024*768]),metadata:crate::Metadata{acquisition:Some(a),source:"notification fixture".into(),simulated:true,sequence,measurement:None,unix_millis:0,width:1024,height:768,format:"BayerGRBG8".into()}}).unwrap();
+            let a = crate::sensor_contract::Acquisition::new(
+                crate::controls::Settings::default(),
+                [1; 32],
+                1,
+                sequence,
+            )
+            .unwrap();
+            owner
+                .publish_frame(crate::Frame {
+                    raw: Arc::new(vec![1; 1024 * 768]),
+                    metadata: crate::Metadata {
+                        acquisition: Some(a),
+                        source: "notification fixture".into(),
+                        simulated: true,
+                        sequence,
+                        measurement: None,
+                        unix_millis: 0,
+                        width: 1024,
+                        height: 768,
+                        format: "BayerGRBG8".into(),
+                    },
+                })
+                .unwrap();
         }
         assert!(monitor.take_frame().is_none());
         lease.tick();
-        thread.join().unwrap();let frame=monitor.take_frame().unwrap();assert_eq!(frame.metadata.sequence,4);
-        assert_eq!(frame.metadata.measurement.as_ref().unwrap().accepted_total,4);assert!(monitor.take_frame().is_none());
+        thread.join().unwrap();
+        let frame = monitor.take_frame().unwrap();
+        assert_eq!(frame.metadata.sequence, 4);
+        assert_eq!(
+            frame.metadata.measurement.as_ref().unwrap().accepted_total,
+            4
+        );
+        assert!(monitor.take_frame().is_none());
         owner.publish_frame(frame.clone()).unwrap();
-        monitor.stop();assert!(monitor.take_frame().is_none());
-        assert!(owner.complete_frame().is_err());assert!(owner.publish_frame(frame).is_err());
-        lease.pipe_lost();assert_eq!(monitor.first_fault(),None);
+        monitor.stop();
+        assert!(monitor.take_frame().is_none());
+        assert!(owner.complete_frame().is_err());
+        assert!(owner.publish_frame(frame).is_err());
+        lease.pipe_lost();
+        assert_eq!(monitor.first_fault(), None);
     }
     #[test]
     fn supervisor_samples_report_clock_only_while_holding_report_serialization() {
@@ -722,7 +802,10 @@ mod tests {
         }
         // Exercise the two production acquisition profiles. Legacy crop modes
         // remain private compatibility/test data and are rejected by Settings.
-        for mode in [crate::controls::Mode::Full, crate::controls::Mode::FullFieldSkip] {
+        for mode in [
+            crate::controls::Mode::Full,
+            crate::controls::Mode::FullFieldSkip,
+        ] {
             let clock = Arc::new(FakeClock::default());
             let (owner, mut lease, monitor) = session([1; 32], [2; 32], clock.clone());
             renew(&mut lease, 1);

@@ -4,23 +4,23 @@ pub mod acquisition_recipe;
 #[cfg(test)]
 mod acquisition_recipe_tests;
 pub mod acquisition_telemetry;
-pub mod tail_provenance;
 pub mod continuous;
 pub mod continuous_runtime;
 pub mod continuous_session;
+pub mod control_api;
 pub mod controls;
+pub mod device_catalog;
+pub mod driver_policy;
+pub mod image_export;
+pub mod measurement;
 pub mod physical;
 pub mod physical_preview;
 pub mod preview_pipeline;
-pub mod session;
-pub mod sensor_contract;
-pub mod startup;
-pub mod driver_policy;
-pub mod device_catalog;
 pub mod product;
-pub mod measurement;
-pub mod image_export;
-pub mod control_api;
+pub mod sensor_contract;
+pub mod session;
+pub mod startup;
+pub mod tail_provenance;
 use serde::{Deserialize, Serialize};
 use std::{path::Path, sync::Arc};
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -66,9 +66,17 @@ impl RgbView<'_> {
             return [self.raw[i], self.raw[i + 1], self.raw[i + 2]];
         }
         let l = if x == 0 { 1 } else { x - 1 };
-        let r = if x + 1 == self.width { self.width - 2 } else { x + 1 };
+        let r = if x + 1 == self.width {
+            self.width - 2
+        } else {
+            x + 1
+        };
         let u = if y == 0 { 1 } else { y - 1 };
-        let d = if y + 1 == self.height { self.height - 2 } else { y + 1 };
+        let d = if y + 1 == self.height {
+            self.height - 2
+        } else {
+            y + 1
+        };
         let at = |a: usize, b: usize| u16::from(self.raw[b * self.width + a]);
         let c = at(x, y) as u8;
         match (y % 2, x % 2) {
@@ -103,9 +111,11 @@ impl Frame {
         let m = &self.metadata;
         if let Some(a) = &m.acquisition {
             a.settings()?;
-            if m.format != "BayerGRBG8" || m.sequence != a.sequence
-                || [m.width,m.height] != a.geometry.output.map(u32::from)
-                || self.raw.len() != a.geometry.payload_bytes as usize {
+            if m.format != "BayerGRBG8"
+                || m.sequence != a.sequence
+                || [m.width, m.height] != a.geometry.output.map(u32::from)
+                || self.raw.len() != a.geometry.payload_bytes as usize
+            {
                 return Err("Frame disagrees with acquisition contract".into());
             }
         }
@@ -125,14 +135,30 @@ impl Frame {
         }
     }
     // Constant-time storage checks only: no acquisition-contract work or allocation.
-    fn rgb_layout(&self)->Option<(usize,usize,usize)> {
-        let m=&self.metadata;
-        let channels=match m.format.as_str() {"RGB8"=>3,"BayerGRBG8"=>1,_=>return None};
-        if m.width==0 || m.height==0 || m.width>8192 || m.height>8192
-            || (channels==1 && (m.width%2!=0 || m.height%2!=0)) {return None;}
-        let (w,h)=(usize::try_from(m.width).ok()?,usize::try_from(m.height).ok()?);
-        let len=w.checked_mul(h)?.checked_mul(channels)?;
-        if len!=self.raw.len() {return None;} Some((w,h,channels))
+    fn rgb_layout(&self) -> Option<(usize, usize, usize)> {
+        let m = &self.metadata;
+        let channels = match m.format.as_str() {
+            "RGB8" => 3,
+            "BayerGRBG8" => 1,
+            _ => return None,
+        };
+        if m.width == 0
+            || m.height == 0
+            || m.width > 8192
+            || m.height > 8192
+            || (channels == 1 && (m.width % 2 != 0 || m.height % 2 != 0))
+        {
+            return None;
+        }
+        let (w, h) = (
+            usize::try_from(m.width).ok()?,
+            usize::try_from(m.height).ok()?,
+        );
+        let len = w.checked_mul(h)?.checked_mul(channels)?;
+        if len != self.raw.len() {
+            return None;
+        }
+        Some((w, h, channels))
     }
     pub(crate) fn rgb_view(&self) -> Option<RgbView<'_>> {
         let (width, height, channels) = self.rgb_layout()?;
@@ -145,35 +171,55 @@ impl Frame {
     }
     /// Independent bilinear GRBG; reflect101, u16 means rounded half up.
     /// Malformed layouts and out-of-range coordinates return None.
-    pub fn rgb(&self, x:u32,y:u32)->Option<[u8;3]> {
-        let (w,h,channels)=self.rgb_layout()?;
-        let (x,y)=(usize::try_from(x).ok()?,usize::try_from(y).ok()?);
-        if x>=w || y>=h {return None;}
+    pub fn rgb(&self, x: u32, y: u32) -> Option<[u8; 3]> {
+        let (w, h, channels) = self.rgb_layout()?;
+        let (x, y) = (usize::try_from(x).ok()?, usize::try_from(y).ok()?);
+        if x >= w || y >= h {
+            return None;
+        }
         // Layout bounds prove all following index arithmetic fits usize.
-        if channels==3 {let i=(y*w+x)*3;return self.raw.get(i..i+3)?.try_into().ok();}
-        let l=if x==0 {1}else{x-1};let r=if x+1==w {w-2}else{x+1};
-        let u=if y==0 {1}else{y-1};let d=if y+1==h {h-2}else{y+1};
-        let at=|a:usize,b:usize|self.raw.get(b*w+a).copied().map(u16::from);
-        let c=at(x,y)? as u8;
-        let horizontal=((at(l,y)?+at(r,y)?+1)/2) as u8;
-        let vertical=((at(x,u)?+at(x,d)?+1)/2) as u8;
-        let axial=((at(l,y)?+at(r,y)?+at(x,u)?+at(x,d)?+2)/4) as u8;
-        let diagonal=((at(l,u)?+at(r,u)?+at(l,d)?+at(r,d)?+2)/4) as u8;
-        Some(match (y%2,x%2) {(0,0)=>[horizontal,c,vertical],(0,1)=>[c,axial,diagonal],(1,0)=>[diagonal,axial,c],_=>[vertical,c,horizontal]})
+        if channels == 3 {
+            let i = (y * w + x) * 3;
+            return self.raw.get(i..i + 3)?.try_into().ok();
+        }
+        let l = if x == 0 { 1 } else { x - 1 };
+        let r = if x + 1 == w { w - 2 } else { x + 1 };
+        let u = if y == 0 { 1 } else { y - 1 };
+        let d = if y + 1 == h { h - 2 } else { y + 1 };
+        let at = |a: usize, b: usize| self.raw.get(b * w + a).copied().map(u16::from);
+        let c = at(x, y)? as u8;
+        let horizontal = ((at(l, y)? + at(r, y)? + 1) / 2) as u8;
+        let vertical = ((at(x, u)? + at(x, d)? + 1) / 2) as u8;
+        let axial = ((at(l, y)? + at(r, y)? + at(x, u)? + at(x, d)? + 2) / 4) as u8;
+        let diagonal = ((at(l, u)? + at(r, u)? + at(l, d)? + at(r, d)? + 2) / 4) as u8;
+        Some(match (y % 2, x % 2) {
+            (0, 0) => [horizontal, c, vertical],
+            (0, 1) => [c, axial, diagonal],
+            (1, 0) => [diagonal, axial, c],
+            _ => [vertical, c, horizontal],
+        })
     }
     /// Malformed storage returns an empty buffer; valid RGB8 remains borrowed.
-    pub fn display_rgb(&self)->std::borrow::Cow<'_,[u8]> {
-        let Some((w,h,channels))=self.rgb_layout() else {return std::borrow::Cow::Borrowed(&[]);};
-        if channels==3 {return std::borrow::Cow::Borrowed(&self.raw);}
-        let mut out=Vec::with_capacity(w*h*3);
-        for y in 0..self.metadata.height {for x in 0..self.metadata.width {
-            let Some(p)=self.rgb(x,y) else {return std::borrow::Cow::Borrowed(&[]);};
-            out.extend_from_slice(&p);
-        }}
+    pub fn display_rgb(&self) -> std::borrow::Cow<'_, [u8]> {
+        let Some((w, h, channels)) = self.rgb_layout() else {
+            return std::borrow::Cow::Borrowed(&[]);
+        };
+        if channels == 3 {
+            return std::borrow::Cow::Borrowed(&self.raw);
+        }
+        let mut out = Vec::with_capacity(w * h * 3);
+        for y in 0..self.metadata.height {
+            for x in 0..self.metadata.width {
+                let Some(p) = self.rgb(x, y) else {
+                    return std::borrow::Cow::Borrowed(&[]);
+                };
+                out.extend_from_slice(&p);
+            }
+        }
         std::borrow::Cow::Owned(out)
     }
-    pub fn preview_rgb(&self,max_edge:u32)->Result<(u32,u32,Vec<u8>),String> {
-        crate::display_recipe::Recipe::neutral().render(self,Some(max_edge))
+    pub fn preview_rgb(&self, max_edge: u32) -> Result<(u32, u32, Vec<u8>), String> {
+        crate::display_recipe::Recipe::neutral().render(self, Some(max_edge))
     }
     pub fn legacy_rgb(&self, x: u32, y: u32) -> Option<[u8; 3]> {
         self.rgb_layout()?;
@@ -195,16 +241,20 @@ impl Frame {
         self.raw.get(i..i + 3)?.try_into().ok()
     }
     pub fn legacy_display_rgb(&self) -> std::borrow::Cow<'_, [u8]> {
-        let Some((w,h,channels))=self.rgb_layout() else {return std::borrow::Cow::Borrowed(&[]);};
+        let Some((w, h, channels)) = self.rgb_layout() else {
+            return std::borrow::Cow::Borrowed(&[]);
+        };
         if channels == 3 {
             return std::borrow::Cow::Borrowed(self.raw.as_slice());
         }
-        let mut rgb = Vec::with_capacity(w*h*3);
+        let mut rgb = Vec::with_capacity(w * h * 3);
         // Compute each GR/BG cell once; retain the exact original reconstruction.
         for y in (0..self.metadata.height).step_by(2) {
             let row_start = rgb.len();
             for x in (0..self.metadata.width).step_by(2) {
-                let Some(pixel) = self.legacy_rgb(x, y) else {return std::borrow::Cow::Borrowed(&[]);};
+                let Some(pixel) = self.legacy_rgb(x, y) else {
+                    return std::borrow::Cow::Borrowed(&[]);
+                };
                 rgb.extend_from_slice(&pixel);
                 rgb.extend_from_slice(&pixel);
             }
@@ -261,10 +311,11 @@ impl CameraAdapter for Simulation {
             raw: Arc::new(raw),
             metadata: Metadata {
                 acquisition: None,
-source: "Explicit software simulation".into(),
+                source: "Explicit software simulation".into(),
                 simulated: true,
                 sequence: self.sequence,
-                measurement: None, unix_millis: std::time::SystemTime::now()
+                measurement: None,
+                unix_millis: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map_err(|e| e.to_string())?
                     .as_millis(),
@@ -341,10 +392,11 @@ mod tests {
                 raw: Arc::new(raw),
                 metadata: Metadata {
                     acquisition: None,
-source: format!("generated profile {} row20 col32", p.id),
+                    source: format!("generated profile {} row20 col32", p.id),
                     simulated: true,
                     sequence: 17,
-                    measurement: None, unix_millis: 123,
+                    measurement: None,
+                    unix_millis: 123,
                     width: p.width.into(),
                     height: p.height.into(),
                     format: "BayerGRBG8".into(),
@@ -359,7 +411,7 @@ source: format!("generated profile {} row20 col32", p.id),
             settings.mode = controls::Mode::Full;
             assert_eq!(settings.dimensions(), (2048, 1536));
             for ext in ["png", "tiff"] {
-                let filename = format!("{}.{ext}", p.id.replace('/',"_"));
+                let filename = format!("{}.{ext}", p.id.replace('/', "_"));
                 export(&retained, &root.join(&filename)).unwrap();
                 let bundle = root.join(format!("{filename}.capture"));
                 assert_eq!(std::fs::read(bundle.join("raw.bin")).unwrap(), *f.raw);
@@ -389,10 +441,11 @@ source: format!("generated profile {} row20 col32", p.id),
                 ),
                 metadata: Metadata {
                     acquisition: None,
-source: "synthetic conversion regression".into(),
+                    source: "synthetic conversion regression".into(),
                     simulated: true,
                     sequence: 0,
-                    measurement: None, unix_millis: 0,
+                    measurement: None,
+                    unix_millis: 0,
                     width,
                     height,
                     format: "BayerGRBG8".into(),
@@ -427,10 +480,11 @@ source: "synthetic conversion regression".into(),
             raw: Arc::new(vec![20, 80, 20, 80, 10, 20, 10, 20]),
             metadata: Metadata {
                 acquisition: None,
-source: "documented GRBG cell fixture".into(),
+                source: "documented GRBG cell fixture".into(),
                 simulated: false,
                 sequence: 9,
-                measurement: None, unix_millis: 1,
+                measurement: None,
+                unix_millis: 1,
                 width: 4,
                 height: 2,
                 format: "BayerGRBG8".into(),
@@ -521,44 +575,158 @@ pub mod progress;
 
 pub mod display_recipe;
 
-#[cfg(test)] mod correction_v031 {
- use super::*;
- fn frame(w:u32,h:u32,format:&str,raw:Vec<u8>)->Frame {Frame{raw:Arc::new(raw),metadata:Metadata{acquisition:None,source:"independent malformed fixture".into(),simulated:true,sequence:1,measurement:None,unix_millis:0,width:w,height:h,format:format.into()}}}
- #[test] fn malformed_public_rgb_never_indexes_or_panics() {
-  for f in [frame(2,2,"BayerGRBG8",vec![]),frame(2,2,"BayerGRBG8",vec![1,2,3]),frame(2,2,"unknown",vec![1;4]),frame(3,2,"BayerGRBG8",vec![1;6]),frame(2,3,"BayerGRBG8",vec![1;6]),frame(0,2,"BayerGRBG8",vec![]),frame(2,0,"BayerGRBG8",vec![]),frame(u32::MAX,u32::MAX,"BayerGRBG8",vec![]),frame(u32::MAX-1,u32::MAX-1,"BayerGRBG8",vec![]),frame(u32::MAX,u32::MAX,"RGB8",vec![]),frame(2,2,"RGB8",vec![1;11]),frame(2,2,"BayerGRBG8",vec![1;5])] {
-   for (x,y) in [(0,0),(1,1),(u32::MAX,u32::MAX)] {assert_eq!(f.rgb(x,y),None);}
-   assert!(f.display_rgb().is_empty());assert!(f.preview_rgb(1024).is_err());
-  }
- }
- #[test] fn valid_small_rgb8_and_checked_bounds() {
-  let f=frame(2,2,"RGB8",vec![1,2,3,4,5,6,7,8,9,10,11,12]);
-  assert_eq!(f.rgb(0,0),Some([1,2,3]));assert_eq!(f.rgb(1,1),Some([10,11,12]));assert_eq!(f.rgb(2,0),None);assert_eq!(f.rgb(0,2),None);assert_eq!(f.display_rgb().as_ref(),f.raw.as_slice());
- }
+#[cfg(test)]
+mod correction_v031 {
+    use super::*;
+    fn frame(w: u32, h: u32, format: &str, raw: Vec<u8>) -> Frame {
+        Frame {
+            raw: Arc::new(raw),
+            metadata: Metadata {
+                acquisition: None,
+                source: "independent malformed fixture".into(),
+                simulated: true,
+                sequence: 1,
+                measurement: None,
+                unix_millis: 0,
+                width: w,
+                height: h,
+                format: format.into(),
+            },
+        }
+    }
+    #[test]
+    fn malformed_public_rgb_never_indexes_or_panics() {
+        for f in [
+            frame(2, 2, "BayerGRBG8", vec![]),
+            frame(2, 2, "BayerGRBG8", vec![1, 2, 3]),
+            frame(2, 2, "unknown", vec![1; 4]),
+            frame(3, 2, "BayerGRBG8", vec![1; 6]),
+            frame(2, 3, "BayerGRBG8", vec![1; 6]),
+            frame(0, 2, "BayerGRBG8", vec![]),
+            frame(2, 0, "BayerGRBG8", vec![]),
+            frame(u32::MAX, u32::MAX, "BayerGRBG8", vec![]),
+            frame(u32::MAX - 1, u32::MAX - 1, "BayerGRBG8", vec![]),
+            frame(u32::MAX, u32::MAX, "RGB8", vec![]),
+            frame(2, 2, "RGB8", vec![1; 11]),
+            frame(2, 2, "BayerGRBG8", vec![1; 5]),
+        ] {
+            for (x, y) in [(0, 0), (1, 1), (u32::MAX, u32::MAX)] {
+                assert_eq!(f.rgb(x, y), None);
+            }
+            assert!(f.display_rgb().is_empty());
+            assert!(f.preview_rgb(1024).is_err());
+        }
+    }
+    #[test]
+    fn valid_small_rgb8_and_checked_bounds() {
+        let f = frame(2, 2, "RGB8", vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        assert_eq!(f.rgb(0, 0), Some([1, 2, 3]));
+        assert_eq!(f.rgb(1, 1), Some([10, 11, 12]));
+        assert_eq!(f.rgb(2, 0), None);
+        assert_eq!(f.rgb(0, 2), None);
+        assert_eq!(f.display_rgb().as_ref(), f.raw.as_slice());
+    }
 }
 
-#[cfg(test)] mod correction_v032 {
- use super::*;
- fn frame(w:u32,h:u32,fmt:&str,n:usize)->Frame {Frame{raw:Arc::new(vec![7;n]),metadata:Metadata{acquisition:None,source:"own malformed matrix".into(),simulated:true,sequence:32,measurement:None,unix_millis:0,width:w,height:h,format:fmt.into()}}}
- fn reject(f:Frame) {
-  for (x,y) in [(0,0),(1,1),(u32::MAX,u32::MAX)] {assert_eq!(f.legacy_rgb(x,y),None);assert_eq!(f.rgb(x,y),None);}
-  assert!(f.legacy_display_rgb().is_empty());assert!(f.display_rgb().is_empty());
-  assert!(f.legacy_preview_rgb(8).is_err());assert!(f.preview_rgb(8).is_err());
- }
- #[test] fn malformed_format() {reject(frame(2,2,"unknown",12));}
- #[test] fn malformed_short_bayer() {reject(frame(2,2,"BayerGRBG8",0));}
- #[test] fn malformed_excess_bayer() {reject(frame(2,2,"BayerGRBG8",5));}
- #[test] fn malformed_short_rgb() {reject(frame(2,2,"RGB8",11));}
- #[test] fn malformed_excess_rgb() {reject(frame(2,2,"RGB8",13));}
- #[test] fn malformed_odd_bayer() {reject(frame(3,2,"BayerGRBG8",6));reject(frame(2,3,"BayerGRBG8",6));}
- #[test] fn malformed_zero() {reject(frame(0,2,"BayerGRBG8",0));reject(frame(2,0,"RGB8",0));}
- #[test] fn malformed_oversize() {for (w,h) in [(8194,2),(2,8194),(u32::MAX,u32::MAX),(u32::MAX-1,u32::MAX-1)] {for fmt in ["RGB8","BayerGRBG8"] {reject(frame(w,h,fmt,0));}}}
- #[test] fn valid_legacy_literal_and_borrowing() {
-  let mut f=frame(4,2,"BayerGRBG8",8);f.raw=Arc::new(vec![2,20,6,40,60,10,80,14]);
-  let expected=[20,6,60,20,6,60,40,10,80,40,10,80,20,6,60,20,6,60,40,10,80,40,10,80];
-  assert_eq!(f.legacy_display_rgb().as_ref(),expected);for y in 0..2 {for x in 0..4 {assert_eq!(f.legacy_rgb(x,y).unwrap(),expected[((y*4+x)*3) as usize..((y*4+x)*3+3) as usize]);}}
-  for (x,y) in [(4,0),(0,2),(u32::MAX,u32::MAX)] {assert_eq!(f.legacy_rgb(x,y),None);assert_eq!(f.rgb(x,y),None);}
-  let f=frame(3,1,"RGB8",9);for out in [f.display_rgb(),f.legacy_display_rgb()] {assert!(matches!(out,std::borrow::Cow::Borrowed(_)));assert_eq!(out.as_ptr(),f.raw.as_ptr());}
- }
+#[cfg(test)]
+mod correction_v032 {
+    use super::*;
+    fn frame(w: u32, h: u32, fmt: &str, n: usize) -> Frame {
+        Frame {
+            raw: Arc::new(vec![7; n]),
+            metadata: Metadata {
+                acquisition: None,
+                source: "own malformed matrix".into(),
+                simulated: true,
+                sequence: 32,
+                measurement: None,
+                unix_millis: 0,
+                width: w,
+                height: h,
+                format: fmt.into(),
+            },
+        }
+    }
+    fn reject(f: Frame) {
+        for (x, y) in [(0, 0), (1, 1), (u32::MAX, u32::MAX)] {
+            assert_eq!(f.legacy_rgb(x, y), None);
+            assert_eq!(f.rgb(x, y), None);
+        }
+        assert!(f.legacy_display_rgb().is_empty());
+        assert!(f.display_rgb().is_empty());
+        assert!(f.legacy_preview_rgb(8).is_err());
+        assert!(f.preview_rgb(8).is_err());
+    }
+    #[test]
+    fn malformed_format() {
+        reject(frame(2, 2, "unknown", 12));
+    }
+    #[test]
+    fn malformed_short_bayer() {
+        reject(frame(2, 2, "BayerGRBG8", 0));
+    }
+    #[test]
+    fn malformed_excess_bayer() {
+        reject(frame(2, 2, "BayerGRBG8", 5));
+    }
+    #[test]
+    fn malformed_short_rgb() {
+        reject(frame(2, 2, "RGB8", 11));
+    }
+    #[test]
+    fn malformed_excess_rgb() {
+        reject(frame(2, 2, "RGB8", 13));
+    }
+    #[test]
+    fn malformed_odd_bayer() {
+        reject(frame(3, 2, "BayerGRBG8", 6));
+        reject(frame(2, 3, "BayerGRBG8", 6));
+    }
+    #[test]
+    fn malformed_zero() {
+        reject(frame(0, 2, "BayerGRBG8", 0));
+        reject(frame(2, 0, "RGB8", 0));
+    }
+    #[test]
+    fn malformed_oversize() {
+        for (w, h) in [
+            (8194, 2),
+            (2, 8194),
+            (u32::MAX, u32::MAX),
+            (u32::MAX - 1, u32::MAX - 1),
+        ] {
+            for fmt in ["RGB8", "BayerGRBG8"] {
+                reject(frame(w, h, fmt, 0));
+            }
+        }
+    }
+    #[test]
+    fn valid_legacy_literal_and_borrowing() {
+        let mut f = frame(4, 2, "BayerGRBG8", 8);
+        f.raw = Arc::new(vec![2, 20, 6, 40, 60, 10, 80, 14]);
+        let expected = [
+            20, 6, 60, 20, 6, 60, 40, 10, 80, 40, 10, 80, 20, 6, 60, 20, 6, 60, 40, 10, 80, 40, 10,
+            80,
+        ];
+        assert_eq!(f.legacy_display_rgb().as_ref(), expected);
+        for y in 0..2 {
+            for x in 0..4 {
+                assert_eq!(
+                    f.legacy_rgb(x, y).unwrap(),
+                    expected[((y * 4 + x) * 3) as usize..((y * 4 + x) * 3 + 3) as usize]
+                );
+            }
+        }
+        for (x, y) in [(4, 0), (0, 2), (u32::MAX, u32::MAX)] {
+            assert_eq!(f.legacy_rgb(x, y), None);
+            assert_eq!(f.rgb(x, y), None);
+        }
+        let f = frame(3, 1, "RGB8", 9);
+        for out in [f.display_rgb(), f.legacy_display_rgb()] {
+            assert!(matches!(out, std::borrow::Cow::Borrowed(_)));
+            assert_eq!(out.as_ptr(), f.raw.as_ptr());
+        }
+    }
 }
 
 pub mod failure_record;

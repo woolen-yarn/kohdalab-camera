@@ -2,33 +2,74 @@
 #[test]
 fn two_mode_chooser_and_terminal_preview_survives_export_same_apply() {
     use super::*;
-    use camera_lab::{CameraAdapter,Simulation};
-    let ctx=egui::Context::default();
-    let mut app=App::with_exporter(&ctx, camera_lab::export);app.picker=false;app.fake_only=true;
-    assert_eq!(Mode::ALL,[Mode::FullFieldSkip,Mode::Full]);
-    assert_eq!(app.settings.mode,Mode::FullFieldSkip);
-    let retained=Simulation {sequence:4}.next_frame().unwrap();
-    app.show_frame(&ctx,retained.clone());let texture=app.texture.as_ref().unwrap().id();let count=app.gui_submits;
-    let p=camera_lab::preview_pipeline::Pipeline::new(||panic!("injected terminal callback")).unwrap();
-    let g=camera_lab::preview_pipeline::Generation {revision:1,settings:app.settings};
-    p.set_generation(Some(g));p.submit(camera_lab::preview_pipeline::Key {generation:g,sequence:retained.metadata.sequence},retained.clone());
-    let end=std::time::Instant::now()+Duration::from_secs(5);
-    while !p.terminal_failure() {assert!(std::time::Instant::now()<end);std::thread::yield_now();}
-    app.preview=Some(p);app.preview_generation=Some(g);
-    draw(&mut app,&ctx,egui::vec2(1100.,750.));
-    let diagnosis=app.terminal_preview_failure.clone().unwrap();assert!(diagnosis.contains("Reopen the application"));
-    let root=std::env::temp_dir().join(format!("two-mode-terminal-{}",std::process::id()));std::fs::create_dir(&root).unwrap();
-    app.tx.try_send((retained.clone(),root.join("retained.png"),Recipe::default())).unwrap();app.busy=true;
-    while app.busy {assert!(std::time::Instant::now()<end);draw(&mut app,&ctx,egui::vec2(1100.,750.));}
+    use camera_lab::{CameraAdapter, Simulation};
+    let ctx = egui::Context::default();
+    let mut app = App::with_exporter(&ctx, camera_lab::export);
+    app.picker = false;
+    app.fake_only = true;
+    assert_eq!(Mode::ALL, [Mode::FullFieldSkip, Mode::Full]);
+    assert_eq!(app.settings.mode, Mode::FullFieldSkip);
+    let retained = Simulation { sequence: 4 }.next_frame().unwrap();
+    app.show_frame(&ctx, retained.clone());
+    let texture = app.texture.as_ref().unwrap().id();
+    let count = app.gui_submits;
+    let p = camera_lab::preview_pipeline::Pipeline::new(|| panic!("injected terminal callback"))
+        .unwrap();
+    let g = camera_lab::preview_pipeline::Generation {
+        revision: 1,
+        settings: app.settings,
+    };
+    p.set_generation(Some(g));
+    p.submit(
+        camera_lab::preview_pipeline::Key {
+            generation: g,
+            sequence: retained.metadata.sequence,
+        },
+        retained.clone(),
+    );
+    let end = std::time::Instant::now() + Duration::from_secs(5);
+    while !p.terminal_failure() {
+        assert!(std::time::Instant::now() < end);
+        std::thread::yield_now();
+    }
+    app.preview = Some(p);
+    app.preview_generation = Some(g);
+    draw(&mut app, &ctx, egui::vec2(1100., 750.));
+    let diagnosis = app.terminal_preview_failure.clone().unwrap();
+    assert!(diagnosis.contains("Reopen the application"));
+    let root = std::env::temp_dir().join(format!("two-mode-terminal-{}", std::process::id()));
+    std::fs::create_dir(&root).unwrap();
+    app.tx
+        .try_send((
+            retained.clone(),
+            root.join("retained.png"),
+            Recipe::default(),
+        ))
+        .unwrap();
+    app.busy = true;
+    while app.busy {
+        assert!(std::time::Instant::now() < end);
+        draw(&mut app, &ctx, egui::vec2(1100., 750.));
+    }
     assert!(app.save_result.starts_with("Saved image"));
-    app.request(Some(Source::Simulation));let revision=app.revision;
-    app.request(Some(Source::Simulation));assert!(app.revision>revision);
-    draw(&mut app,&ctx,egui::vec2(1100.,750.));
-    assert_eq!(app.terminal_preview_failure.as_deref(),Some(diagnosis.as_str()));
-    assert_eq!(app.gui_submits,count);assert_eq!(app.texture.as_ref().unwrap().id(),texture);
-    assert_eq!(app.frame.as_ref().unwrap().metadata,retained.metadata);
-    assert_eq!(std::fs::read(root.join("retained.png.capture/raw.bin")).unwrap(),*retained.raw);
-    app.request(None);std::fs::remove_dir_all(root).unwrap();
+    app.request(Some(Source::Simulation));
+    let revision = app.revision;
+    app.request(Some(Source::Simulation));
+    assert!(app.revision > revision);
+    draw(&mut app, &ctx, egui::vec2(1100., 750.));
+    assert_eq!(
+        app.terminal_preview_failure.as_deref(),
+        Some(diagnosis.as_str())
+    );
+    assert_eq!(app.gui_submits, count);
+    assert_eq!(app.texture.as_ref().unwrap().id(), texture);
+    assert_eq!(app.frame.as_ref().unwrap().metadata, retained.metadata);
+    assert_eq!(
+        std::fs::read(root.join("retained.png.capture/raw.bin")).unwrap(),
+        *retained.raw
+    );
+    app.request(None);
+    std::fs::remove_dir_all(root).unwrap();
 }
 #[test]
 fn repair_capture_time_render_and_frozen_export() {
@@ -57,7 +98,7 @@ fn repair_capture_time_render_and_frozen_export() {
         frame.metadata.unix_millis = stamp;
         app.show_frame(&ctx, frame.clone());
         // Overlay Areas perform an initial size pass before painting contents.
-        draw(&mut app,&ctx,egui::vec2(1100.,750.));
+        draw(&mut app, &ctx, egui::vec2(1100., 750.));
         let output = ctx.run(
             egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
@@ -72,11 +113,17 @@ fn repair_capture_time_render_and_frozen_export() {
         for s in output.shapes {
             text(&s.shape, &mut rendered);
         }
-        assert!(!rendered.contains("Texture update age:"),"technical timing starts collapsed");
+        assert!(
+            !rendered.contains("Texture update age:"),
+            "technical timing starts collapsed"
+        );
         // A nonzero legacy timestamp without valid measurement provenance
         // must not be promoted to host completion or sensor exposure time.
         assert!(rendered.contains("Capture timing unavailable"));
-        assert!(camera_lab::measurement::timestamp_semantics(&frame.metadata).contains("legacy unix_millis has unspecified semantics"));
+        assert!(
+            camera_lab::measurement::timestamp_semantics(&frame.metadata)
+                .contains("legacy unix_millis has unspecified semantics")
+        );
         assert!(!rendered.contains("captured at 0"));
         assert!(!rendered.contains("host completion 1730000000123 ms"));
         app.request(None);
@@ -94,9 +141,7 @@ fn repair_capture_time_render_and_frozen_export() {
 fn retained_simulation_is_labeled_even_after_disconnect_or_source_failure() {
     fn has_badge(shape: &egui::epaint::Shape) -> bool {
         match shape {
-            egui::epaint::Shape::Text(text) => {
-                text.galley.job.text.contains("SIMULATION")
-            }
+            egui::epaint::Shape::Text(text) => text.galley.job.text.contains("SIMULATION"),
             egui::epaint::Shape::Vec(shapes) => shapes.iter().any(has_badge),
             _ => false,
         }
@@ -133,7 +178,9 @@ fn frozen_export_survives_stop_and_close_with_exact_bundle_location() {
     app.show_frame(&ctx, frozen.clone());
     for ext in ["png", "tiff"] {
         let path = root.join(format!("frozen.{ext}"));
-        app.tx.try_send((frozen.clone(), path.clone(),Recipe::default())).unwrap();
+        app.tx
+            .try_send((frozen.clone(), path.clone(), Recipe::default()))
+            .unwrap();
         app.busy = true;
         app.request(None);
         let deadline = Instant::now() + Duration::from_secs(3);
@@ -148,8 +195,7 @@ fn frozen_export_survives_stop_and_close_with_exact_bundle_location() {
         assert!(bundle.join(path.file_name().unwrap()).exists());
         assert_eq!(std::fs::read(bundle.join("raw.bin")).unwrap(), *frozen.raw);
         let metadata: camera_lab::Metadata =
-            serde_json::from_slice(&std::fs::read(bundle.join("metadata.json")).unwrap())
-                .unwrap();
+            serde_json::from_slice(&std::fs::read(bundle.join("metadata.json")).unwrap()).unwrap();
         assert_eq!(metadata, frozen.metadata);
         assert_eq!(
             image::open(bundle.join(path.file_name().unwrap()))
@@ -161,7 +207,7 @@ fn frozen_export_survives_stop_and_close_with_exact_bundle_location() {
         assert!(camera_lab::export(&frozen, &path).is_err());
     }
     app.tx
-        .try_send((frozen.clone(), root.join("closing.png"),Recipe::default()))
+        .try_send((frozen.clone(), root.join("closing.png"), Recipe::default()))
         .unwrap();
     app.busy = true;
     app.closing = true;
@@ -181,10 +227,7 @@ fn frozen_export_survives_stop_and_close_with_exact_bundle_location() {
 fn failed_source_does_not_generate_or_substitute_frames() {
     struct Failed;
     impl camera_lab::session::Factory for Failed {
-        fn open(
-            &mut self,
-            _: &Request,
-        ) -> Result<Box<dyn camera_lab::session::Transport>, String> {
+        fn open(&mut self, _: &Request) -> Result<Box<dyn camera_lab::session::Transport>, String> {
             Err("injected connection failure; no fallback".into())
         }
     }
@@ -267,7 +310,7 @@ fn invalid_controls_and_failed_export_do_not_change_display_or_select_simulation
     assert!(
         app.worker
             .request(Some(Request {
-            startup_intent: camera_lab::startup::Intent::Normal,
+                startup_intent: camera_lab::startup::Intent::Normal,
                 source: Source::Simulation,
                 settings: app.settings
             }))
@@ -275,7 +318,7 @@ fn invalid_controls_and_failed_export_do_not_change_display_or_select_simulation
     );
     assert_eq!(app.revision, revision);
     app.tx
-        .try_send((frame, PathBuf::from("invalid.jpg"),Recipe::default()))
+        .try_send((frame, PathBuf::from("invalid.jpg"), Recipe::default()))
         .unwrap();
     app.busy = true;
     app.request(None); // A pending export owns its frozen frame through disconnect.

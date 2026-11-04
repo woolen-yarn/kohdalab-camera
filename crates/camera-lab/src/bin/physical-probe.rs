@@ -138,7 +138,9 @@ fn run() -> Result<(), String> {
                 }
             }
             if let Err(error) = preparation.dispatch_bridge(|| bridge_state(&interface, value)) {
-                if !capture { return Err(error); }
+                if !capture {
+                    return Err(error);
+                }
                 break;
             }
         }
@@ -148,7 +150,10 @@ fn run() -> Result<(), String> {
             std::env::args().nth(4).ok_or("Missing capture directory")?,
         ))
         .is_err();
-    if (prepare || std::env::args().nth(2).as_deref() == Some("--identify")) && !capture_cancelled && preparation.failure.is_none() {
+    if (prepare || std::env::args().nth(2).as_deref() == Some("--identify"))
+        && !capture_cancelled
+        && preparation.failure.is_none()
+    {
         use nusb::transfer::{ControlIn, ControlType, Recipient};
         // Transport hypothesis: public ScopeTek capture packet 15/16 uses
         // C0/0A, value=0, index=sensor address, length=3, big endian + 08.
@@ -157,30 +162,46 @@ fn run() -> Result<(), String> {
         println!("identity_read=C0/0A value=0000 index=0000 length=3 timeout_ms=500");
         std::io::stdout().flush().map_err(|e| e.to_string())?;
         let identity = preparation.dispatch_identity(|| {
-        let reply = interface
-            .control_in(
-                ControlIn {
-                    control_type: ControlType::Vendor,
-                    recipient: Recipient::Device,
-                    request: 0x0a,
-                    value: 0,
-                    index: 0,
-                    length: 3,
-                },
-                std::time::Duration::from_millis(500),
-            )
-            .wait()
-            .map_err(|_| camera_lab::diagnostic::SensorFailure::ReadTransport.text().to_owned());
-        reply.and_then(|bytes| {
-            if prepare && !capture {
-                bridge_state(&interface, 1)?;
-            }
-            println!("identity_reply={bytes:02x?}");
-            if bytes.len() != 3 { return Err(camera_lab::diagnostic::SensorFailure::ReadLength.text().into()); }
-            if bytes[2] != 8 { return Err(camera_lab::diagnostic::SensorFailure::ReadStatus.text().into()); }
-            if bytes[..2] != [0x16, 0x21] { return Err(camera_lab::diagnostic::SensorFailure::IdentityMismatch.text().into()); }
-            Ok(())
-        })
+            let reply = interface
+                .control_in(
+                    ControlIn {
+                        control_type: ControlType::Vendor,
+                        recipient: Recipient::Device,
+                        request: 0x0a,
+                        value: 0,
+                        index: 0,
+                        length: 3,
+                    },
+                    std::time::Duration::from_millis(500),
+                )
+                .wait()
+                .map_err(|_| {
+                    camera_lab::diagnostic::SensorFailure::ReadTransport
+                        .text()
+                        .to_owned()
+                });
+            reply.and_then(|bytes| {
+                if prepare && !capture {
+                    bridge_state(&interface, 1)?;
+                }
+                println!("identity_reply={bytes:02x?}");
+                if bytes.len() != 3 {
+                    return Err(camera_lab::diagnostic::SensorFailure::ReadLength
+                        .text()
+                        .into());
+                }
+                if bytes[2] != 8 {
+                    return Err(camera_lab::diagnostic::SensorFailure::ReadStatus
+                        .text()
+                        .into());
+                }
+                if bytes[..2] != [0x16, 0x21] {
+                    return Err(camera_lab::diagnostic::SensorFailure::IdentityMismatch
+                        .text()
+                        .into());
+                }
+                Ok(())
+            })
         });
         match identity {
             Err(error) if capture => preparation.failure = Some(error),
@@ -188,8 +209,11 @@ fn run() -> Result<(), String> {
             Ok(()) => {
                 if prepare && capture {
                     preparation.stop_attempted = true; // existing bounded STOP; no second STOP on failure
-                    if let Err(error) = preparation.dispatch_bridge(|| bridge_state(&interface, 1)) {
-                        if !capture { return Err(error); }
+                    if let Err(error) = preparation.dispatch_bridge(|| bridge_state(&interface, 1))
+                    {
+                        if !capture {
+                            return Err(error);
+                        }
                     }
                 }
                 println!("sensor=MT9T001 identity matched; acquisition still disabled");

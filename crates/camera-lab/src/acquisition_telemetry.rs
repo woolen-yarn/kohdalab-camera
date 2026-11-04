@@ -50,8 +50,8 @@ pub enum Event {
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct Binding {
     pub geometry_contract_version: u32,
-    pub source_window: [u16;4],
-    pub sensor_skip: [u8;2],
+    pub source_window: [u16; 4],
+    pub sensor_skip: [u8; 2],
     pub profile: &'static str,
     pub width: u16,
     pub height: u16,
@@ -67,8 +67,12 @@ impl Binding {
         let p = settings.mode.profile();
         Self {
             geometry_contract_version: 1,
-            source_window: [32,20,2048,1536],
-            sensor_skip: if settings.mode == crate::controls::Mode::FullFieldSkip {[2,2]} else {[1,1]},
+            source_window: [32, 20, 2048, 1536],
+            sensor_skip: if settings.mode == crate::controls::Mode::FullFieldSkip {
+                [2, 2]
+            } else {
+                [1, 1]
+            },
             profile: p.id,
             width: p.width,
             height: p.height,

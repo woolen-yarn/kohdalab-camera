@@ -35,7 +35,9 @@ impl PhysicalPreview {
     ) -> Result<Self, String> {
         settings.validate()?;
         if settings.mode == crate::controls::Mode::FullFieldSkip {
-            return Err("Legacy file helper cannot certify the versioned full-field skip contract".into());
+            return Err(
+                "Legacy file helper cannot certify the versioned full-field skip contract".into(),
+            );
         }
         let profile = settings.mode.profile();
         if info.vendor_id() != 0x0547
@@ -143,10 +145,11 @@ impl PhysicalPreview {
             raw: Arc::new(raw),
             metadata: Metadata {
                 acquisition: None,
-source: self.source.clone(),
+                source: self.source.clone(),
                 simulated: false,
                 sequence,
-                measurement: None, unix_millis: timestamp as u128,
+                measurement: None,
+                unix_millis: timestamp as u128,
                 width: self.width,
                 height: self.height,
                 format: "BayerGRBG8".into(),

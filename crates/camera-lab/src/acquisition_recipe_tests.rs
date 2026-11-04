@@ -83,8 +83,22 @@ fn expected(settings: Settings) -> Vec<Op> {
         Checked(0x1e, 0x8040),
         Checked(0x20, 0x2000),
         Checked(0x21, 0),
-        Checked(0x22, if settings.mode == Mode::FullFieldSkip {1} else {0}),
-        Checked(0x23, if settings.mode == Mode::FullFieldSkip {1} else {0}),
+        Checked(
+            0x22,
+            if settings.mode == Mode::FullFieldSkip {
+                1
+            } else {
+                0
+            },
+        ),
+        Checked(
+            0x23,
+            if settings.mode == Mode::FullFieldSkip {
+                1
+            } else {
+                0
+            },
+        ),
         Checked(0x35, 8),
         Checked(0x32, 0x0554),
         Checked(7, 0x42),
@@ -168,20 +182,39 @@ fn normal_expected(settings: Settings) -> Vec<Op> {
 fn normal_exact_trace_and_stop_every_operation() {
     use crate::startup::Intent;
     for mode in Mode::ALL {
-        for (exposure_rows, gain_eighths) in [(100,8),(7,24)] {
-            let settings = Settings {mode,exposure_rows,gain_eighths};
-            let mut golden = vec![Op::Bridge(1),Op::Bridge(0),Op::Bridge(1)];
+        for (exposure_rows, gain_eighths) in [(100, 8), (7, 24)] {
+            let settings = Settings {
+                mode,
+                exposure_rows,
+                gain_eighths,
+            };
+            let mut golden = vec![Op::Bridge(1), Op::Bridge(0), Op::Bridge(1)];
             golden.extend(normal_expected(settings));
             for stop in 0..=golden.len() {
-                let mut b = Recorded {ops:vec![],gain:8,stop,bad_gain:false};
-                let r = acquisition_recipe::initialize_continuous_intent(&mut b,settings,Intent::Normal);
-                assert_eq!(b.ops,golden[..stop]);
+                let mut b = Recorded {
+                    ops: vec![],
+                    gain: 8,
+                    stop,
+                    bad_gain: false,
+                };
+                let r = acquisition_recipe::initialize_continuous_intent(
+                    &mut b,
+                    settings,
+                    Intent::Normal,
+                );
+                assert_eq!(b.ops, golden[..stop]);
                 // Final checkpoint also honors STOP after the last write.
                 assert!(r.is_err());
             }
-            let mut b = Recorded {ops:vec![],gain:8,stop:usize::MAX,bad_gain:false};
-            acquisition_recipe::initialize_continuous_intent(&mut b,settings,Intent::Normal).unwrap();
-            assert_eq!(b.ops,golden);
+            let mut b = Recorded {
+                ops: vec![],
+                gain: 8,
+                stop: usize::MAX,
+                bad_gain: false,
+            };
+            acquisition_recipe::initialize_continuous_intent(&mut b, settings, Intent::Normal)
+                .unwrap();
+            assert_eq!(b.ops, golden);
         }
     }
 }
@@ -189,12 +222,41 @@ fn normal_exact_trace_and_stop_every_operation() {
 #[test]
 fn normal_bad_requested_gain_and_settings_fail_before_live() {
     use crate::startup::Intent;
-    let mut b = Recorded {ops:vec![],gain:8,stop:usize::MAX,bad_gain:true};
-    assert!(acquisition_recipe::initialize_continuous_intent(&mut b,Settings::default(),Intent::Normal).unwrap_err().contains("Requested per-channel"));
-    assert!(!b.ops.contains(&Op::Checked(7,2)));
-    for (exposure_rows,gain_eighths) in [(0,8),(100,0),(100,99)] {
-        let mut b = Recorded {ops:vec![],gain:8,stop:usize::MAX,bad_gain:false};
-        assert!(acquisition_recipe::initialize_continuous_intent(&mut b,Settings {exposure_rows,gain_eighths,..Default::default()},Intent::Normal).is_err());
+    let mut b = Recorded {
+        ops: vec![],
+        gain: 8,
+        stop: usize::MAX,
+        bad_gain: true,
+    };
+    assert!(
+        acquisition_recipe::initialize_continuous_intent(
+            &mut b,
+            Settings::default(),
+            Intent::Normal
+        )
+        .unwrap_err()
+        .contains("Requested per-channel")
+    );
+    assert!(!b.ops.contains(&Op::Checked(7, 2)));
+    for (exposure_rows, gain_eighths) in [(0, 8), (100, 0), (100, 99)] {
+        let mut b = Recorded {
+            ops: vec![],
+            gain: 8,
+            stop: usize::MAX,
+            bad_gain: false,
+        };
+        assert!(
+            acquisition_recipe::initialize_continuous_intent(
+                &mut b,
+                Settings {
+                    exposure_rows,
+                    gain_eighths,
+                    ..Default::default()
+                },
+                Intent::Normal
+            )
+            .is_err()
+        );
         assert!(b.ops.is_empty());
     }
 }

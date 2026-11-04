@@ -1,6 +1,8 @@
 //! Opt-in, loopback-only GUI control transport for Camera.
 //! The server only queues requests; the eframe App owns every Worker operation.
-use kohdalab_control_protocol::{descriptor, is_common, paths::AppPaths, response as common_response};
+use kohdalab_control_protocol::{
+    descriptor, is_common, paths::AppPaths, response as common_response,
+};
 use serde_json::{Value, json};
 use std::{
     io::{Read, Write},
@@ -33,11 +35,16 @@ impl Server {
     pub fn start(directory: Option<PathBuf>) -> Result<Self, String> {
         Self::start_with_wake(directory, || {})
     }
-    pub fn start_with_wake(directory: Option<PathBuf>, wake: impl Fn() + Send + Sync + 'static) -> Result<Self, String> {
+    pub fn start_with_wake(
+        directory: Option<PathBuf>,
+        wake: impl Fn() + Send + Sync + 'static,
+    ) -> Result<Self, String> {
         let wake: Arc<dyn Fn() + Send + Sync> = Arc::new(wake);
         let dir = directory
             .or_else(|| {
-                AppPaths::for_app("camera").ok().map(|paths| paths.run_dir())
+                AppPaths::for_app("camera")
+                    .ok()
+                    .map(|paths| paths.run_dir())
             })
             .ok_or("Cannot locate user profile")?;
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -165,7 +172,7 @@ fn serve(
             wake();
             rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
                 .unwrap_or_else(|_| error("timeout", "GUI request timed out"))
-        },
+        }
         Err(mpsc::TrySendError::Full(_)) => error("busy", "GUI request queue is full"),
         Err(mpsc::TrySendError::Disconnected(_)) => error("unavailable", "GUI API is stopping"),
     };
@@ -208,18 +215,29 @@ mod tests {
         let (wake, woken) = mpsc::sync_channel(1);
         let server = Server::start_with_wake(Some(directory.path().into()), move || {
             let _ = wake.try_send(());
-        }).unwrap();
-        let descriptor: Value = serde_json::from_slice(&std::fs::read(&server.descriptor).unwrap()).unwrap();
+        })
+        .unwrap();
+        let descriptor: Value =
+            serde_json::from_slice(&std::fs::read(&server.descriptor).unwrap()).unwrap();
         let peer = thread::spawn(move || {
-            let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, descriptor["port"].as_u64().unwrap() as u16)).unwrap();
-            stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+            let mut stream = TcpStream::connect((
+                Ipv4Addr::LOCALHOST,
+                descriptor["port"].as_u64().unwrap() as u16,
+            ))
+            .unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
             writeln!(stream, "{}", json!({"control_protocol":1,"method":"control.describe","token":descriptor["token"]})).unwrap();
             let mut reply = String::new();
             BufReader::new(stream).read_line(&mut reply).unwrap();
             assert!(!reply.is_empty());
         });
         woken.recv_timeout(Duration::from_secs(2)).unwrap();
-        let request = server.requests.recv_timeout(Duration::from_secs(1)).unwrap();
+        let request = server
+            .requests
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap();
         request.reply.send(json!({"ok":true,"result":{}})).unwrap();
         peer.join().unwrap();
     }

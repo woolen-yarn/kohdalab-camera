@@ -2,19 +2,21 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 #[cfg(feature = "input-diagnostics")]
 mod input_diagnostics;
+use camera_lab::display_recipe::Recipe;
 use camera_lab::{
     Frame,
     controls::{Mode, Settings},
     session::{Request, Source, Worker},
 };
 use eframe::egui;
+use kohdalab_control_protocol::{
+    is_common, prepare as prepare_common, response as common_response,
+};
 use nusb::MaybeFuture;
-use camera_lab::display_recipe::Recipe;
-use kohdalab_control_protocol::{is_common, prepare as prepare_common, response as common_response};
-mod parity_ui;
-mod natural_ui;
-mod preferences;
 mod image_view;
+mod natural_ui;
+mod parity_ui;
+mod preferences;
 use std::{
     path::PathBuf,
     sync::mpsc::{self, Receiver, SyncSender},
@@ -51,10 +53,10 @@ struct App {
     recipe: Recipe,
     displayed_recipe: Recipe,
     full_recipe: Recipe,
-    display_size: Option<[usize;2]>,
+    display_size: Option<[usize; 2]>,
     cursor: String,
     viewport_rect: egui::Rect,
-    estimate_rx: Option<Receiver<Result<Recipe,String>>>,
+    estimate_rx: Option<Receiver<Result<Recipe, String>>>,
     estimate_base: Option<Recipe>,
     status: String,
     terminal_preview_failure: Option<String>,
@@ -91,7 +93,8 @@ impl App {
         Self::new_with_worker(ctx, Worker::new())
     }
     fn new_with_worker(ctx: &egui::Context, worker: Worker) -> Self {
-        let mut app = Self::with_recipe_exporter_worker(ctx, camera_lab::image_export::save_recipe, worker);
+        let mut app =
+            Self::with_recipe_exporter_worker(ctx, camera_lab::image_export::save_recipe, worker);
         if std::env::args().nth(1).as_deref() == Some("--continuous-fake-gui") {
             app.fake_only = true;
             app.picker = false;
@@ -126,9 +129,9 @@ impl App {
         }
         #[cfg(not(feature = "input-diagnostics"))]
         {
-            app.preferences_path=preferences::Preferences::path();
-            if let Some(path)=&app.preferences_path {
-                let creation_error=preferences::Preferences::ensure_default(path).err();
+            app.preferences_path = preferences::Preferences::path();
+            if let Some(path) = &app.preferences_path {
+                let creation_error = preferences::Preferences::ensure_default(path).err();
                 match preferences::Preferences::load(path) {
                     Ok(p)=>{ app.restore_preferences(p); if let Some(error)=creation_error { app.status=format!("Default settings could not be created: {error}"); } },
                     Err(error)=>app.status=creation_error.map_or_else(||format!("Saved settings could not be loaded: {error}"),|create|format!("Default settings could not be created: {create}; saved settings could not be loaded: {error}")),
@@ -156,22 +159,32 @@ impl App {
         export: impl Fn(&Frame, &std::path::Path) -> Result<(), String> + Send + 'static,
         worker: Worker,
     ) -> Self {
-        Self::with_recipe_exporter_worker(ctx,move |f,p,_| export(f,p),worker)
+        Self::with_recipe_exporter_worker(ctx, move |f, p, _| export(f, p), worker)
     }
-    fn with_recipe_exporter_worker(ctx:&egui::Context, export:impl Fn(&Frame,&std::path::Path,Recipe)->Result<(),String> + Send + 'static, worker:Worker)->Self {
+    fn with_recipe_exporter_worker(
+        ctx: &egui::Context,
+        export: impl Fn(&Frame, &std::path::Path, Recipe) -> Result<(), String> + Send + 'static,
+        worker: Worker,
+    ) -> Self {
         parity_ui::force_dark(ctx);
         ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Dark));
         let wake = ctx.clone();
         worker.set_wake(move || wake.request_repaint());
         let repaint = ctx.clone();
-        let preview = camera_lab::preview_pipeline::Pipeline::new(move || repaint.request_repaint());
+        let preview =
+            camera_lab::preview_pipeline::Pipeline::new(move || repaint.request_repaint());
         let preview_error = preview.as_ref().err().cloned();
         let (tx, rx) = mpsc::sync_channel::<(Frame, PathBuf, Recipe)>(1);
         let (rt, rr) = mpsc::sync_channel(1);
         std::thread::spawn(move || {
             while let Ok((f, p, recipe)) = rx.recv() {
                 if rt
-                    .send(export(&f, &p, recipe).map(|_| format!("Saved image and original RAW/metadata sidecars: {}", p.display())))
+                    .send(export(&f, &p, recipe).map(|_| {
+                        format!(
+                            "Saved image and original RAW/metadata sidecars: {}",
+                            p.display()
+                        )
+                    }))
                     .is_err()
                 {
                     break;
@@ -179,7 +192,12 @@ impl App {
             }
         });
         Self {
-            preferences_path:None,saved_preferences:Default::default(),preferences_checked:std::time::Instant::now(),save_folder:None,save_sequence:1,view:Default::default(),
+            preferences_path: None,
+            saved_preferences: Default::default(),
+            preferences_checked: std::time::Instant::now(),
+            save_folder: None,
+            save_sequence: 1,
+            view: Default::default(),
             fake_only: false,
             fake_until: None,
             devices: vec![],
@@ -195,9 +213,19 @@ impl App {
             outcome_fault: None,
             connection_fault: false,
             tab: usize::MAX,
-            recipe:Recipe::default(),displayed_recipe:Recipe::default(),full_recipe:Recipe::default(),
-            display_size:None,cursor:String::new(),viewport_rect:egui::Rect::NOTHING,estimate_rx:None,estimate_base:None,
-            terminal_preview_failure: preview_error.map(|e| format!("{e}. Reopen the application to restore preview; automatic restart is disabled.")),
+            recipe: Recipe::default(),
+            displayed_recipe: Recipe::default(),
+            full_recipe: Recipe::default(),
+            display_size: None,
+            cursor: String::new(),
+            viewport_rect: egui::Rect::NOTHING,
+            estimate_rx: None,
+            estimate_base: None,
+            terminal_preview_failure: preview_error.map(|e| {
+                format!(
+                    "{e}. Reopen the application to restore preview; automatic restart is disabled."
+                )
+            }),
             status: String::new(),
             worker,
             session: Default::default(),
@@ -229,28 +257,64 @@ impl App {
                 camera_lab::control_api::Server::start_with_wake(None, {
                     let wake = ctx.clone();
                     move || wake.request_repaint()
-                }).ok()
-            } else { None },
+                })
+                .ok()
+            } else {
+                None
+            },
         }
     }
     fn process_control_api(&mut self) {
-        let requests: Vec<_> = self.control_api.as_ref().map(|api| api.requests.try_iter().take(8).collect()).unwrap_or_default();
+        let requests: Vec<_> = self
+            .control_api
+            .as_ref()
+            .map(|api| api.requests.try_iter().take(8).collect())
+            .unwrap_or_default();
         for request in requests {
             let original = request.body.clone();
             let value = if request.deadline < std::time::Instant::now() {
-                common_response(&original, serde_json::json!({"ok":false,"error_code":"timeout","error":"Request expired before execution; no new action started"}))
+                common_response(
+                    &original,
+                    serde_json::json!({"ok":false,"error_code":"timeout","error":"Request expired before execution; no new action started"}),
+                )
             } else {
                 match prepare_common(&original) {
                     Err(error) => error,
                     Ok(native) => {
-                        let method = native.get("_control_method").and_then(serde_json::Value::as_str).unwrap_or("");
+                        let method = native
+                            .get("_control_method")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("");
                         let result = match method {
-                            "describe" => serde_json::json!({"ok":true,"result":{"protocol":"kohdalab-control","control_protocol":1,"application":"kohdalab-camera","application_version":env!("CARGO_PKG_VERSION"),"api_version":1,"methods":["control.describe","control.status","control.config"],"safety":{"supports_ownership":false,"exclusive_control":false,"physical_auto_connect":false,"simulation_required_for_tests":true},"native":{"gui_owned":true}}}),
-                            "status" => { let s=self.worker.snapshot(); let phase=match s.state {camera_lab::session::State::Disconnected=>"disconnected",camera_lab::session::State::Connecting=>"initializing",camera_lab::session::State::Streaming=>"running",camera_lab::session::State::SettingsPending=>"initializing",camera_lab::session::State::Stopping=>"stopping",camera_lab::session::State::Error=>"error"}; let cleanup_unproved=s.lifecycle.as_ref().is_some_and(|l|l.unproved); serde_json::json!({"ok":true,"result":{"phase":phase,"busy":s.active,"ownership":{"owned":false},"cleanup":if cleanup_unproved || phase=="error" {"unknown"}else if phase=="stopping" {"pending"}else{"not_required"},"native":{"active":s.active,"message":s.message,"source_selected":self.source.is_some()}}}) }
-                            "config" => serde_json::json!({"ok":true,"result":{"mode":self.settings.mode.profile().id,"exposure_rows":self.settings.exposure_rows,"gain_eighths":self.settings.gain_eighths}}),
-                            _ => serde_json::json!({"ok":false,"error_code":"unsupported","error":"This Camera adapter exposes read-only control.* methods; use the GUI for device operations"}),
+                            "describe" => {
+                                serde_json::json!({"ok":true,"result":{"protocol":"kohdalab-control","control_protocol":1,"application":"kohdalab-camera","application_version":env!("CARGO_PKG_VERSION"),"api_version":1,"methods":["control.describe","control.status","control.config"],"safety":{"supports_ownership":false,"exclusive_control":false,"physical_auto_connect":false,"simulation_required_for_tests":true},"native":{"gui_owned":true}}})
+                            }
+                            "status" => {
+                                let s = self.worker.snapshot();
+                                let phase = match s.state {
+                                    camera_lab::session::State::Disconnected => "disconnected",
+                                    camera_lab::session::State::Connecting => "initializing",
+                                    camera_lab::session::State::Streaming => "running",
+                                    camera_lab::session::State::SettingsPending => "initializing",
+                                    camera_lab::session::State::Stopping => "stopping",
+                                    camera_lab::session::State::Error => "error",
+                                };
+                                let cleanup_unproved =
+                                    s.lifecycle.as_ref().is_some_and(|l| l.unproved);
+                                serde_json::json!({"ok":true,"result":{"phase":phase,"busy":s.active,"ownership":{"owned":false},"cleanup":if cleanup_unproved || phase=="error" {"unknown"}else if phase=="stopping" {"pending"}else{"not_required"},"native":{"active":s.active,"message":s.message,"source_selected":self.source.is_some()}}})
+                            }
+                            "config" => {
+                                serde_json::json!({"ok":true,"result":{"mode":self.settings.mode.profile().id,"exposure_rows":self.settings.exposure_rows,"gain_eighths":self.settings.gain_eighths}})
+                            }
+                            _ => {
+                                serde_json::json!({"ok":false,"error_code":"unsupported","error":"This Camera adapter exposes read-only control.* methods; use the GUI for device operations"})
+                            }
                         };
-                        if is_common(&original) { common_response(&original, result) } else { result }
+                        if is_common(&original) {
+                            common_response(&original, result)
+                        } else {
+                            result
+                        }
                     }
                 }
             };
@@ -261,7 +325,7 @@ impl App {
         if self.fake_only || self.scan_rx.is_some() {
             return;
         }
-        self.scan_error=None;
+        self.scan_error = None;
         let (tx, rx) = mpsc::sync_channel(1);
         self.scan_rx = Some(rx);
         std::thread::spawn(move || {
@@ -283,34 +347,62 @@ impl App {
         )
     }
     fn request(&mut self, source: Option<Source>) {
-        if source.is_none() { self.product.stop(); self.full_destination = None; }
-        else if self.product.busy() || self.closing { return; }
-        else { self.product.start(); }
+        if source.is_none() {
+            self.product.stop();
+            self.full_destination = None;
+        } else if self.product.busy() || self.closing {
+            return;
+        } else {
+            self.product.start();
+        }
         self.request_settings(source, self.settings, self.intent);
     }
-    fn request_settings(&mut self, source: Option<Source>, settings: Settings, intent: camera_lab::startup::Intent) {
+    fn request_settings(
+        &mut self,
+        source: Option<Source>,
+        settings: Settings,
+        intent: camera_lab::startup::Intent,
+    ) {
         if self.fake_only && matches!(source, Some(Source::Physical(_))) {
             self.control_error = Some("SIMULATION window cannot use physical transport".into());
             return;
         }
-        match self
-            .worker
-            .request(source.clone().map(|source| Request { source, settings, startup_intent: intent }))
-        {
+        match self.worker.request(source.clone().map(|source| Request {
+            source,
+            settings,
+            startup_intent: intent,
+        })) {
             Ok(id) => {
-                if let Some(e)=self.control_error.take() {self.outcome_fault=Some(e);}
-                self.matching_revision=None;
+                if let Some(e) = self.control_error.take() {
+                    self.outcome_fault = Some(e);
+                }
+                self.matching_revision = None;
                 self.status.clear();
                 if source.is_some() {
-                    self.picker=false;
+                    self.picker = false;
                     if !self.product.busy() {
-                        if self.save_result.starts_with("Saved image") || self.save_result.contains("cancelled") {self.save_result.clear();}
-                        if self.product.restore_result.starts_with("Original applied") {self.product.restore_result.clear();self.product.capture_result.clear();}
+                        if self.save_result.starts_with("Saved image")
+                            || self.save_result.contains("cancelled")
+                        {
+                            self.save_result.clear();
+                        }
+                        if self.product.restore_result.starts_with("Original applied") {
+                            self.product.restore_result.clear();
+                            self.product.capture_result.clear();
+                        }
                     }
                 }
                 self.requested_intent = intent;
-                self.preview_generation = source.as_ref().map(|_| camera_lab::preview_pipeline::Generation { revision: id, settings });
-                if let Some(preview) = &self.preview { preview.set_generation(self.preview_generation); }
+                self.preview_generation =
+                    source
+                        .as_ref()
+                        .map(|_| camera_lab::preview_pipeline::Generation {
+                            revision: id,
+                            settings,
+                        });
+                if let Some(preview) = &self.preview {
+                    preview.set_generation(self.preview_generation);
+                }
                 self.revision = id;
                 self.measurement.reset();
                 self.source = source;
@@ -321,93 +413,160 @@ impl App {
             Err(e) => self.control_error = Some(e),
         }
     }
-    fn restore_preferences(&mut self,p:preferences::Preferences) {
-        self.settings=p.settings().expect("validated preferences");self.recipe=p.recipe;self.displayed_recipe=p.recipe;self.full_recipe=p.recipe;
-        self.live_size=egui::vec2(p.live_size[0],p.live_size[1]);self.save_folder=p.folder.clone();self.save_sequence=p.next_sequence;self.saved_preferences=p;
-        if let Some(preview)=&self.preview {preview.set_recipe(self.recipe);}
-    }
-    fn needs_periodic_updates(&self)->bool {
-        self.source.is_some() || self.session.active || self.busy || self.closing || self.scan_rx.is_some() || self.estimate_rx.is_some() || self.fake_until.is_some()
-    }
-    fn current_preferences(&self)->preferences::Preferences {
-        preferences::Preferences{application:preferences::APPLICATION.into(),version:preferences::SCHEMA_VERSION,mode:self.settings.mode.profile().id.into(),exposure:self.settings.exposure_rows,gain:self.settings.gain_eighths,recipe:self.recipe,live_size:[self.live_size.x,self.live_size.y],folder:self.save_folder.clone(),next_sequence:self.save_sequence}
-    }
-    fn persist_preferences(&mut self,force:bool) {
-        let Some(path)=self.preferences_path.clone() else{return;};
-        if !force && self.preferences_checked.elapsed()<Duration::from_secs(1){return;}
-        self.preferences_checked=std::time::Instant::now();let p=self.current_preferences();
-        if p==self.saved_preferences{return;}
-        match p.save(&path) {
-            Ok(())=>self.saved_preferences=p,
-            Err(_)=>self.status="Settings could not be saved. Check folder permissions.".into(),
+    fn restore_preferences(&mut self, p: preferences::Preferences) {
+        self.settings = p.settings().expect("validated preferences");
+        self.recipe = p.recipe;
+        self.displayed_recipe = p.recipe;
+        self.full_recipe = p.recipe;
+        self.live_size = egui::vec2(p.live_size[0], p.live_size[1]);
+        self.save_folder = p.folder.clone();
+        self.save_sequence = p.next_sequence;
+        self.saved_preferences = p;
+        if let Some(preview) = &self.preview {
+            preview.set_recipe(self.recipe);
         }
     }
-    fn save_dialog(&self,full:bool)->rfd::FileDialog {
-        let p=self.current_preferences();
-        let mut dialog=rfd::FileDialog::new().set_title(if full {"Capture Full"}else{"Save image"})
-            .add_filter("PNG",&["png"]).add_filter("TIFF",&["tiff","tif"])
+    fn needs_periodic_updates(&self) -> bool {
+        self.source.is_some()
+            || self.session.active
+            || self.busy
+            || self.closing
+            || self.scan_rx.is_some()
+            || self.estimate_rx.is_some()
+            || self.fake_until.is_some()
+    }
+    fn current_preferences(&self) -> preferences::Preferences {
+        preferences::Preferences {
+            application: preferences::APPLICATION.into(),
+            version: preferences::SCHEMA_VERSION,
+            mode: self.settings.mode.profile().id.into(),
+            exposure: self.settings.exposure_rows,
+            gain: self.settings.gain_eighths,
+            recipe: self.recipe,
+            live_size: [self.live_size.x, self.live_size.y],
+            folder: self.save_folder.clone(),
+            next_sequence: self.save_sequence,
+        }
+    }
+    fn persist_preferences(&mut self, force: bool) {
+        let Some(path) = self.preferences_path.clone() else {
+            return;
+        };
+        if !force && self.preferences_checked.elapsed() < Duration::from_secs(1) {
+            return;
+        }
+        self.preferences_checked = std::time::Instant::now();
+        let p = self.current_preferences();
+        if p == self.saved_preferences {
+            return;
+        }
+        match p.save(&path) {
+            Ok(()) => self.saved_preferences = p,
+            Err(_) => self.status = "Settings could not be saved. Check folder permissions.".into(),
+        }
+    }
+    fn save_dialog(&self, full: bool) -> rfd::FileDialog {
+        let p = self.current_preferences();
+        let mut dialog = rfd::FileDialog::new()
+            .set_title(if full { "Capture Full" } else { "Save image" })
+            .add_filter("PNG", &["png"])
+            .add_filter("TIFF", &["tiff", "tif"])
             .set_file_name(p.suggested_name(full));
-        if let Some(folder)=self.save_folder.as_ref().filter(|p|p.is_dir()){dialog=dialog.set_directory(folder);}
+        if let Some(folder) = self.save_folder.as_ref().filter(|p| p.is_dir()) {
+            dialog = dialog.set_directory(folder);
+        }
         dialog
     }
-    fn reset_preferences(&mut self,ctx:&egui::Context) {
-        self.settings=Settings::default();self.recipe=Recipe::default();self.live_size=preferences::DEFAULT_LIVE_SIZE.into();
-        self.save_folder=None;self.save_sequence=1;self.view=Default::default();self.intent=camera_lab::startup::Intent::Normal;
-        if !self.picker {ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(self.live_size));}
-        self.status="Defaults restored. Apply camera settings to update acquisition.".into();
+    fn reset_preferences(&mut self, ctx: &egui::Context) {
+        self.settings = Settings::default();
+        self.recipe = Recipe::default();
+        self.live_size = preferences::DEFAULT_LIVE_SIZE.into();
+        self.save_folder = None;
+        self.save_sequence = 1;
+        self.view = Default::default();
+        self.intent = camera_lab::startup::Intent::Normal;
+        if !self.picker {
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(self.live_size));
+        }
+        self.status = "Defaults restored. Apply camera settings to update acquisition.".into();
     }
     fn capture(&mut self) {
         if self.busy || self.closing || self.product.busy() {
             return;
         }
         // Freeze both displayed RAW and displayed recipe before the modal dialog.
-        let recipe=self.displayed_recipe;
+        let recipe = self.displayed_recipe;
         if let Some(f) = self.frame.clone()
             && let Some(p) = self.save_dialog(false).save_file()
         {
-            self.export_full=false;
+            self.export_full = false;
             self.save_with_recipe(f, p, recipe);
-        } else { self.save_result = "Save cancelled".into(); }
+        } else {
+            self.save_result = "Save cancelled".into();
+        }
     }
     fn save_frozen(&mut self, f: Frame, p: PathBuf) {
-            if self.busy || self.closing { self.save_result = "Save unavailable while saving or closing".into(); return; }
-            self.export_full=false;
-            self.save_with_recipe(f,p,self.displayed_recipe);
+        if self.busy || self.closing {
+            self.save_result = "Save unavailable while saving or closing".into();
+            return;
+        }
+        self.export_full = false;
+        self.save_with_recipe(f, p, self.displayed_recipe);
     }
-    fn save_with_recipe(&mut self,f:Frame,p:PathBuf,recipe:Recipe) {
-            if self.busy || self.closing {return;}
-            let folder=p.parent().map(std::path::Path::to_path_buf);
-            match self.tx.try_send((f, p, recipe)) {
-                Ok(()) => {
-                    self.save_folder=folder;self.save_sequence=self.save_sequence.saturating_add(1);
-                    self.busy = true;
-                    self.save_result = "Saving frozen RAW + software recipe…".into();
-                }
-                Err(e) => self.save_result = format!("Export queue error: {e}"),
+    fn save_with_recipe(&mut self, f: Frame, p: PathBuf, recipe: Recipe) {
+        if self.busy || self.closing {
+            return;
+        }
+        let folder = p.parent().map(std::path::Path::to_path_buf);
+        match self.tx.try_send((f, p, recipe)) {
+            Ok(()) => {
+                self.save_folder = folder;
+                self.save_sequence = self.save_sequence.saturating_add(1);
+                self.busy = true;
+                self.save_result = "Saving frozen RAW + software recipe…".into();
             }
+            Err(e) => self.save_result = format!("Export queue error: {e}"),
+        }
     }
     fn capture_full(&mut self) {
-        if self.closing || self.busy || self.product.busy() || self.product.applied.is_none() { return; }
-        self.full_recipe=self.recipe;
+        if self.closing || self.busy || self.product.busy() || self.product.applied.is_none() {
+            return;
+        }
+        self.full_recipe = self.recipe;
         let path = self.save_dialog(true).save_file();
         self.full_selection(path);
     }
     fn full_selection(&mut self, path: Option<PathBuf>) {
-        if let Some(path) = path { self.begin_full(path); }
-        else { self.save_result = "Full capture cancelled before acquisition change".into(); }
+        if let Some(path) = path {
+            self.begin_full(path);
+        } else {
+            self.save_result = "Full capture cancelled before acquisition change".into();
+        }
     }
     fn begin_full(&mut self, path: PathBuf) {
-        if self.closing || self.busy { return; }
-        self.full_recipe=self.recipe;
+        if self.closing || self.busy {
+            return;
+        }
+        self.full_recipe = self.recipe;
         let now = std::time::Instant::now();
         match self.product.begin(now) {
             Ok(full) => {
-                self.export_full=true;
-                if self.save_result.starts_with("Saved image") || self.save_result.contains("cancelled") {self.save_result.clear();}
+                self.export_full = true;
+                if self.save_result.starts_with("Saved image")
+                    || self.save_result.contains("cancelled")
+                {
+                    self.save_result.clear();
+                }
                 self.full_destination = Some(path);
-                if self.product.applied.is_some_and(|a| a.settings != full.settings) {
+                if self
+                    .product
+                    .applied
+                    .is_some_and(|a| a.settings != full.settings)
+                {
                     self.request_settings(self.source.clone(), full.settings, full.intent);
-                    if let Some(e) = self.control_error.clone() { self.product.fail(&e); }
+                    if let Some(e) = self.control_error.clone() {
+                        self.product.fail(&e);
+                    }
                 }
             }
             Err(e) => self.control_error = Some(e),
@@ -425,18 +584,28 @@ impl App {
         let im = egui::ColorImage::from_rgb([width as usize, height as usize], &pixels);
         self.upload_frame(ctx, f, im, std::time::Instant::now());
     }
-    fn upload_frame(&mut self, ctx: &egui::Context, f: Frame, im: egui::ColorImage, now: std::time::Instant) {
-        self.display_size=Some(im.size);
+    fn upload_frame(
+        &mut self,
+        ctx: &egui::Context,
+        f: Frame,
+        im: egui::ColorImage,
+        now: std::time::Instant,
+    ) {
+        self.display_size = Some(im.size);
         if let Some(t) = self.texture.as_mut() {
             t.set(im, egui::TextureOptions::LINEAR);
         } else {
             self.texture = Some(ctx.load_texture("preview", im, egui::TextureOptions::LINEAR));
         }
-        self.frame_received = Some(camera_lab::progress::FrameTiming::received_at(
-            &f,
-            now,
-        ));
-        if self.source.is_some() && f.metadata.acquisition.as_ref().is_some_and(|a|a.settings_generation==self.revision) {self.measurement.submit(&f,now);}
+        self.frame_received = Some(camera_lab::progress::FrameTiming::received_at(&f, now));
+        if self.source.is_some()
+            && f.metadata
+                .acquisition
+                .as_ref()
+                .is_some_and(|a| a.settings_generation == self.revision)
+        {
+            self.measurement.submit(&f, now);
+        }
         self.frame = Some(f);
         self.gui_submits += 1;
     }
@@ -462,78 +631,135 @@ impl App {
                 .map(Self::identity);
             match result {
                 Ok(devices) => {
-                    let (supported,other)=devices.into_iter().partition(|d|camera_lab::device_catalog::usb_candidate(d.vendor_id(),d.product_id()).is_some());
-                    self.devices = supported;self.other_devices=other;
-                    self.selected = Self::refreshed_selection(identity,self.devices.iter().map(Self::identity));
+                    let (supported, other) = devices.into_iter().partition(|d| {
+                        camera_lab::device_catalog::usb_candidate(d.vendor_id(), d.product_id())
+                            .is_some()
+                    });
+                    self.devices = supported;
+                    self.other_devices = other;
+                    self.selected = Self::refreshed_selection(
+                        identity,
+                        self.devices.iter().map(Self::identity),
+                    );
                 }
-                Err(e) => {self.selected=None;self.scan_error=Some(format!("Could not refresh cameras. Try Refresh. {e}"));},
+                Err(e) => {
+                    self.selected = None;
+                    self.scan_error = Some(format!("Could not refresh cameras. Try Refresh. {e}"));
+                }
             }
         }
         match self.rx.try_recv() {
             Ok(r) => {
                 self.busy = false;
                 self.save_result = r.unwrap_or_else(|e| format!("Save failed: {e}"));
-                if !self.save_result.starts_with("Saved image") {self.outcome_fault=Some(self.save_result.clone());}
+                if !self.save_result.starts_with("Saved image") {
+                    self.outcome_fault = Some(self.save_result.clone());
+                }
             }
             Err(mpsc::TryRecvError::Disconnected) if self.busy => {
                 self.busy = false;
                 self.save_result = "Export worker disconnected; file completion unproved".into();
-                self.outcome_fault=Some(self.save_result.clone());
+                self.outcome_fault = Some(self.save_result.clone());
             }
             _ => {}
         }
         // Close has precedence over frame-driven automatic restoration.
-        if (ctx.input(|i| i.viewport().close_requested()) || self.fake_until.is_some_and(|t| now >= t)) && !self.closing {
+        if (ctx.input(|i| i.viewport().close_requested())
+            || self.fake_until.is_some_and(|t| now >= t))
+            && !self.closing
+        {
             self.closing = true;
-            self.product.stop(); self.full_destination = None;
+            self.product.stop();
+            self.full_destination = None;
             self.preview_generation = None;
-            if let Some(preview) = &self.preview { preview.close(); }
+            if let Some(preview) = &self.preview {
+                preview.close();
+            }
             self.worker.close();
         }
         self.session = self.worker.snapshot();
-        if self.session.restart_disabled || self.session.state == camera_lab::session::State::Error {
-            self.connection_fault=true;
-            self.outcome_fault=Some(self.session.message.clone());
+        if self.session.restart_disabled || self.session.state == camera_lab::session::State::Error
+        {
+            self.connection_fault = true;
+            self.outcome_fault = Some(self.session.message.clone());
             self.product.fail(&self.session.message);
         }
-        if self.product.tick(now) { self.request(None); }
+        if self.product.tick(now) {
+            self.request(None);
+        }
         if let Some((id, f)) = self.session.frame.take()
-            && id == self.revision && !self.closing
+            && id == self.revision
+            && !self.closing
         {
             if let Some(generation) = self.preview_generation {
-                if f.validate().is_ok() && (f.metadata.simulated || self.session.applied_revision==Some(id)) {
-                    self.matching_revision=Some(id);self.status.clear();
+                if f.validate().is_ok()
+                    && (f.metadata.simulated || self.session.applied_revision == Some(id))
+                {
+                    self.matching_revision = Some(id);
+                    self.status.clear();
                 }
-                self.measurement.receive(&f,clock());
+                self.measurement.receive(&f, clock());
                 let intent = self.requested_intent;
-                if let Some(restore) = self.product.observe(&f, id, generation.settings, intent, now) {
-                    if let (Some(path), Some(held)) = (self.full_destination.take(), self.product.held.clone()) {
+                if let Some(restore) =
+                    self.product
+                        .observe(&f, id, generation.settings, intent, now)
+                {
+                    if let (Some(path), Some(held)) =
+                        (self.full_destination.take(), self.product.held.clone())
+                    {
                         self.save_with_recipe(held, path, self.full_recipe);
                     }
                     // An already-Full capture needs another sequence, not another owner.
                     if generation.settings != restore.settings {
-                        self.request_settings(self.source.clone(), restore.settings, restore.intent);
-                        if let Some(e) = self.control_error.clone() { self.product.fail(&e); }
+                        self.request_settings(
+                            self.source.clone(),
+                            restore.settings,
+                            restore.intent,
+                        );
+                        if let Some(e) = self.control_error.clone() {
+                            self.product.fail(&e);
+                        }
                     }
                 }
-                if !self.paused && let Some(preview) = &self.preview {
-                    preview.submit(camera_lab::preview_pipeline::Key { generation, sequence: f.metadata.sequence }, f);
+                if !self.paused
+                    && let Some(preview) = &self.preview
+                {
+                    preview.submit(
+                        camera_lab::preview_pipeline::Key {
+                            generation,
+                            sequence: f.metadata.sequence,
+                        },
+                        f,
+                    );
                 }
             }
         }
         if let Some(preview) = &self.preview {
             if let Some(e) = preview.error() {
                 if preview.terminal_failure() {
-                    self.terminal_preview_failure = Some(format!("{e}. Reopen the application to restore preview; automatic restart is disabled."));
-                } else { self.status = e; }
+                    self.terminal_preview_failure = Some(format!(
+                        "{e}. Reopen the application to restore preview; automatic restart is disabled."
+                    ));
+                } else {
+                    self.status = e;
+                }
             }
         }
-        if (!self.paused || self.recipe!=self.displayed_recipe) && !self.closing {
+        if (!self.paused || self.recipe != self.displayed_recipe) && !self.closing {
             if let Some(image) = self.preview.as_ref().and_then(|p| p.take()) {
-                let matches=if image.held {self.frame.as_ref().is_some_and(|f|f.metadata==image.raw.metadata && std::sync::Arc::ptr_eq(&f.raw,&image.raw.raw))} else {Some(image.key.generation)==self.preview_generation};
-                if matches && image.recipe==self.recipe {
-                    if !image.held {self.displayed_revision=Some(image.key.generation.revision);}
-                    self.displayed_recipe=image.recipe;
+                let matches = if image.held {
+                    self.frame.as_ref().is_some_and(|f| {
+                        f.metadata == image.raw.metadata
+                            && std::sync::Arc::ptr_eq(&f.raw, &image.raw.raw)
+                    })
+                } else {
+                    Some(image.key.generation) == self.preview_generation
+                };
+                if matches && image.recipe == self.recipe {
+                    if !image.held {
+                        self.displayed_revision = Some(image.key.generation.revision);
+                    }
+                    self.displayed_recipe = image.recipe;
                     self.upload_frame(ctx, image.raw, image.image, clock());
                 }
             }
@@ -544,7 +770,9 @@ impl App {
         {
             self.closing = true;
             self.preview_generation = None;
-            if let Some(preview) = &self.preview { preview.close(); }
+            if let Some(preview) = &self.preview {
+                preview.close();
+            }
             self.worker.close();
             self.session = self.worker.snapshot();
         }
@@ -562,11 +790,13 @@ impl App {
         }
         // Observe after upload: an entry timestamp precedes the submitted frame and
         // would falsely trip Rolling's genuine clock-regression guard each update.
-        self.parity_ui(ctx,clock());
+        self.parity_ui(ctx, clock());
         self.persist_preferences(self.closing);
         if self.needs_periodic_updates() {
             ctx.request_repaint_after(Duration::from_millis(100));
-        } else if self.preferences_path.is_some() && self.current_preferences()!=self.saved_preferences {
+        } else if self.preferences_path.is_some()
+            && self.current_preferences() != self.saved_preferences
+        {
             ctx.request_repaint_after(Duration::from_secs(1));
         }
     }
@@ -578,10 +808,12 @@ impl eframe::App for App {
 }
 fn main() -> eframe::Result {
     // Explicit support command: enumeration only; no Worker, USB open or helper launch.
-    if std::env::args().nth(1).as_deref()==Some("--startup-report") {
-        let result=(|| -> Result<(),String> {
-            let destination=std::env::args().nth(2).ok_or("Expected a new JSON output path")?;
-            let devices=nusb::list_devices().wait().map_err(|e|e.to_string())?;
+    if std::env::args().nth(1).as_deref() == Some("--startup-report") {
+        let result = (|| -> Result<(), String> {
+            let destination = std::env::args()
+                .nth(2)
+                .ok_or("Expected a new JSON output path")?;
+            let devices = nusb::list_devices().wait().map_err(|e| e.to_string())?;
             let cameras:Vec<_>=devices.filter(|d|camera_lab::device_catalog::usb_candidate(d.vendor_id(),d.product_id()).is_some()).map(|d| {
                 #[cfg(windows)] let driver=d.driver().map(str::to_owned);
                 #[cfg(not(windows))] let driver:Option<String>=None;
@@ -589,14 +821,23 @@ fn main() -> eframe::Result {
                 serde_json::json!({"product":d.product_string(),"usb_id":usb_id.to_string(),"installed_driver":driver,
                     "driver_connection_error":camera_lab::driver_policy::connection_error(&d)})
             }).collect();
-            let helper=std::env::current_exe().map_err(|e|e.to_string())?.with_file_name("continuous-helper.exe");
-            let report=serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,
+            let helper = std::env::current_exe()
+                .map_err(|e| e.to_string())?
+                .with_file_name("continuous-helper.exe");
+            let report = serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,
                 "driver_policy":"preserve-installed-driver/v1","vendor_sdk_backend_available":false,
                 "helper_present":helper.is_file(),"cameras":cameras,"usb_opens":0,"helper_starts":0,"driver_changes":0});
-            let file=std::fs::OpenOptions::new().write(true).create_new(true).open(destination).map_err(|e|e.to_string())?;
-            serde_json::to_writer_pretty(file,&report).map_err(|e|e.to_string())
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(destination)
+                .map_err(|e| e.to_string())?;
+            serde_json::to_writer_pretty(file, &report).map_err(|e| e.to_string())
         })();
-        if let Err(e)=result {eprintln!("Startup report failed: {e}");std::process::exit(1);}
+        if let Err(e) = result {
+            eprintln!("Startup report failed: {e}");
+            std::process::exit(1);
+        }
         return Ok(());
     }
     if std::env::args().nth(1).as_deref() == Some("--physical-adapter-test") {
@@ -640,7 +881,10 @@ fn main() -> eframe::Result {
     // Abort, OOM and external kill cannot be caught.
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
         eframe::run_native(
-            concat!("Select a camera — KohdaLab Camera v",env!("CARGO_PKG_VERSION")),
+            concat!(
+                "Select a camera — KohdaLab Camera v",
+                env!("CARGO_PKG_VERSION")
+            ),
             eframe::NativeOptions {
                 // Present ready camera frames without waiting for display refresh.
                 // Repainting remains driven by readiness and the bounded status timer.
@@ -772,5 +1016,9 @@ fn application_icon() -> egui::IconData {
         .expect("embedded application icon must be valid PNG")
         .into_rgba8();
     let (width, height) = image.dimensions();
-    egui::IconData { rgba: image.into_raw(), width, height }
+    egui::IconData {
+        rgba: image.into_raw(),
+        width,
+        height,
+    }
 }

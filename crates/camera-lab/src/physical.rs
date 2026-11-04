@@ -76,10 +76,14 @@ pub fn drain(
 use crate::diagnostic::SensorFailure as SF;
 const TIMEOUT: Duration = Duration::from_millis(500);
 // Pure response validation shared by the physical read and no-device tests.
-pub(crate) fn validate_sensor_read(bytes:&[u8])->Result<u16,String> {
- if bytes.len()!=3 {return Err(SF::ReadLength.text().into());}
- if bytes[2]!=8 {return Err(SF::ReadStatus.text().into());}
- Ok(u16::from_be_bytes([bytes[0],bytes[1]]))
+pub(crate) fn validate_sensor_read(bytes: &[u8]) -> Result<u16, String> {
+    if bytes.len() != 3 {
+        return Err(SF::ReadLength.text().into());
+    }
+    if bytes[2] != 8 {
+        return Err(SF::ReadStatus.text().into());
+    }
+    Ok(u16::from_be_bytes([bytes[0], bytes[1]]))
 }
 pub fn read(interface: &Interface, address: u16) -> Result<u16, String> {
     if !matches!(address, 0..=0x0a | 0x0d | 0x1e | 0x20..=0x23 | 0x2b..=0x2e | 0x32 | 0x35) {
@@ -148,7 +152,16 @@ pub fn trial(
     preparation: crate::acquisition_recipe::CallerPreparation,
 ) -> Result<(), String> {
     acquire(
-        interface, width, height, root, settings, bridge, session, None, None, preparation,
+        interface,
+        width,
+        height,
+        root,
+        settings,
+        bridge,
+        session,
+        None,
+        None,
+        preparation,
     )
 }
 
@@ -202,12 +215,35 @@ fn acquire(
         std::fs::create_dir(root).map_err(|e| e.to_string())?;
     }
     let (streams, cleanup_slot) = session.records.split_at_mut(4);
-    let mut backend = TrialRecipe { interface, root, bridge: &bridge, settings, streams, control };
-    let result = orchestrate(&mut backend, settings, control.is_some(), startup.map(|s| s.intent),
-        &preparation, &mut cleanup_slot[0], |b| {
-            stream(interface, &root.join("live"), &bridge, false, 30, settings,
-                &mut b.streams[3], control, startup)
-        });
+    let mut backend = TrialRecipe {
+        interface,
+        root,
+        bridge: &bridge,
+        settings,
+        streams,
+        control,
+    };
+    let result = orchestrate(
+        &mut backend,
+        settings,
+        control.is_some(),
+        startup.map(|s| s.intent),
+        &preparation,
+        &mut cleanup_slot[0],
+        |b| {
+            stream(
+                interface,
+                &root.join("live"),
+                &bridge,
+                false,
+                30,
+                settings,
+                &mut b.streams[3],
+                control,
+                startup,
+            )
+        },
+    );
     // Finite filesystem receipts require the actual lifecycle cleanup observation.
     if cleanup_slot[0].as_ref().and_then(|t| t.cleanup_returned_ok) != Some(true) {
         return result;
@@ -253,33 +289,54 @@ pub(crate) fn orchestrate<B: AcquisitionBackend>(
     let result = (|| {
         identity.start(backend, continuous, preparation)?;
         if continuous {
-            crate::acquisition_recipe::initialize_intent(backend, settings,
-                intent.ok_or("Missing continuous startup binding")?)
-                .map_err(|e| crate::diagnostic::backend_text("@IN", e))?;
+            crate::acquisition_recipe::initialize_intent(
+                backend,
+                settings,
+                intent.ok_or("Missing continuous startup binding")?,
+            )
+            .map_err(|e| crate::diagnostic::backend_text("@IN", e))?;
         } else {
             crate::acquisition_recipe::initialize(backend, settings)?;
         }
         live(backend).map_err(|e| crate::diagnostic::backend_text("@ST", e))?;
-        if !continuous { backend.checkpoint()?; }
-        if backend.read(7)? != 2 { return Err(SF::ReadbackMismatch.text().into()); }
+        if !continuous {
+            backend.checkpoint()?;
+        }
+        if backend.read(7)? != 2 {
+            return Err(SF::ReadbackMismatch.text().into());
+        }
         Ok(())
     })();
-    if !identity.verified { return identity.finish_unverified(backend, result); }
-    if backend.quiescence_unproved() { return result; }
+    if !identity.verified {
+        return identity.finish_unverified(backend, result);
+    }
+    if backend.quiescence_unproved() {
+        return result;
+    }
     backend.progress(crate::progress::Stage::Cleanup);
     lifecycle.event(Event::CleanupStart);
     let cleanup: Result<(), String> = (|| {
         backend.bridge(1)?;
         backend.cleanup_disable()?;
-        if backend.read(0)? != 0x1621 { return Err(SF::IdentityMismatch.text().into()); }
+        if backend.read(0)? != 0x1621 {
+            return Err(SF::IdentityMismatch.text().into());
+        }
         Ok(())
     })();
     lifecycle.data.cleanup_returned_ok = Some(cleanup.is_ok());
-    if cleanup.is_ok() { lifecycle.event(Event::CleanupEnd); }
+    if cleanup.is_ok() {
+        lifecycle.event(Event::CleanupEnd);
+    }
     if let Err(error) = cleanup {
         return Err(result.err().filter(|e| e != CANCELLED).unwrap_or_else(|| {
-            if crate::diagnostic::backend_code(&error).origin == crate::diagnostic::Origin::Backend {error}
-            else {format!("@CU Cleanup failed: {error}; STOP ALL WRITES; physical reconnection required")}
+            if crate::diagnostic::backend_code(&error).origin == crate::diagnostic::Origin::Backend
+            {
+                error
+            } else {
+                format!(
+                    "@CU Cleanup failed: {error}; STOP ALL WRITES; physical reconnection required"
+                )
+            }
         }));
     }
     result
@@ -341,8 +398,12 @@ impl<B: Fn(u16) -> Result<(), String>> crate::acquisition_recipe::Backend for Tr
     }
 }
 impl<B: Fn(u16) -> Result<(), String>> AcquisitionBackend for TrialRecipe<'_, B> {
-    fn quiescence_unproved(&self) -> bool { quiescence_unproved(self.streams) }
-    fn cleanup_disable(&mut self) -> Result<(), String> { checked(self.interface, 7, 0) }
+    fn quiescence_unproved(&self) -> bool {
+        quiescence_unproved(self.streams)
+    }
+    fn cleanup_disable(&mut self) -> Result<(), String> {
+        checked(self.interface, 7, 0)
+    }
 }
 /// Exactly the production boundary rule: unsynchronized input is discarded;
 /// an exact frame must terminate with a short completion (including ZLP).
@@ -377,51 +438,116 @@ fn assemble(
 mod tail_v020_tests {
     use super::assemble;
     use crate::tail_provenance::TailProvenance;
-    struct Harness { bytes: Vec<u8>, synced: bool, discarded: u64, shorts: u64, accepted: u64, marked: bool, p: TailProvenance }
+    struct Harness {
+        bytes: Vec<u8>,
+        synced: bool,
+        discarded: u64,
+        shorts: u64,
+        accepted: u64,
+        marked: bool,
+        p: TailProvenance,
+    }
     impl Harness {
-        fn new() -> Self { Self { bytes: vec![], synced:false, discarded:0, shorts:0, accepted:0, marked:false, p:Default::default() } }
-        fn input(&mut self, data:&[u8], cancel:u8) {
-            // 1 before assembly, 2 before acceptance, 3 after accepted telemetry,
-            // 4 after publication before clear. These are observation cut points.
-            if cancel == 1 { return; }
-            let before=self.discarded; let synced=self.synced;
-            let overflow=synced && self.bytes.len()+data.len()>32768;
-            let complete=assemble(&mut self.bytes,&mut self.synced,32768,data,&mut self.discarded,&mut self.shorts);
-            self.p.assembly(synced,overflow,self.discarded-before); self.marked=false;
-            if complete {
-                if cancel == 2 { return; }
-                self.accepted+=1; self.marked=true;
-                if cancel == 3 || cancel == 4 { return; }
-                self.bytes.clear(); self.marked=false;
+        fn new() -> Self {
+            Self {
+                bytes: vec![],
+                synced: false,
+                discarded: 0,
+                shorts: 0,
+                accepted: 0,
+                marked: false,
+                p: Default::default(),
             }
         }
-        fn tail(&mut self)->TailProvenance { self.p.finish(self.bytes.len(),32768,self.marked); self.p }
-        fn sync(&mut self) { self.input(&[1],0); }
-        fn prefix(&mut self) { self.input(&[0;16384],0);self.input(&[0;16384],0); }
+        fn input(&mut self, data: &[u8], cancel: u8) {
+            // 1 before assembly, 2 before acceptance, 3 after accepted telemetry,
+            // 4 after publication before clear. These are observation cut points.
+            if cancel == 1 {
+                return;
+            }
+            let before = self.discarded;
+            let synced = self.synced;
+            let overflow = synced && self.bytes.len() + data.len() > 32768;
+            let complete = assemble(
+                &mut self.bytes,
+                &mut self.synced,
+                32768,
+                data,
+                &mut self.discarded,
+                &mut self.shorts,
+            );
+            self.p.assembly(synced, overflow, self.discarded - before);
+            self.marked = false;
+            if complete {
+                if cancel == 2 {
+                    return;
+                }
+                self.accepted += 1;
+                self.marked = true;
+                if cancel == 3 || cancel == 4 {
+                    return;
+                }
+                self.bytes.clear();
+                self.marked = false;
+            }
+        }
+        fn tail(&mut self) -> TailProvenance {
+            self.p.finish(self.bytes.len(), 32768, self.marked);
+            self.p
+        }
+        fn sync(&mut self) {
+            self.input(&[1], 0);
+        }
+        fn prefix(&mut self) {
+            self.input(&[0; 16384], 0);
+            self.input(&[0; 16384], 0);
+        }
     }
     #[test]
     fn cancellation_checkpoints_v020_tail_attribution() {
         for cancel in 1..=4 {
-            let mut h=Harness::new();h.sync();h.prefix();h.input(&[],cancel);
-            let p=h.tail();assert_eq!(p.initial_sync,1);assert_eq!(p.tail_bytes,32768);
-            assert_eq!(p.tail_state,if cancel <= 2 {3}else{2});
-            assert_eq!(h.accepted,if cancel <=2 {0}else{1});
-            assert_eq!(p.intervening_boundary,0);assert_eq!(p.intervening_overflow,0);
+            let mut h = Harness::new();
+            h.sync();
+            h.prefix();
+            h.input(&[], cancel);
+            let p = h.tail();
+            assert_eq!(p.initial_sync, 1);
+            assert_eq!(p.tail_bytes, 32768);
+            assert_eq!(p.tail_state, if cancel <= 2 { 3 } else { 2 });
+            assert_eq!(h.accepted, if cancel <= 2 { 0 } else { 1 });
+            assert_eq!(p.intervening_boundary, 0);
+            assert_eq!(p.intervening_overflow, 0);
         }
-        let mut h=Harness::new(); assert_eq!(h.tail().tail_state,0);
-        h.sync();h.input(&[0;16384],0);assert_eq!(h.tail().tail_state,1);
-        h.input(&[0;16384],0);h.input(&[],0);assert_eq!(h.accepted,1);
-        assert_eq!(h.tail().tail_state,0);assert_eq!(h.p.initial_sync,1);
+        let mut h = Harness::new();
+        assert_eq!(h.tail().tail_state, 0);
+        h.sync();
+        h.input(&[0; 16384], 0);
+        assert_eq!(h.tail().tail_state, 1);
+        h.input(&[0; 16384], 0);
+        h.input(&[], 0);
+        assert_eq!(h.accepted, 1);
+        assert_eq!(h.tail().tail_state, 0);
+        assert_eq!(h.p.initial_sync, 1);
     }
     #[test]
     fn intervening_bad_short_overflow_v020_preserves_aggregate() {
-        let mut h=Harness::new();h.sync();h.prefix();h.input(&[],0);
-        h.input(&[1],0);assert_eq!(h.p.intervening_boundary,1);
-        h.prefix();h.input(&[0;16384],0); // overflow, awaiting resynchronization
-        h.input(&[],0);h.prefix();h.input(&[],0);
-        assert_eq!(h.accepted,2);assert_eq!(h.p.initial_sync,1);
-        assert_eq!(h.p.intervening_overflow,1);assert_eq!(h.p.intervening_boundary,2);
-        assert_eq!(h.discarded,4);assert_eq!(h.tail().tail_state,0);
+        let mut h = Harness::new();
+        h.sync();
+        h.prefix();
+        h.input(&[], 0);
+        h.input(&[1], 0);
+        assert_eq!(h.p.intervening_boundary, 1);
+        h.prefix();
+        h.input(&[0; 16384], 0); // overflow, awaiting resynchronization
+        h.input(&[], 0);
+        h.prefix();
+        h.input(&[], 0);
+        assert_eq!(h.accepted, 2);
+        assert_eq!(h.p.initial_sync, 1);
+        assert_eq!(h.p.intervening_overflow, 1);
+        assert_eq!(h.p.intervening_boundary, 2);
+        assert_eq!(h.discarded, 4);
+        assert_eq!(h.tail().tail_state, 0);
     }
 }
 fn stream(
@@ -440,8 +566,11 @@ fn stream(
     }
     let ep = interface
         .endpoint::<Bulk, In>(0x82)
-        .map_err(|e| crate::diagnostic::backend_text("@ST",e.to_string()))?;
-    stream_endpoint(ep, root, bridge, pattern, seconds, settings, slot, control, startup).map_err(|e|crate::diagnostic::backend_text("@ST",e))
+        .map_err(|e| crate::diagnostic::backend_text("@ST", e.to_string()))?;
+    stream_endpoint(
+        ep, root, bridge, pattern, seconds, settings, slot, control, startup,
+    )
+    .map_err(|e| crate::diagnostic::backend_text("@ST", e))
 }
 
 trait StreamEndpoint {
@@ -643,11 +772,16 @@ fn stream_endpoint(
                     control.unwrap().publish_frame(crate::Frame {
                         raw: std::sync::Arc::new(candidate.clone()),
                         metadata: crate::Metadata {
-                            acquisition: Some(startup.ok_or("Missing frame startup binding")?.acquisition(settings,accepted)?),
-source: "Continuous physical".into(),
+                            acquisition: Some(
+                                startup
+                                    .ok_or("Missing frame startup binding")?
+                                    .acquisition(settings, accepted)?,
+                            ),
+                            source: "Continuous physical".into(),
                             simulated: false,
                             sequence: accepted,
-                            measurement: None, unix_millis: 0,
+                            measurement: None,
+                            unix_millis: 0,
                             width: width.into(),
                             height: height.into(),
                             format: "BayerGRBG8".into(),
@@ -1315,186 +1449,546 @@ mod repair_tests {
     }
 }
 
-#[cfg(test)] mod v039_tests {
- use super::*;
- #[test] fn v039_production_read_validation() {
-  for bytes in [&[][..], &[0,0][..], &[0,0,8,0][..]] {assert_eq!(validate_sensor_read(bytes).unwrap_err(),SF::ReadLength.text());}
-  assert_eq!(validate_sensor_read(&[0x16,0x21,7]).unwrap_err(),SF::ReadStatus.text());
-  assert_eq!(validate_sensor_read(&[0x16,0x21,8]).unwrap(),0x1621);
- }
+#[cfg(test)]
+mod v039_tests {
+    use super::*;
+    #[test]
+    fn v039_production_read_validation() {
+        for bytes in [&[][..], &[0, 0][..], &[0, 0, 8, 0][..]] {
+            assert_eq!(
+                validate_sensor_read(bytes).unwrap_err(),
+                SF::ReadLength.text()
+            );
+        }
+        assert_eq!(
+            validate_sensor_read(&[0x16, 0x21, 7]).unwrap_err(),
+            SF::ReadStatus.text()
+        );
+        assert_eq!(validate_sensor_read(&[0x16, 0x21, 8]).unwrap(), 0x1621);
+    }
 }
 
 #[cfg(test)]
 pub(crate) mod v041_tests {
     use super::*;
-    use crate::{acquisition_recipe::{Backend, CallerPreparation}, controls::Settings, startup::Intent};
+    use crate::{
+        acquisition_recipe::{Backend, CallerPreparation},
+        controls::Settings,
+        startup::Intent,
+    };
     #[derive(Default)]
     pub(crate) struct Recording {
-        pub ops: Vec<String>, checkpoints: usize, cancel_at: Option<usize>,
-        bridge_calls: usize, fail_bridge: Option<usize>, reply: Option<Vec<u8>>,
-        identity_error: Option<String>, gain: u16, cleanup_error: bool, cleanup_identity_error: bool, init_error: bool,
-        live_error: Option<String>, unproved: bool,
+        pub ops: Vec<String>,
+        checkpoints: usize,
+        cancel_at: Option<usize>,
+        bridge_calls: usize,
+        fail_bridge: Option<usize>,
+        reply: Option<Vec<u8>>,
+        identity_error: Option<String>,
+        gain: u16,
+        cleanup_error: bool,
+        cleanup_identity_error: bool,
+        init_error: bool,
+        live_error: Option<String>,
+        unproved: bool,
         streams: [Option<crate::acquisition_telemetry::Telemetry>; 4],
     }
     impl Backend for Recording {
-        fn checkpoint(&mut self)->Result<(),String> {
-            let n=self.checkpoints;self.checkpoints+=1;
-            if self.cancel_at==Some(n){Err(CANCELLED.into())}else{Ok(())}
-        }
-        fn bridge(&mut self,v:u16)->Result<(),String> {
-            let n=self.bridge_calls;self.bridge_calls+=1;self.ops.push(format!("B{v}"));
-            if self.fail_bridge==Some(n){Err("@IN preparation transport".into())}else{Ok(())}
-        }
-        fn read(&mut self,a:u16)->Result<u16,String> {
-            self.ops.push(format!("R{a}"));
-            if a==0 {
-                if let Some(e)=&self.identity_error {return Err(e.clone())}
-                return validate_sensor_read(self.reply.as_deref().unwrap_or(&[0x16,0x21,8]));
+        fn checkpoint(&mut self) -> Result<(), String> {
+            let n = self.checkpoints;
+            self.checkpoints += 1;
+            if self.cancel_at == Some(n) {
+                Err(CANCELLED.into())
+            } else {
+                Ok(())
             }
-            Ok(if a==7 {2}else{self.gain})
         }
-        fn write(&mut self,a:u16,v:u16)->Result<(),String>{self.ops.push(format!("W{a}:{v}"));Ok(())}
-        fn checked(&mut self,a:u16,v:u16)->Result<(),String>{if self.init_error {return Err(SF::WriteStatus.text().into())} if a==0x35{self.gain=v}self.write(a,v)}
-        fn settle(&mut self,d:Duration)->Result<(),String>{assert_eq!(d,Duration::from_millis(20));self.ops.push("settle20".into());Ok(())}
-        fn progress(&mut self,s:crate::progress::Stage){self.ops.push(format!("stage:{s:?}"));}
-        fn pattern(&mut self,i:usize,_:&str,d:Duration)->Result<(),String>{assert_eq!(d,Duration::from_secs(5));self.ops.push(format!("P{i}"));Ok(())}
+        fn bridge(&mut self, v: u16) -> Result<(), String> {
+            let n = self.bridge_calls;
+            self.bridge_calls += 1;
+            self.ops.push(format!("B{v}"));
+            if self.fail_bridge == Some(n) {
+                Err("@IN preparation transport".into())
+            } else {
+                Ok(())
+            }
+        }
+        fn read(&mut self, a: u16) -> Result<u16, String> {
+            self.ops.push(format!("R{a}"));
+            if a == 0 {
+                if let Some(e) = &self.identity_error {
+                    return Err(e.clone());
+                }
+                return validate_sensor_read(self.reply.as_deref().unwrap_or(&[0x16, 0x21, 8]));
+            }
+            Ok(if a == 7 { 2 } else { self.gain })
+        }
+        fn write(&mut self, a: u16, v: u16) -> Result<(), String> {
+            self.ops.push(format!("W{a}:{v}"));
+            Ok(())
+        }
+        fn checked(&mut self, a: u16, v: u16) -> Result<(), String> {
+            if self.init_error {
+                return Err(SF::WriteStatus.text().into());
+            }
+            if a == 0x35 {
+                self.gain = v
+            }
+            self.write(a, v)
+        }
+        fn settle(&mut self, d: Duration) -> Result<(), String> {
+            assert_eq!(d, Duration::from_millis(20));
+            self.ops.push("settle20".into());
+            Ok(())
+        }
+        fn progress(&mut self, s: crate::progress::Stage) {
+            self.ops.push(format!("stage:{s:?}"));
+        }
+        fn pattern(&mut self, i: usize, _: &str, d: Duration) -> Result<(), String> {
+            assert_eq!(d, Duration::from_secs(5));
+            self.ops.push(format!("P{i}"));
+            Ok(())
+        }
     }
     impl AcquisitionBackend for Recording {
-        fn quiescence_unproved(&self)->bool {quiescence_unproved(&self.streams)}
-        fn cleanup_disable(&mut self)->Result<(),String> {
+        fn quiescence_unproved(&self) -> bool {
+            quiescence_unproved(&self.streams)
+        }
+        fn cleanup_disable(&mut self) -> Result<(), String> {
             self.ops.push("disable7/readback".into());
-            if self.cleanup_identity_error {self.identity_error=Some(SF::ReadTransport.text().into());}
-            if self.cleanup_error {Err(SF::ReadbackMismatch.text().into())} else {Ok(())}
+            if self.cleanup_identity_error {
+                self.identity_error = Some(SF::ReadTransport.text().into());
+            }
+            if self.cleanup_error {
+                Err(SF::ReadbackMismatch.text().into())
+            } else {
+                Ok(())
+            }
         }
     }
-    pub(crate) struct Run { pub result: Result<(),String>, pub session: Session, pub ops: Vec<String> }
-    fn run(mut b:Recording, continuous:bool, intent:Intent, caller:CallerPreparation)->Run {
-        let settings=Settings{exposure_rows:73,gain_eighths:24,..Default::default()};
-        let mut session=Session::default();
-        let result=orchestrate(&mut b,settings,continuous,Some(intent),&caller,&mut session.records[4],|b| {
-            b.ops.push("LIVE".into());
-            let mut stream=Recorder::new(&mut b.streams[3],Binding::new(settings,false));
-            stream.data.drain_returned_ok=Some(!b.unproved);
-            b.live_error.clone().map_or(Ok(()),Err)
-        });
-        for (dst,src) in session.records[..4].iter_mut().zip(b.streams) {*dst=src;}
-        Run{result,session,ops:b.ops}
+    pub(crate) struct Run {
+        pub result: Result<(), String>,
+        pub session: Session,
+        pub ops: Vec<String>,
     }
-    fn unknown(run:&Run) {
-        let t=run.session.records[4].as_ref().unwrap();
-        assert_eq!(t.cleanup_returned_ok,None);
-        for e in [Event::CleanupStart,Event::CleanupEnd] {assert_eq!(t.relative_ns[e as usize],None);}
-        assert!(!run.ops.iter().any(|s|s.starts_with('W') || s=="disable7/readback" || s=="LIVE"));
+    fn run(mut b: Recording, continuous: bool, intent: Intent, caller: CallerPreparation) -> Run {
+        let settings = Settings {
+            exposure_rows: 73,
+            gain_eighths: 24,
+            ..Default::default()
+        };
+        let mut session = Session::default();
+        let result = orchestrate(
+            &mut b,
+            settings,
+            continuous,
+            Some(intent),
+            &caller,
+            &mut session.records[4],
+            |b| {
+                b.ops.push("LIVE".into());
+                let mut stream = Recorder::new(&mut b.streams[3], Binding::new(settings, false));
+                stream.data.drain_returned_ok = Some(!b.unproved);
+                b.live_error.clone().map_or(Ok(()), Err)
+            },
+        );
+        for (dst, src) in session.records[..4].iter_mut().zip(b.streams) {
+            *dst = src;
+        }
+        Run {
+            result,
+            session,
+            ops: b.ops,
+        }
+    }
+    fn unknown(run: &Run) {
+        let t = run.session.records[4].as_ref().unwrap();
+        assert_eq!(t.cleanup_returned_ok, None);
+        for e in [Event::CleanupStart, Event::CleanupEnd] {
+            assert_eq!(t.relative_ns[e as usize], None);
+        }
+        assert!(
+            !run.ops
+                .iter()
+                .any(|s| s.starts_with('W') || s == "disable7/readback" || s == "LIVE")
+        );
     }
     /// Also used on Windows to project these actual orchestration results/records.
-    pub(crate) fn unverified_runs()->Vec<Run> {
-        let mut runs=Vec::new();
+    pub(crate) fn unverified_runs() -> Vec<Run> {
+        let mut runs = Vec::new();
         for n in 0..4 {
-            let r=run(Recording{cancel_at:Some(n),..Default::default()},true,Intent::Normal,Default::default());
-            assert_eq!(r.result.as_ref().unwrap_err(),CANCELLED);
-            let mut expected:Vec<String>=["B1","B0","B1"][..n].iter().map(|s|s.to_string()).collect();
-            if n>0 {expected.push("B1".into())}assert_eq!(r.ops,expected);unknown(&r);runs.push(r);
+            let r = run(
+                Recording {
+                    cancel_at: Some(n),
+                    ..Default::default()
+                },
+                true,
+                Intent::Normal,
+                Default::default(),
+            );
+            assert_eq!(r.result.as_ref().unwrap_err(), CANCELLED);
+            let mut expected: Vec<String> = ["B1", "B0", "B1"][..n]
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+            if n > 0 {
+                expected.push("B1".into())
+            }
+            assert_eq!(r.ops, expected);
+            unknown(&r);
+            runs.push(r);
         }
         for n in 0..3 {
-            let r=run(Recording{fail_bridge:Some(n),..Default::default()},true,Intent::Normal,Default::default());
-            assert_eq!(r.result.as_ref().unwrap_err(),"@IN preparation transport");
-            let mut expected:Vec<String>=["B1","B0","B1"][..=n].iter().map(|s|s.to_string()).collect();expected.push("B1".into());
-            assert_eq!(r.ops,expected);unknown(&r);runs.push(r);
+            let r = run(
+                Recording {
+                    fail_bridge: Some(n),
+                    ..Default::default()
+                },
+                true,
+                Intent::Normal,
+                Default::default(),
+            );
+            assert_eq!(r.result.as_ref().unwrap_err(), "@IN preparation transport");
+            let mut expected: Vec<String> = ["B1", "B0", "B1"][..=n]
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+            expected.push("B1".into());
+            assert_eq!(r.ops, expected);
+            unknown(&r);
+            runs.push(r);
         }
-        for (reply,error) in [(None,SF::ReadTransport),(Some(vec![]),SF::ReadLength),(Some(vec![0x16,0x21]),SF::ReadLength),(Some(vec![0x16,0x21,8,0]),SF::ReadLength),(Some(vec![0x16,0x21,0]),SF::ReadStatus),(Some(vec![0,0,8]),SF::IdentityMismatch)] {
-            let b=Recording{reply,identity_error:if error==SF::ReadTransport{Some(error.text().into())}else{None},fail_bridge:Some(3),..Default::default()};
-            let r=run(b,true,Intent::Normal,Default::default());
-            assert_eq!(r.result.as_ref().unwrap_err(),error.text());assert_eq!(r.ops,vec!["B1","B0","B1","R0","B1"]);unknown(&r);runs.push(r);
+        for (reply, error) in [
+            (None, SF::ReadTransport),
+            (Some(vec![]), SF::ReadLength),
+            (Some(vec![0x16, 0x21]), SF::ReadLength),
+            (Some(vec![0x16, 0x21, 8, 0]), SF::ReadLength),
+            (Some(vec![0x16, 0x21, 0]), SF::ReadStatus),
+            (Some(vec![0, 0, 8]), SF::IdentityMismatch),
+        ] {
+            let b = Recording {
+                reply,
+                identity_error: if error == SF::ReadTransport {
+                    Some(error.text().into())
+                } else {
+                    None
+                },
+                fail_bridge: Some(3),
+                ..Default::default()
+            };
+            let r = run(b, true, Intent::Normal, Default::default());
+            assert_eq!(r.result.as_ref().unwrap_err(), error.text());
+            assert_eq!(r.ops, vec!["B1", "B0", "B1", "R0", "B1"]);
+            unknown(&r);
+            runs.push(r);
         }
         // Actual finite caller passes attempts/completions and external-read failure.
-        for (attempts,completed,external) in [(0,0,false),(1,0,false),(1,1,false),(2,1,false),(3,3,false),(0,0,true),(3,3,true)] {
-            let caller=CallerPreparation{bridge_attempts:attempts,bridge_completed:completed,identity_attempted:external,failure:None,..Default::default()};
-            let r=run(Recording{cancel_at:Some(0),fail_bridge:Some(0),..Default::default()},false,Intent::Diagnostics,caller);
-            assert_eq!(r.result.as_ref().unwrap_err(),CANCELLED);
-            assert_eq!(r.ops,if attempts>0||external{vec!["B1"]}else{vec![]});unknown(&r);runs.push(r);
+        for (attempts, completed, external) in [
+            (0, 0, false),
+            (1, 0, false),
+            (1, 1, false),
+            (2, 1, false),
+            (3, 3, false),
+            (0, 0, true),
+            (3, 3, true),
+        ] {
+            let caller = CallerPreparation {
+                bridge_attempts: attempts,
+                bridge_completed: completed,
+                identity_attempted: external,
+                failure: None,
+                ..Default::default()
+            };
+            let r = run(
+                Recording {
+                    cancel_at: Some(0),
+                    fail_bridge: Some(0),
+                    ..Default::default()
+                },
+                false,
+                Intent::Diagnostics,
+                caller,
+            );
+            assert_eq!(r.result.as_ref().unwrap_err(), CANCELLED);
+            assert_eq!(
+                r.ops,
+                if attempts > 0 || external {
+                    vec!["B1"]
+                } else {
+                    vec![]
+                }
+            );
+            unknown(&r);
+            runs.push(r);
         }
-        for (attempts,external,error) in [(1,false,"@IN preparation transport"),(3,true,SF::ReadTransport.text()),(3,true,SF::ReadLength.text()),(3,true,SF::ReadStatus.text()),(3,true,SF::IdentityMismatch.text())] {
-            let caller=CallerPreparation{bridge_attempts:attempts,bridge_completed:0,identity_attempted:external,failure:Some(error.into()),..Default::default()};
-            let r=run(Recording{fail_bridge:Some(0),..Default::default()},false,Intent::Diagnostics,caller);
-            assert_eq!(r.result.as_ref().unwrap_err(),error);assert_eq!(r.ops,vec!["B1"]);unknown(&r);runs.push(r);
+        for (attempts, external, error) in [
+            (1, false, "@IN preparation transport"),
+            (3, true, SF::ReadTransport.text()),
+            (3, true, SF::ReadLength.text()),
+            (3, true, SF::ReadStatus.text()),
+            (3, true, SF::IdentityMismatch.text()),
+        ] {
+            let caller = CallerPreparation {
+                bridge_attempts: attempts,
+                bridge_completed: 0,
+                identity_attempted: external,
+                failure: Some(error.into()),
+                ..Default::default()
+            };
+            let r = run(
+                Recording {
+                    fail_bridge: Some(0),
+                    ..Default::default()
+                },
+                false,
+                Intent::Diagnostics,
+                caller,
+            );
+            assert_eq!(r.result.as_ref().unwrap_err(), error);
+            assert_eq!(r.ops, vec!["B1"]);
+            unknown(&r);
+            runs.push(r);
         }
         runs
     }
     #[test]
     fn v041_finite_dispatch_state_survives_failure_and_cancellation() {
         for completed in 0..=3 {
-            let mut caller=CallerPreparation::default();
-            for _ in 0..completed {caller.dispatch_bridge(|| Ok(())).unwrap();}
-            assert_eq!(caller.bridge_attempts,completed);assert_eq!(caller.bridge_completed,completed);
-            let r=run(Recording{cancel_at:Some(0),..Default::default()},false,Intent::Diagnostics,caller);
-            assert_eq!(r.result.as_ref().unwrap_err(),CANCELLED);
-            assert_eq!(r.ops,if completed==0{vec![]}else{vec!["B1"]});unknown(&r);
+            let mut caller = CallerPreparation::default();
+            for _ in 0..completed {
+                caller.dispatch_bridge(|| Ok(())).unwrap();
+            }
+            assert_eq!(caller.bridge_attempts, completed);
+            assert_eq!(caller.bridge_completed, completed);
+            let r = run(
+                Recording {
+                    cancel_at: Some(0),
+                    ..Default::default()
+                },
+                false,
+                Intent::Diagnostics,
+                caller,
+            );
+            assert_eq!(r.result.as_ref().unwrap_err(), CANCELLED);
+            assert_eq!(r.ops, if completed == 0 { vec![] } else { vec!["B1"] });
+            unknown(&r);
         }
         for completed in 0..3 {
-            let mut caller=CallerPreparation::default();
-            for _ in 0..completed {caller.dispatch_bridge(|| Ok(())).unwrap();}
-            caller.dispatch_bridge(|| Err("bridge fault".into())).unwrap_err();
-            assert_eq!(caller.bridge_attempts,completed+1);assert_eq!(caller.bridge_completed,completed);
-            let r=run(Recording{fail_bridge:Some(0),..Default::default()},false,Intent::Diagnostics,caller);
-            assert_eq!(r.result.as_ref().unwrap_err(),"@IN bridge fault");assert_eq!(r.ops,vec!["B1"]);unknown(&r);
+            let mut caller = CallerPreparation::default();
+            for _ in 0..completed {
+                caller.dispatch_bridge(|| Ok(())).unwrap();
+            }
+            caller
+                .dispatch_bridge(|| Err("bridge fault".into()))
+                .unwrap_err();
+            assert_eq!(caller.bridge_attempts, completed + 1);
+            assert_eq!(caller.bridge_completed, completed);
+            let r = run(
+                Recording {
+                    fail_bridge: Some(0),
+                    ..Default::default()
+                },
+                false,
+                Intent::Diagnostics,
+                caller,
+            );
+            assert_eq!(r.result.as_ref().unwrap_err(), "@IN bridge fault");
+            assert_eq!(r.ops, vec!["B1"]);
+            unknown(&r);
         }
-        let mut caller=CallerPreparation::default();
-        caller.dispatch_identity(|| Err::<(),_>(SF::ReadStatus.text().into())).unwrap_err();
-        assert!(caller.identity_attempted);assert_eq!(caller.bridge_attempts,0);
-        let r=run(Recording{fail_bridge:Some(0),..Default::default()},false,Intent::Diagnostics,caller);
-        assert_eq!(r.result.as_ref().unwrap_err(),SF::ReadStatus.text());assert_eq!(r.ops,vec!["B1"]);unknown(&r);
-        let mut caller=CallerPreparation::default();
+        let mut caller = CallerPreparation::default();
+        caller
+            .dispatch_identity(|| Err::<(), _>(SF::ReadStatus.text().into()))
+            .unwrap_err();
+        assert!(caller.identity_attempted);
+        assert_eq!(caller.bridge_attempts, 0);
+        let r = run(
+            Recording {
+                fail_bridge: Some(0),
+                ..Default::default()
+            },
+            false,
+            Intent::Diagnostics,
+            caller,
+        );
+        assert_eq!(r.result.as_ref().unwrap_err(), SF::ReadStatus.text());
+        assert_eq!(r.ops, vec!["B1"]);
+        unknown(&r);
+        let mut caller = CallerPreparation::default();
         caller.dispatch_identity(|| Ok(())).unwrap();
-        caller.stop_attempted=true;
-        caller.dispatch_bridge(|| Err("existing STOP fault".into())).unwrap_err();
-        let r=run(Recording::default(),false,Intent::Diagnostics,caller);
-        assert_eq!(r.result.as_ref().unwrap_err(),"@IN existing STOP fault");assert!(r.ops.is_empty());unknown(&r);
+        caller.stop_attempted = true;
+        caller
+            .dispatch_bridge(|| Err("existing STOP fault".into()))
+            .unwrap_err();
+        let r = run(Recording::default(), false, Intent::Diagnostics, caller);
+        assert_eq!(r.result.as_ref().unwrap_err(), "@IN existing STOP fault");
+        assert!(r.ops.is_empty());
+        unknown(&r);
     }
-    #[test] fn v041_unverified_orchestration_boundaries_and_first_cause() {assert_eq!(unverified_runs().len(),25);}
-    pub(crate) fn verified_runs()->Vec<Run> {
-        let mut runs=vec![];
-        for continuous in [true,false] {for intent in [Intent::Normal,Intent::Diagnostics] {
-            let r=run(Recording::default(),continuous,intent,CallerPreparation{bridge_attempts:3,bridge_completed:3,..Default::default()});
-            r.result.as_ref().unwrap();
-            let prefix:Vec<&str>=if continuous{vec!["B1","B0","B1","R0"]}else{vec!["R0"]};
-            assert_eq!(&r.ops[..prefix.len()],prefix.as_slice());
-            assert_eq!(r.ops.iter().filter(|s|s.as_str()=="B0").count(),if continuous{1}else{0});
-            let expected_patterns=if !continuous||intent==Intent::Diagnostics{3}else{0};
-            assert_eq!(r.ops.iter().filter(|s|s.starts_with('P')).count(),expected_patterns);
-            assert!(r.ops.contains(&"W9:73".into())&&r.ops.contains(&"W53:24".into()));
-            let live=r.ops.iter().position(|s|s=="LIVE").unwrap();assert_eq!(r.ops[live+1],"R7");
-            assert!(r.ops.ends_with(&["B1".into(),"disable7/readback".into(),"R0".into()]));
-            let t=r.session.records[4].as_ref().unwrap();assert_eq!(t.cleanup_returned_ok,Some(true));
-            assert!(t.relative_ns[Event::CleanupStart as usize].is_some()&&t.relative_ns[Event::CleanupEnd as usize].is_some());runs.push(r);
-        }}
-        for first in [None,Some(CANCELLED),Some(SF::ReadStatus.text())] {
-            let r=run(Recording{cleanup_error:true,live_error:first.map(str::to_string),..Default::default()},true,Intent::Normal,Default::default());
-            assert_eq!(r.result.as_ref().unwrap_err(),if first==Some(SF::ReadStatus.text()){SF::ReadStatus.text()}else{SF::ReadbackMismatch.text()});
-            let t=r.session.records[4].as_ref().unwrap();assert_eq!(t.cleanup_returned_ok,Some(false));assert!(t.relative_ns[Event::CleanupStart as usize].is_some());assert_eq!(t.relative_ns[Event::CleanupEnd as usize],None);
-            assert!(r.ops.ends_with(&["B1".into(),"disable7/readback".into()]));runs.push(r);
+    #[test]
+    fn v041_unverified_orchestration_boundaries_and_first_cause() {
+        assert_eq!(unverified_runs().len(), 25);
+    }
+    pub(crate) fn verified_runs() -> Vec<Run> {
+        let mut runs = vec![];
+        for continuous in [true, false] {
+            for intent in [Intent::Normal, Intent::Diagnostics] {
+                let r = run(
+                    Recording::default(),
+                    continuous,
+                    intent,
+                    CallerPreparation {
+                        bridge_attempts: 3,
+                        bridge_completed: 3,
+                        ..Default::default()
+                    },
+                );
+                r.result.as_ref().unwrap();
+                let prefix: Vec<&str> = if continuous {
+                    vec!["B1", "B0", "B1", "R0"]
+                } else {
+                    vec!["R0"]
+                };
+                assert_eq!(&r.ops[..prefix.len()], prefix.as_slice());
+                assert_eq!(
+                    r.ops.iter().filter(|s| s.as_str() == "B0").count(),
+                    if continuous { 1 } else { 0 }
+                );
+                let expected_patterns = if !continuous || intent == Intent::Diagnostics {
+                    3
+                } else {
+                    0
+                };
+                assert_eq!(
+                    r.ops.iter().filter(|s| s.starts_with('P')).count(),
+                    expected_patterns
+                );
+                assert!(r.ops.contains(&"W9:73".into()) && r.ops.contains(&"W53:24".into()));
+                let live = r.ops.iter().position(|s| s == "LIVE").unwrap();
+                assert_eq!(r.ops[live + 1], "R7");
+                assert!(
+                    r.ops
+                        .ends_with(&["B1".into(), "disable7/readback".into(), "R0".into()])
+                );
+                let t = r.session.records[4].as_ref().unwrap();
+                assert_eq!(t.cleanup_returned_ok, Some(true));
+                assert!(
+                    t.relative_ns[Event::CleanupStart as usize].is_some()
+                        && t.relative_ns[Event::CleanupEnd as usize].is_some()
+                );
+                runs.push(r);
+            }
         }
-        let r=run(Recording{unproved:true,live_error:Some(QUIESCENCE_FAILED.into()),..Default::default()},true,Intent::Normal,Default::default());
-        assert!(r.ops.ends_with(&["LIVE".into()]));assert_eq!(r.result.as_ref().unwrap_err(),"@ST Transfer quiescence unproved; evidence review and physical recovery required");
-        let t=r.session.records[4].as_ref().unwrap();assert_eq!(t.cleanup_returned_ok,None);assert_eq!(t.relative_ns[Event::CleanupEnd as usize],None);runs.push(r);
+        for first in [None, Some(CANCELLED), Some(SF::ReadStatus.text())] {
+            let r = run(
+                Recording {
+                    cleanup_error: true,
+                    live_error: first.map(str::to_string),
+                    ..Default::default()
+                },
+                true,
+                Intent::Normal,
+                Default::default(),
+            );
+            assert_eq!(
+                r.result.as_ref().unwrap_err(),
+                if first == Some(SF::ReadStatus.text()) {
+                    SF::ReadStatus.text()
+                } else {
+                    SF::ReadbackMismatch.text()
+                }
+            );
+            let t = r.session.records[4].as_ref().unwrap();
+            assert_eq!(t.cleanup_returned_ok, Some(false));
+            assert!(t.relative_ns[Event::CleanupStart as usize].is_some());
+            assert_eq!(t.relative_ns[Event::CleanupEnd as usize], None);
+            assert!(r.ops.ends_with(&["B1".into(), "disable7/readback".into()]));
+            runs.push(r);
+        }
+        let r = run(
+            Recording {
+                unproved: true,
+                live_error: Some(QUIESCENCE_FAILED.into()),
+                ..Default::default()
+            },
+            true,
+            Intent::Normal,
+            Default::default(),
+        );
+        assert!(r.ops.ends_with(&["LIVE".into()]));
+        assert_eq!(
+            r.result.as_ref().unwrap_err(),
+            "@ST Transfer quiescence unproved; evidence review and physical recovery required"
+        );
+        let t = r.session.records[4].as_ref().unwrap();
+        assert_eq!(t.cleanup_returned_ok, None);
+        assert_eq!(t.relative_ns[Event::CleanupEnd as usize], None);
+        runs.push(r);
         runs
     }
     #[test]
     fn v041_verified_cleanup_each_mandatory_failure_and_init_first_cause() {
-        for (bridge,disable,identity,error) in [(Some(3),false,false,"@IN preparation transport"),(None,true,false,SF::ReadbackMismatch.text()),(None,false,true,SF::ReadTransport.text())] {
-            let r=run(Recording{fail_bridge:bridge,cleanup_error:disable,cleanup_identity_error:identity,..Default::default()},true,Intent::Normal,Default::default());
-            assert_eq!(r.result.as_ref().unwrap_err(),error);
-            let t=r.session.records[4].as_ref().unwrap();assert_eq!(t.cleanup_returned_ok,Some(false));assert_eq!(t.relative_ns[Event::CleanupEnd as usize],None);
+        for (bridge, disable, identity, error) in [
+            (Some(3), false, false, "@IN preparation transport"),
+            (None, true, false, SF::ReadbackMismatch.text()),
+            (None, false, true, SF::ReadTransport.text()),
+        ] {
+            let r = run(
+                Recording {
+                    fail_bridge: bridge,
+                    cleanup_error: disable,
+                    cleanup_identity_error: identity,
+                    ..Default::default()
+                },
+                true,
+                Intent::Normal,
+                Default::default(),
+            );
+            assert_eq!(r.result.as_ref().unwrap_err(), error);
+            let t = r.session.records[4].as_ref().unwrap();
+            assert_eq!(t.cleanup_returned_ok, Some(false));
+            assert_eq!(t.relative_ns[Event::CleanupEnd as usize], None);
         }
-        let r=run(Recording{init_error:true,cleanup_error:true,..Default::default()},true,Intent::Normal,Default::default());
-        assert_eq!(r.result.as_ref().unwrap_err(),SF::WriteStatus.text());assert!(!r.ops.contains(&"LIVE".into()));
-        assert_eq!(r.session.records[4].as_ref().unwrap().cleanup_returned_ok,Some(false));
+        let r = run(
+            Recording {
+                init_error: true,
+                cleanup_error: true,
+                ..Default::default()
+            },
+            true,
+            Intent::Normal,
+            Default::default(),
+        );
+        assert_eq!(r.result.as_ref().unwrap_err(), SF::WriteStatus.text());
+        assert!(!r.ops.contains(&"LIVE".into()));
+        assert_eq!(
+            r.session.records[4].as_ref().unwrap().cleanup_returned_ok,
+            Some(false)
+        );
     }
     #[test]
     fn v041_live_cancellation_preserved_after_full_cleanup() {
-        let r=run(Recording{live_error:Some(CANCELLED.into()),..Default::default()},true,Intent::Normal,Default::default());
-        assert_eq!(r.result.as_ref().unwrap_err(),CANCELLED);
-        assert_eq!(r.session.records[4].as_ref().unwrap().cleanup_returned_ok,Some(true));
-        assert!(r.ops.ends_with(&["B1".into(),"disable7/readback".into(),"R0".into()]));
+        let r = run(
+            Recording {
+                live_error: Some(CANCELLED.into()),
+                ..Default::default()
+            },
+            true,
+            Intent::Normal,
+            Default::default(),
+        );
+        assert_eq!(r.result.as_ref().unwrap_err(), CANCELLED);
+        assert_eq!(
+            r.session.records[4].as_ref().unwrap().cleanup_returned_ok,
+            Some(true)
+        );
+        assert!(
+            r.ops
+                .ends_with(&["B1".into(), "disable7/readback".into(), "R0".into()])
+        );
     }
-    #[test] fn v041_verified_orchestration_live_cleanup_and_quiescence() {assert_eq!(verified_runs().len(),8);}
+    #[test]
+    fn v041_verified_orchestration_live_cleanup_and_quiescence() {
+        assert_eq!(verified_runs().len(), 8);
+    }
 }

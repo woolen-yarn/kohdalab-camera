@@ -48,39 +48,94 @@ fn exact(frame: &Frame) {
 
 #[test]
 fn two_mode_actual_gui_full_skip_full_pause_capture_stop() {
-    let root=root("two-mode");let ctx=egui::Context::default();
-    let mut app=App::with_exporter(&ctx, camera_lab::export);app.fake_only=true;app.picker=false;
-    let mut previous_session=None;let mut held:Option<Frame>=None;
-    for mode in [Mode::Full,Mode::FullFieldSkip,Mode::Full] {
-        app.settings.mode=mode;app.request(Some(source(&root,Fixture::TypedFrames)));
-        let revision=app.revision;
-        until(&mut app,&ctx,28,|a| a.frame.as_ref().and_then(|f|f.metadata.acquisition.as_ref()).is_some_and(|c|c.request_revision==Some(revision)));
-        let frame=app.frame.clone().unwrap();frame.validate().unwrap();exact(&frame);
-        let c=frame.metadata.acquisition.as_ref().unwrap();
-        assert_eq!(c.settings_generation,revision);
-        assert_eq!(c.settings().unwrap(),app.settings);
-        assert_eq!(c.geometry.source_window,[32,20,2048,1536]);
-        assert_eq!(c.geometry.address_modes,if mode==Mode::FullFieldSkip {[1,1]} else {[0,0]});
-        if let Some(old)=previous_session {assert_ne!(c.session,old);}
-        previous_session=Some(c.session);
-        if let Some(old)=&held {assert!(old.metadata.acquisition.as_ref().unwrap().request_revision.unwrap()<revision);}
-        app.paused=true;let submits=app.gui_submits;let texture=app.texture.as_ref().unwrap().id();
-        let until_at=Instant::now()+Duration::from_millis(450);
-        while Instant::now()<until_at {draw(&mut app,&ctx);std::thread::sleep(Duration::from_millis(20));}
-        assert_eq!(app.gui_submits,submits);assert_eq!(app.frame.as_ref().unwrap().metadata,frame.metadata);
-        assert_eq!(app.texture.as_ref().unwrap().id(),texture);assert!(app.session.active);
-        let path=root.join(format!("held-{revision}.png"));app.tx.try_send((frame.clone(),path.clone(),Recipe::default())).unwrap();app.busy=true;
-        until(&mut app,&ctx,8,|a|!a.busy);assert!(app.save_result.starts_with("Saved image"));
-        let bundle=path.with_file_name(format!("held-{revision}.png.capture"));
-        assert_eq!(std::fs::read(bundle.join("raw.bin")).unwrap(),*frame.raw);
-        let meta:camera_lab::Metadata=serde_json::from_slice(&std::fs::read(bundle.join("metadata.json")).unwrap()).unwrap();assert_eq!(meta,frame.metadata);
-        held=Some(frame);app.paused=false;
+    let root = root("two-mode");
+    let ctx = egui::Context::default();
+    let mut app = App::with_exporter(&ctx, camera_lab::export);
+    app.fake_only = true;
+    app.picker = false;
+    let mut previous_session = None;
+    let mut held: Option<Frame> = None;
+    for mode in [Mode::Full, Mode::FullFieldSkip, Mode::Full] {
+        app.settings.mode = mode;
+        app.request(Some(source(&root, Fixture::TypedFrames)));
+        let revision = app.revision;
+        until(&mut app, &ctx, 28, |a| {
+            a.frame
+                .as_ref()
+                .and_then(|f| f.metadata.acquisition.as_ref())
+                .is_some_and(|c| c.request_revision == Some(revision))
+        });
+        let frame = app.frame.clone().unwrap();
+        frame.validate().unwrap();
+        exact(&frame);
+        let c = frame.metadata.acquisition.as_ref().unwrap();
+        assert_eq!(c.settings_generation, revision);
+        assert_eq!(c.settings().unwrap(), app.settings);
+        assert_eq!(c.geometry.source_window, [32, 20, 2048, 1536]);
+        assert_eq!(
+            c.geometry.address_modes,
+            if mode == Mode::FullFieldSkip {
+                [1, 1]
+            } else {
+                [0, 0]
+            }
+        );
+        if let Some(old) = previous_session {
+            assert_ne!(c.session, old);
+        }
+        previous_session = Some(c.session);
+        if let Some(old) = &held {
+            assert!(
+                old.metadata
+                    .acquisition
+                    .as_ref()
+                    .unwrap()
+                    .request_revision
+                    .unwrap()
+                    < revision
+            );
+        }
+        app.paused = true;
+        let submits = app.gui_submits;
+        let texture = app.texture.as_ref().unwrap().id();
+        let until_at = Instant::now() + Duration::from_millis(450);
+        while Instant::now() < until_at {
+            draw(&mut app, &ctx);
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(app.gui_submits, submits);
+        assert_eq!(app.frame.as_ref().unwrap().metadata, frame.metadata);
+        assert_eq!(app.texture.as_ref().unwrap().id(), texture);
+        assert!(app.session.active);
+        let path = root.join(format!("held-{revision}.png"));
+        app.tx
+            .try_send((frame.clone(), path.clone(), Recipe::default()))
+            .unwrap();
+        app.busy = true;
+        until(&mut app, &ctx, 8, |a| !a.busy);
+        assert!(app.save_result.starts_with("Saved image"));
+        let bundle = path.with_file_name(format!("held-{revision}.png.capture"));
+        assert_eq!(std::fs::read(bundle.join("raw.bin")).unwrap(), *frame.raw);
+        let meta: camera_lab::Metadata =
+            serde_json::from_slice(&std::fs::read(bundle.join("metadata.json")).unwrap()).unwrap();
+        assert_eq!(meta, frame.metadata);
+        held = Some(frame);
+        app.paused = false;
     }
-    let retained=app.frame.clone().unwrap();let submits=app.gui_submits;
-    app.request(None);until(&mut app,&ctx,12,|a|!a.session.active);
-    assert_eq!(app.gui_submits,submits);assert_eq!(app.frame.as_ref().unwrap().metadata,retained.metadata);
-    assert_eq!(app.session.state,camera_lab::session::State::Disconnected);
-    assert!(!std::fs::read_dir(&root).unwrap().any(|e| e.unwrap().path().extension().is_some_and(|e|e=="lock")));
+    let retained = app.frame.clone().unwrap();
+    let submits = app.gui_submits;
+    app.request(None);
+    until(&mut app, &ctx, 12, |a| !a.session.active);
+    assert_eq!(app.gui_submits, submits);
+    assert_eq!(app.frame.as_ref().unwrap().metadata, retained.metadata);
+    assert_eq!(app.session.state, camera_lab::session::State::Disconnected);
+    assert!(
+        !std::fs::read_dir(&root).unwrap().any(|e| e
+            .unwrap()
+            .path()
+            .extension()
+            .is_some_and(|e| e == "lock"))
+    );
     app.worker.close();
 }
 
@@ -293,7 +348,9 @@ fn continuous_actual_gui_worker_finite_long_slow_export_latest_close() {
     for ext in ["png", "tiff"] {
         let path = root.join(format!("held.{ext}"));
         let next_export = exports.load(std::sync::atomic::Ordering::Acquire) + 1;
-        app.tx.try_send((frozen.clone(), path.clone(),Recipe::default())).unwrap();
+        app.tx
+            .try_send((frozen.clone(), path.clone(), Recipe::default()))
+            .unwrap();
         let deadline = Instant::now() + Duration::from_secs(2);
         while exports.load(std::sync::atomic::Ordering::Acquire) < next_export
             && Instant::now() < deadline
@@ -307,12 +364,16 @@ fn continuous_actual_gui_worker_finite_long_slow_export_latest_close() {
         app.busy = true;
         assert!(
             app.tx
-                .try_send((frozen.clone(), root.join("one-pending.png"),Recipe::default()))
+                .try_send((
+                    frozen.clone(),
+                    root.join("one-pending.png"),
+                    Recipe::default()
+                ))
                 .is_ok()
         );
         assert!(
             app.tx
-                .try_send((frozen.clone(), root.join("overflow.png"),Recipe::default()))
+                .try_send((frozen.clone(), root.join("overflow.png"), Recipe::default()))
                 .is_err()
         );
         // Drain the one explicitly queued immutable payload as well.
@@ -332,7 +393,9 @@ fn continuous_actual_gui_worker_finite_long_slow_export_latest_close() {
     }
     let old = app.frame.clone().unwrap();
     let across = root.join("across-change.tiff");
-    app.tx.try_send((old.clone(), across.clone(),Recipe::default())).unwrap();
+    app.tx
+        .try_send((old.clone(), across.clone(), Recipe::default()))
+        .unwrap();
     app.busy = true;
     for (index, exposure) in (101..111).enumerate() {
         app.settings.mode = Mode::ALL[index % Mode::ALL.len()];
@@ -373,7 +436,9 @@ fn continuous_actual_gui_worker_finite_long_slow_export_latest_close() {
         .to_rgb8();
     assert_eq!(decoded.as_raw(), old.display_rgb().as_ref());
     // A real bounded export error must not end acquisition.
-    app.tx.try_send((old.clone(), across,Recipe::default())).unwrap();
+    app.tx
+        .try_send((old.clone(), across, Recipe::default()))
+        .unwrap();
     app.busy = true;
     until(&mut app, &ctx, 8, |a| !a.busy);
     assert!(app.save_result.contains("Save failed"));

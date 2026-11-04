@@ -3,45 +3,87 @@
 use camera_lab::{Frame, Metadata};
 use std::{hint::black_box, sync::Arc, time::Instant};
 fn main() {
-    if std::env::args().nth(1).as_deref()==Some("--verify-export-bundle") {
-        let path=std::env::args().nth(2).expect("PNG bundle path");
-        let meta:serde_json::Value=serde_json::from_slice(&std::fs::read(format!("{path}.json")).unwrap()).unwrap();
-        let frame=Frame {raw:Arc::new(std::fs::read(format!("{path}.raw")).unwrap()),metadata:serde_json::from_value(meta["frame"].clone()).unwrap()};
-        let recipe:camera_lab::display_recipe::Recipe=serde_json::from_value(meta["display_recipe"].clone()).unwrap();
-        let (w,h,pixels)=recipe.render(&frame,None).unwrap();
-        let image=image::open(&path).unwrap().to_rgb8();
-        assert_eq!(image.dimensions(),(w,h));assert_eq!(image.as_raw(),&pixels);
-        println!("Saved RAW/recipe replay matches all {} RGB pixels ({w}x{h})",w*h);
+    if std::env::args().nth(1).as_deref() == Some("--verify-export-bundle") {
+        let path = std::env::args().nth(2).expect("PNG bundle path");
+        let meta: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(format!("{path}.json")).unwrap()).unwrap();
+        let frame = Frame {
+            raw: Arc::new(std::fs::read(format!("{path}.raw")).unwrap()),
+            metadata: serde_json::from_value(meta["frame"].clone()).unwrap(),
+        };
+        let recipe: camera_lab::display_recipe::Recipe =
+            serde_json::from_value(meta["display_recipe"].clone()).unwrap();
+        let (w, h, pixels) = recipe.render(&frame, None).unwrap();
+        let image = image::open(&path).unwrap().to_rgb8();
+        assert_eq!(image.dimensions(), (w, h));
+        assert_eq!(image.as_raw(), &pixels);
+        println!(
+            "Saved RAW/recipe replay matches all {} RGB pixels ({w}x{h})",
+            w * h
+        );
         return;
     }
-    if std::env::args().nth(1).as_deref()==Some("--recipe-v2") {
-        for (w,h) in [(1024,768),(2048,1536)] {
-            let f=Frame {raw:Arc::new((0..w*h).map(|i|(i%251) as u8).collect()),metadata:Metadata {acquisition:None,source:"Synthetic recipe benchmark; no camera".into(),simulated:true,sequence:1,measurement:None,unix_millis:0,width:w,height:h,format:"BayerGRBG8".into()}};
-            let recipe=camera_lab::display_recipe::Recipe::default();
-            let compiled=recipe.compile().unwrap();
-            let start=Instant::now();
-            for _ in 0..10_000 { black_box(recipe.compile().unwrap()); }
-            println!("{w}x{h} recipe/v2 compile-only: {:.3} us/recipe (10,000 iterations)",start.elapsed().as_secs_f64()*100.);
+    if std::env::args().nth(1).as_deref() == Some("--recipe-v2") {
+        for (w, h) in [(1024, 768), (2048, 1536)] {
+            let f = Frame {
+                raw: Arc::new((0..w * h).map(|i| (i % 251) as u8).collect()),
+                metadata: Metadata {
+                    acquisition: None,
+                    source: "Synthetic recipe benchmark; no camera".into(),
+                    simulated: true,
+                    sequence: 1,
+                    measurement: None,
+                    unix_millis: 0,
+                    width: w,
+                    height: h,
+                    format: "BayerGRBG8".into(),
+                },
+            };
+            let recipe = camera_lab::display_recipe::Recipe::default();
+            let compiled = recipe.compile().unwrap();
+            let start = Instant::now();
+            for _ in 0..10_000 {
+                black_box(recipe.compile().unwrap());
+            }
+            println!(
+                "{w}x{h} recipe/v2 compile-only: {:.3} us/recipe (10,000 iterations)",
+                start.elapsed().as_secs_f64() * 100.
+            );
             for _ in 0..3 {
-                let (pw,ph,rgb)=recipe.render(&f,Some(1024)).unwrap();
-                black_box(eframe::egui::ColorImage::from_rgb([pw as usize,ph as usize],&rgb));
-                black_box(recipe.render_color_image(&f,Some(1024)).unwrap());
-                black_box(compiled.render_color_image(&f,Some(1024)).unwrap());
+                let (pw, ph, rgb) = recipe.render(&f, Some(1024)).unwrap();
+                black_box(eframe::egui::ColorImage::from_rgb(
+                    [pw as usize, ph as usize],
+                    &rgb,
+                ));
+                black_box(recipe.render_color_image(&f, Some(1024)).unwrap());
+                black_box(compiled.render_color_image(&f, Some(1024)).unwrap());
             }
             for sample in 0..5 {
-                let start=Instant::now();
+                let start = Instant::now();
                 for _ in 0..10 {
-                    let (pw,ph,rgb)=recipe.render(&f,Some(1024)).unwrap();
-                    black_box(eframe::egui::ColorImage::from_rgb([pw as usize,ph as usize],&rgb));
+                    let (pw, ph, rgb) = recipe.render(&f, Some(1024)).unwrap();
+                    black_box(eframe::egui::ColorImage::from_rgb(
+                        [pw as usize, ph as usize],
+                        &rgb,
+                    ));
                 }
-                let export_path=start.elapsed();
-                let start=Instant::now();
-                for _ in 0..10 {black_box(recipe.render_color_image(&f,Some(1024)).unwrap());}
-                let direct=start.elapsed();
-                let start=Instant::now();
-                for _ in 0..10 {black_box(compiled.render_color_image(&f,Some(1024)).unwrap());}
-                let cached=start.elapsed();
-                println!("{w}x{h} recipe/v2 preview sample {sample}: render+ColorImage={:.3} ms/frame direct-ColorImage={:.3} ms/frame compiled-ColorImage={:.3} ms/frame",export_path.as_secs_f64()*100.,direct.as_secs_f64()*100.,cached.as_secs_f64()*100.);
+                let export_path = start.elapsed();
+                let start = Instant::now();
+                for _ in 0..10 {
+                    black_box(recipe.render_color_image(&f, Some(1024)).unwrap());
+                }
+                let direct = start.elapsed();
+                let start = Instant::now();
+                for _ in 0..10 {
+                    black_box(compiled.render_color_image(&f, Some(1024)).unwrap());
+                }
+                let cached = start.elapsed();
+                println!(
+                    "{w}x{h} recipe/v2 preview sample {sample}: render+ColorImage={:.3} ms/frame direct-ColorImage={:.3} ms/frame compiled-ColorImage={:.3} ms/frame",
+                    export_path.as_secs_f64() * 100.,
+                    direct.as_secs_f64() * 100.,
+                    cached.as_secs_f64() * 100.
+                );
             }
         }
         return;
@@ -55,10 +97,11 @@ fn main() {
             raw: Arc::new(vec![127; 2048 * 1536]),
             metadata: Metadata {
                 acquisition: None,
-source: "Synthetic preview memory".into(),
+                source: "Synthetic preview memory".into(),
                 simulated: true,
                 sequence: 1,
-                measurement: None, unix_millis: 0,
+                measurement: None,
+                unix_millis: 0,
                 width: 2048,
                 height: 1536,
                 format: "BayerGRBG8".into(),
@@ -86,10 +129,11 @@ source: "Synthetic preview memory".into(),
             raw: Arc::new((0..w * h).map(|i| (i % 251) as u8).collect()),
             metadata: Metadata {
                 acquisition: None,
-source: "Synthetic CPU benchmark; no camera".into(),
+                source: "Synthetic CPU benchmark; no camera".into(),
                 simulated: true,
                 sequence: 1,
-                measurement: None, unix_millis: 0,
+                measurement: None,
+                unix_millis: 0,
                 width: w,
                 height: h,
                 format: "BayerGRBG8".into(),
