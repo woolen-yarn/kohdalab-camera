@@ -44,7 +44,10 @@ impl Mode {
             .ok_or_else(|| "Unknown acquisition profile".into())
     }
     pub fn from_dimensions(_width: u16, _height: u16) -> Result<Self, String> {
-        Err("Dimensions do not identify source geometry; explicit versioned profile required".into())
+        Err(
+            "Dimensions do not identify source geometry; explicit versioned profile required"
+                .into(),
+        )
     }
     pub fn profile(self) -> Profile {
         let (id, name, width, height, clock, label) = match self {
@@ -89,7 +92,11 @@ impl Mode {
                 "Full 2048 × 1536 · unskipped · physical qualification pending",
             ),
             Self::FullFieldSkip => (
-                "xga_full_field_skip/v1", "Full-field pair-skip", 1024, 768, 0x8000,
+                "xga_full_field_skip/v1",
+                "Full-field pair-skip",
+                1024,
+                768,
+                0x8000,
                 "1024 × 768 Full-field SENSOR PAIR-SKIP · physically unverified",
             ),
         };
@@ -98,8 +105,16 @@ impl Mode {
             name,
             width,
             height,
-            source_width: if self == Self::FullFieldSkip {2048} else {width},
-            source_height: if self == Self::FullFieldSkip {1536} else {height},
+            source_width: if self == Self::FullFieldSkip {
+                2048
+            } else {
+                width
+            },
+            source_height: if self == Self::FullFieldSkip {
+                1536
+            } else {
+                height
+            },
             clock,
             row_start: 20,
             column_start: 32,
@@ -131,7 +146,10 @@ impl Settings {
     }
     pub fn validate(self) -> Result<Self, String> {
         if !Mode::ALL.contains(&self.mode) {
-            return Err("Legacy crop mode is private compatibility/test data, not current acquisition".into());
+            return Err(
+                "Legacy crop mode is private compatibility/test data, not current acquisition"
+                    .into(),
+            );
         }
         // Narrower than the sensor field, to bound exposure within a frame.
         if self.exposure_rows == 0 || self.exposure_rows > self.mode.profile().exposure_max {
@@ -157,11 +175,21 @@ mod tests {
     fn profiles_geometry_cli_and_labels() {
         assert_eq!(Mode::ALL, [Mode::FullFieldSkip, Mode::Full]);
         for mode in Mode::ALL {
-            let p=mode.profile(); assert_eq!(Mode::parse(p.id).unwrap(), mode);
-            assert_eq!(p.window(),[(1,20),(2,32),(3,0x05ff),(4,0x07ff)]);
-            assert!(Mode::from_dimensions(p.width,p.height).is_err());
+            let p = mode.profile();
+            assert_eq!(Mode::parse(p.id).unwrap(), mode);
+            assert_eq!(p.window(), [(1, 20), (2, 32), (3, 0x05ff), (4, 0x07ff)]);
+            assert!(Mode::from_dimensions(p.width, p.height).is_err());
         }
-        for mode in [Mode::Preview,Mode::Xga,Mode::Hd720,Mode::Hd960] { assert!(Settings {mode,..Default::default()}.validate().is_err()); }
+        for mode in [Mode::Preview, Mode::Xga, Mode::Hd720, Mode::Hd960] {
+            assert!(
+                Settings {
+                    mode,
+                    ..Default::default()
+                }
+                .validate()
+                .is_err()
+            );
+        }
     }
     #[test]
     fn documented_encoding_and_restricted_bounds() {

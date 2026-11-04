@@ -27,9 +27,10 @@ impl runtime::Clock for FixtureInitializationClock {
 fn err() -> io::Error {
     io::ErrorKind::InvalidData.into()
 }
-use crate::diagnostic::{decode_fault, write_terminal_error, Accumulator, Cause, Stage, Reason};
 pub use crate::diagnostic::Terminal;
-#[cfg(test)] use crate::diagnostic::terminal_error;
+#[cfg(test)]
+use crate::diagnostic::terminal_error;
+use crate::diagnostic::{Accumulator, Cause, Reason, Stage, decode_fault, write_terminal_error};
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -147,8 +148,11 @@ impl Bootstrap {
         }
         .validate()
         .map_err(|_| err())?;
-        if self.geometry != crate::sensor_contract::Geometry::for_mode(settings.mode).map_err(|_| err())?
-            || self.settings_generation == 0 || self.settings_digest != settings_hash(settings)? {
+        if self.geometry
+            != crate::sensor_contract::Geometry::for_mode(settings.mode).map_err(|_| err())?
+            || self.settings_generation == 0
+            || self.settings_digest != settings_hash(settings)?
+        {
             return Err(err());
         }
         Ok(settings)
@@ -171,15 +175,22 @@ impl Bootstrap {
     }
 }
 fn frame_contract(b: &Bootstrap, sequence: u64) -> io::Result<crate::sensor_contract::Acquisition> {
-    crate::sensor_contract::Acquisition::new(b.settings()?, b.nonce, b.settings_generation, sequence).map(|a| a.with_startup(b.startup_intent)).map_err(|_| err())
+    crate::sensor_contract::Acquisition::new(
+        b.settings()?,
+        b.nonce,
+        b.settings_generation,
+        sequence,
+    )
+    .map(|a| a.with_startup(b.startup_intent))
+    .map_err(|_| err())
 }
-fn frame_contract_hash(b: &Bootstrap, sequence: u64) -> io::Result<[u8;32]> {
-    os::digest(&serde_json::to_vec(&frame_contract(b,sequence)?).map_err(|_|err())?)
+fn frame_contract_hash(b: &Bootstrap, sequence: u64) -> io::Result<[u8; 32]> {
+    os::digest(&serde_json::to_vec(&frame_contract(b, sequence)?).map_err(|_| err())?)
 }
-fn frame_binding_valid(raw: &[u8;128], b: &Bootstrap, sequence:u64) -> bool {
-    Some(raw[80..112].try_into().unwrap()) == frame_contract_hash(b,sequence).ok()
+fn frame_binding_valid(raw: &[u8; 128], b: &Bootstrap, sequence: u64) -> bool {
+    Some(raw[80..112].try_into().unwrap()) == frame_contract_hash(b, sequence).ok()
         && u64::from_le_bytes(raw[112..120].try_into().unwrap()) == b.settings_generation
-        && raw[120..].iter().all(|v|*v==0)
+        && raw[120..].iter().all(|v| *v == 0)
 }
 fn settings_hash(s: Settings) -> io::Result<[u8; 32]> {
     os::digest(
@@ -294,26 +305,38 @@ pub struct Snapshot {
 }
 impl Snapshot {
     pub fn diagnostic_status(&self) -> Option<crate::startup::DiagnosticStatus> {
-        self.startup_intent.map(|i| i.status(self.frames > 0, self.first_error.is_some() || self.helper_fault.is_some() || self.proof_flags & 16 != 0))
+        self.startup_intent.map(|i| {
+            i.status(
+                self.frames > 0,
+                self.first_error.is_some()
+                    || self.helper_fault.is_some()
+                    || self.proof_flags & 16 != 0,
+            )
+        })
     }
     fn fault(&mut self, s: impl Into<String>) {
         self.fault_cause(Cause::unknown(), s);
     }
-    fn fault_cause(&mut self, cause:Cause, s:impl Into<String>) {
+    fn fault_cause(&mut self, cause: Cause, s: impl Into<String>) {
         if self.frozen {
             return;
         }
-        crate::diagnostic::report_fault(&mut self.causes,&mut self.first_error,cause,s);
+        crate::diagnostic::report_fault(&mut self.causes, &mut self.first_error, cause, s);
     }
-    fn parent_report(&mut self, report:crate::diagnostic::ParentReport) {
-        if !self.frozen {crate::diagnostic::report_parent(&mut self.causes,&mut self.first_error,report);}
+    fn parent_report(&mut self, report: crate::diagnostic::ParentReport) {
+        if !self.frozen {
+            crate::diagnostic::report_parent(&mut self.causes, &mut self.first_error, report);
+        }
     }
     fn evaluate(&mut self, now: Duration) {
         if self.frozen {
             return;
         }
         if now < self.previous {
-            self.fault_cause(Cause::parent(Stage::Clock,Reason::Malformed), "Parent monotonic clock regressed");
+            self.fault_cause(
+                Cause::parent(Stage::Clock, Reason::Malformed),
+                "Parent monotonic clock regressed",
+            );
             if !self.release_committed {
                 self.terminal = Some(Terminal::Unproved);
             }
@@ -323,7 +346,10 @@ impl Snapshot {
             self.parent_report(crate::diagnostic::ParentReport::OwnerUnresponsive);
         }
         if self.frames == 0 && now.saturating_sub(self.origin) >= Duration::from_secs(60) {
-            self.fault_cause(Cause::parent(Stage::Initialization,Reason::Deadline), "Parent initialization deadline");
+            self.fault_cause(
+                Cause::parent(Stage::Initialization, Reason::Deadline),
+                "Parent initialization deadline",
+            );
         }
         if self.first_error.is_some() {
             self.stop_at.get_or_insert(now);
@@ -332,7 +358,10 @@ impl Snapshot {
             .stop_at
             .is_some_and(|at| now.saturating_sub(at) >= Duration::from_secs(8))
         {
-            self.fault_cause(Cause::parent(Stage::Shutdown,Reason::Deadline), "Shutdown proof deadline");
+            self.fault_cause(
+                Cause::parent(Stage::Shutdown, Reason::Deadline),
+                "Shutdown proof deadline",
+            );
             if !self.release_committed {
                 self.terminal = Some(Terminal::Unproved);
             }
@@ -401,18 +430,40 @@ pub struct ContinuousSession {
     state: Arc<State>,
 }
 impl ContinuousSession {
-    pub fn set_frame_notify(&self,t:thread::Thread) {*self.state.frame_notify.lock().unwrap_or_else(|e|e.into_inner())=Some(t);}
+    pub fn set_frame_notify(&self, t: thread::Thread) {
+        *self
+            .state
+            .frame_notify
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(t);
+    }
 
     pub fn start(identity: Identity, settings: Settings) -> io::Result<Self> {
-        Self::start_generation(identity,settings,1)
+        Self::start_generation(identity, settings, 1)
     }
-    pub fn start_generation(identity:Identity,settings:Settings,generation:u64) -> io::Result<Self> {
+    pub fn start_generation(
+        identity: Identity,
+        settings: Settings,
+        generation: u64,
+    ) -> io::Result<Self> {
         let root = crate::coordination::user_root().map_err(io::Error::other)?;
-        Self::start_inner(identity, settings, root, None,generation,crate::startup::Intent::Normal)
+        Self::start_inner(
+            identity,
+            settings,
+            root,
+            None,
+            generation,
+            crate::startup::Intent::Normal,
+        )
     }
-    pub fn start_generation_intent(identity:Identity,settings:Settings,generation:u64,intent:crate::startup::Intent) -> io::Result<Self> {
+    pub fn start_generation_intent(
+        identity: Identity,
+        settings: Settings,
+        generation: u64,
+        intent: crate::startup::Intent,
+    ) -> io::Result<Self> {
         let root = crate::coordination::user_root().map_err(io::Error::other)?;
-        Self::start_inner(identity,settings,root,None,generation,intent)
+        Self::start_inner(identity, settings, root, None, generation, intent)
     }
     /// Fake roots are create-new private fixture directories, never user_root.
     pub fn start_fixture(root: &Path, fixture: Fixture) -> io::Result<Self> {
@@ -425,12 +476,29 @@ impl ContinuousSession {
         fixture: Fixture,
         settings: Settings,
     ) -> io::Result<Self> {
-        Self::start_fixture_generation(root,fixture,settings,1)
+        Self::start_fixture_generation(root, fixture, settings, 1)
     }
-    pub fn start_fixture_generation(root:&Path,fixture:Fixture,settings:Settings,generation:u64) -> io::Result<Self> {
-        Self::start_fixture_intent(root,fixture,settings,generation,crate::startup::Intent::Diagnostics)
+    pub fn start_fixture_generation(
+        root: &Path,
+        fixture: Fixture,
+        settings: Settings,
+        generation: u64,
+    ) -> io::Result<Self> {
+        Self::start_fixture_intent(
+            root,
+            fixture,
+            settings,
+            generation,
+            crate::startup::Intent::Diagnostics,
+        )
     }
-    pub fn start_fixture_intent(root:&Path,fixture:Fixture,settings:Settings,generation:u64,intent:crate::startup::Intent) -> io::Result<Self> {
+    pub fn start_fixture_intent(
+        root: &Path,
+        fixture: Fixture,
+        settings: Settings,
+        generation: u64,
+        intent: crate::startup::Intent,
+    ) -> io::Result<Self> {
         Self::start_inner(
             Identity {
                 bus: "PCIROOT(0)#PCI(FFFF)#USBROOT(0)".into(),
@@ -448,16 +516,20 @@ impl ContinuousSession {
         settings: Settings,
         root: PathBuf,
         fixture: Option<Fixture>,
-        generation:u64,
-        intent:crate::startup::Intent,
+        generation: u64,
+        intent: crate::startup::Intent,
     ) -> io::Result<Self> {
         identity.validate()?;
         settings.validate().map_err(io::Error::other)?;
-        if generation==0 {return Err(err());}
+        if generation == 0 {
+            return Err(err());
+        }
         let state = State::new(Arc::new(runtime::Monotonic::default()));
         state.snapshot.lock().unwrap().startup_intent = Some(intent);
         Self::start_background(state, move |owner, monitor| {
-            startup(identity, settings, root, fixture, generation, intent, owner, monitor)
+            startup(
+                identity, settings, root, fixture, generation, intent, owner, monitor,
+            )
         })
     }
     fn start_background(
@@ -555,7 +627,7 @@ fn startup(
     settings: Settings,
     root: PathBuf,
     fixture: Option<Fixture>,
-    generation:u64,
+    generation: u64,
     intent: crate::startup::Intent,
     state: Arc<State>,
     monitor: thread::JoinHandle<()>,
@@ -563,8 +635,10 @@ fn startup(
     let result = (|| {
         let helper = std::env::current_exe()?.with_file_name("continuous-helper.exe");
         if !helper.is_file() {
-            return Err(io::Error::new(io::ErrorKind::NotFound,
-                "continuous-helper.exe is missing. Extract or reinstall the complete application before connecting."));
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "continuous-helper.exe is missing. Extract or reinstall the complete application before connecting.",
+            ));
         }
         let legacy = helper.with_file_name("physical-camera.lock");
         if legacy.try_exists()? {
@@ -581,7 +655,8 @@ fn startup(
             nonce: os::random()?,
             identity,
             mode: settings.mode.profile().id.into(),
-            geometry: crate::sensor_contract::Geometry::for_mode(settings.mode).map_err(|_| err())?,
+            geometry: crate::sensor_contract::Geometry::for_mode(settings.mode)
+                .map_err(|_| err())?,
             settings_generation: generation,
             exposure: settings.exposure_rows,
             gain: settings.gain_eighths,
@@ -618,14 +693,17 @@ impl Drop for ContinuousSession {
         self.stop();
     }
 }
-fn fault_cause(state:&State,cause:Cause,message:impl Into<String>) {
- let mut s=state.snapshot.lock().unwrap_or_else(|e|e.into_inner());s.fault_cause(cause,message);
- s.stop_at.get_or_insert(state.clock.now());
- state.stop.store(true, Ordering::Release);
+fn fault_cause(state: &State, cause: Cause, message: impl Into<String>) {
+    let mut s = state.snapshot.lock().unwrap_or_else(|e| e.into_inner());
+    s.fault_cause(cause, message);
+    s.stop_at.get_or_insert(state.clock.now());
+    state.stop.store(true, Ordering::Release);
 }
-fn parent_report(state:&State, report:crate::diagnostic::ParentReport) {
- let mut s=state.snapshot.lock().unwrap_or_else(|e|e.into_inner());s.parent_report(report);
- s.stop_at.get_or_insert(state.clock.now());state.stop.store(true,Ordering::Release);
+fn parent_report(state: &State, report: crate::diagnostic::ParentReport) {
+    let mut s = state.snapshot.lock().unwrap_or_else(|e| e.into_inner());
+    s.parent_report(report);
+    s.stop_at.get_or_insert(state.clock.now());
+    state.stop.store(true, Ordering::Release);
 }
 fn fault(state: &State, message: impl Into<String>) {
     let mut s = state.snapshot.lock().unwrap_or_else(|e| e.into_inner());
@@ -711,7 +789,10 @@ fn parent(
         let mut seq = 0u64;
         while !supervisor_state.end.load(Ordering::Acquire) {
             if supervisor_state.owner_age() >= IO {
-                parent_report(&supervisor_state, crate::diagnostic::ParentReport::OwnerUnresponsive);
+                parent_report(
+                    &supervisor_state,
+                    crate::diagnostic::ParentReport::OwnerUnresponsive,
+                );
             }
             let raw = match challenge.record(Instant::now() + Duration::from_secs(3), &io_cancel) {
                 Ok(v) => v,
@@ -719,7 +800,10 @@ fn parent(
                     if !supervisor_state.stop.load(Ordering::Acquire)
                         && !supervisor_state.end.load(Ordering::Acquire)
                     {
-                        parent_report(&supervisor_state, crate::diagnostic::ParentReport::ChallengeLost);
+                        parent_report(
+                            &supervisor_state,
+                            crate::diagnostic::ParentReport::ChallengeLost,
+                        );
                     }
                     break;
                 }
@@ -734,7 +818,10 @@ fn parent(
                     r
                 }
                 _ => {
-                    parent_report(&supervisor_state, crate::diagnostic::ParentReport::ChallengeMalformed);
+                    parent_report(
+                        &supervisor_state,
+                        crate::diagnostic::ParentReport::ChallengeMalformed,
+                    );
                     break;
                 }
             };
@@ -774,13 +861,19 @@ fn parent(
                 .unwrap_or_else(|e| e.into_inner())
                 .take();
             if !acknowledged {
-                parent_report(&supervisor_state, crate::diagnostic::ParentReport::ChallengeUnanswered);
+                parent_report(
+                    &supervisor_state,
+                    crate::diagnostic::ParentReport::ChallengeUnanswered,
+                );
                 break;
             }
             // Response authorization is tied to the lifecycle owner, not producer
             // activity, file timestamps or this supervisor's own responsiveness.
             if supervisor_state.owner_age() >= IO {
-                parent_report(&supervisor_state, crate::diagnostic::ParentReport::ChallengeStalled);
+                parent_report(
+                    &supervisor_state,
+                    crate::diagnostic::ParentReport::ChallengeStalled,
+                );
                 break;
             }
             if fixture == Some(Fixture::LeaseLoss)
@@ -793,9 +886,7 @@ fn parent(
             {
                 break;
             }
-            if let Err(error) = response
-                .write(&r.encode(), Instant::now() + IO, &io_cancel)
-            {
+            if let Err(error) = response.write(&r.encode(), Instant::now() + IO, &io_cancel) {
                 response_write_failed(&supervisor_state, &error);
                 break;
             }
@@ -837,17 +928,27 @@ fn parent(
         ) {
             Ok(v) => v,
             Err(_) => {
-                fault_cause(&state, Cause::parent(Stage::Channel,Reason::Lost), "Missing terminal receipt");
+                fault_cause(
+                    &state,
+                    Cause::parent(Stage::Channel, Reason::Lost),
+                    "Missing terminal receipt",
+                );
                 break;
             }
         };
         // Optional measurement never grants STOP/fault/cleanup authority. Ignore
         // unknown versions, stale session bindings and malformed optional data.
-        if raw[3]==10 {
-            measurement=if valid(&raw,&b,binding) {crate::measurement::decode(raw[68..].try_into().unwrap())} else {None};
+        if raw[3] == 10 {
+            measurement = if valid(&raw, &b, binding) {
+                crate::measurement::decode(raw[68..].try_into().unwrap())
+            } else {
+                None
+            };
             continue;
         }
-        if raw[3]!=5 {measurement=None;}
+        if raw[3] != 5 {
+            measurement = None;
+        }
         if !valid(&raw, &b, binding) {
             fault(&state, "Bad session receipt");
             break;
@@ -873,7 +974,8 @@ fn parent(
                 let height = u16::from_le_bytes(raw[78..80].try_into().unwrap()) as u32;
                 let n = width as usize * height as usize;
                 let expected = if b.fixture == Some(Fixture::TypedFrames) {
-                    let (w,h)=b.settings().unwrap().dimensions(); (u32::from(w),u32::from(h))
+                    let (w, h) = b.settings().unwrap().dimensions();
+                    (u32::from(w), u32::from(h))
                 } else if matches!(
                     b.fixture,
                     Some(Fixture::FullFrames | Fixture::NoTelemetry | Fixture::BadTelemetry)
@@ -889,7 +991,7 @@ fn parent(
                 };
                 if (width, height) != expected
                     || seq <= sequence
-                    || !frame_binding_valid(&raw,&b,seq)
+                    || !frame_binding_valid(&raw, &b, seq)
                 {
                     fault(&state, "Invalid frame header");
                     break;
@@ -913,11 +1015,18 @@ fn parent(
                 let mut f = Frame {
                     raw: Arc::new(data),
                     metadata: Metadata {
-                        acquisition: if b.fixture.is_none() || b.fixture == Some(Fixture::TypedFrames) { Some(frame_contract(&b,seq).unwrap()) } else {None},
-source: "Continuous session".into(),
+                        acquisition: if b.fixture.is_none()
+                            || b.fixture == Some(Fixture::TypedFrames)
+                        {
+                            Some(frame_contract(&b, seq).unwrap())
+                        } else {
+                            None
+                        },
+                        source: "Continuous session".into(),
                         simulated: b.fixture.is_some(),
                         sequence: seq,
-                        measurement: None, unix_millis: 0,
+                        measurement: None,
+                        unix_millis: 0,
                         width,
                         height,
                         format: "BayerGRBG8".into(),
@@ -928,10 +1037,11 @@ source: "Continuous session".into(),
                     break;
                 }
                 // Bind only the immediately preceding optional observation to this exact frame.
-                if let Some(mut o)=measurement.take().filter(|o|o.valid_for(&f.metadata)) {
-                    o.received_at=Some(Instant::now());
-                    f.metadata.unix_millis=u128::from(o.host_accepted_completion_unix_ms.unwrap_or(0));
-                    f.metadata.measurement=Some(o);
+                if let Some(mut o) = measurement.take().filter(|o| o.valid_for(&f.metadata)) {
+                    o.received_at = Some(Instant::now());
+                    f.metadata.unix_millis =
+                        u128::from(o.host_accepted_completion_unix_ms.unwrap_or(0));
+                    f.metadata.measurement = Some(o);
                 }
                 sequence = seq;
                 if b.fixture == Some(Fixture::WaitTimeout) && seq == 1 {
@@ -956,7 +1066,14 @@ source: "Continuous session".into(),
                 s.frame = Some(f);
                 s.frames = seq;
                 drop(s);
-                if let Some(t)=state.frame_notify.lock().unwrap_or_else(|e|e.into_inner()).as_ref() {t.unpark();}
+                if let Some(t) = state
+                    .frame_notify
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .as_ref()
+                {
+                    t.unpark();
+                }
             }
             7 => {
                 if raw[68..].iter().any(|v| *v != 0) {
@@ -975,14 +1092,24 @@ source: "Continuous session".into(),
                     s.diagnostics = diagnostics.finish();
                     s.diagnostic_invalid |= diagnostics.invalid;
                 }
-                let mut s=state.snapshot.lock().unwrap_or_else(|e|e.into_inner());
-                let Snapshot{causes,first_error,..}=&mut *s;
-                if crate::diagnostic::report_terminal(causes,first_error,&raw).is_ok() {
-                    proof=Some(raw[68]);s.helper_fault=decode_fault(raw[69]);
-                    s.proof_flags=raw[68];s.backend_error=s.causes.text.clone();
+                let mut s = state.snapshot.lock().unwrap_or_else(|e| e.into_inner());
+                let Snapshot {
+                    causes,
+                    first_error,
+                    ..
+                } = &mut *s;
+                if crate::diagnostic::report_terminal(causes, first_error, &raw).is_ok() {
+                    proof = Some(raw[68]);
+                    s.helper_fault = decode_fault(raw[69]);
+                    s.proof_flags = raw[68];
+                    s.backend_error = s.causes.text.clone();
                 } else {
                     drop(s);
-                    fault_cause(&state,Cause::parent(Stage::Terminal,Reason::Malformed),"Malformed terminal");
+                    fault_cause(
+                        &state,
+                        Cause::parent(Stage::Terminal, Reason::Malformed),
+                        "Malformed terminal",
+                    );
                 }
                 break;
             }
@@ -1080,11 +1207,11 @@ fn response_write_failed(state: &State, error: &io::Error) {
     // overlap that close. Only this expected pipe closure after STOP is benign;
     // the collector still requires the complete terminal/EOF/reap proof and
     // every existing fault/deadline check before authorizing exact-file release.
-    let stopped_pipe = state.stop.load(Ordering::Acquire)
-        && matches!(error.raw_os_error(), Some(109 | 232)); // BROKEN_PIPE / NO_DATA
+    let stopped_pipe =
+        state.stop.load(Ordering::Acquire) && matches!(error.raw_os_error(), Some(109 | 232)); // BROKEN_PIPE / NO_DATA
     if !stopped_pipe {
-        let mut cause=Cause::parent(Stage::Channel,Reason::Lost);
-        cause.category=error.raw_os_error().and_then(|v|u32::try_from(v).ok());
+        let mut cause = Cause::parent(Stage::Channel, Reason::Lost);
+        cause.category = error.raw_os_error().and_then(|v| u32::try_from(v).ok());
         fault_cause(state, cause, "Response channel lost");
     }
 }
@@ -1389,20 +1516,34 @@ pub fn helper_dispatch(mode: String, mut c: os::Child) -> i32 {
             }
         }
         if let Some(frame) = monitor.take_frame() {
-            if frame.validate().is_err() || ((b.fixture.is_none() || b.fixture == Some(Fixture::TypedFrames)) && frame.metadata.acquisition.as_ref().is_none_or(|a| a != &frame_contract(&b,frame.metadata.sequence).unwrap())) {
-                sender_error = true; monitor.stop(); continue;
+            if frame.validate().is_err()
+                || ((b.fixture.is_none() || b.fixture == Some(Fixture::TypedFrames))
+                    && frame
+                        .metadata
+                        .acquisition
+                        .as_ref()
+                        .is_none_or(|a| a != &frame_contract(&b, frame.metadata.sequence).unwrap()))
+            {
+                sender_error = true;
+                monitor.stop();
+                continue;
             }
             let mut header = packet(5, &b, binding);
             header[68..76].copy_from_slice(&frame.metadata.sequence.to_le_bytes());
             header[76..78].copy_from_slice(&(frame.metadata.width as u16).to_le_bytes());
             header[78..80].copy_from_slice(&(frame.metadata.height as u16).to_le_bytes());
             let result = (|| -> io::Result<()> {
-                header[80..112].copy_from_slice(&frame_contract_hash(&b,frame.metadata.sequence)?);
+                header[80..112].copy_from_slice(&frame_contract_hash(&b, frame.metadata.sequence)?);
                 header[112..120].copy_from_slice(&b.settings_generation.to_le_bytes());
-                if let Some(o)=frame.metadata.measurement.as_ref().filter(|o|o.valid_for(&frame.metadata)) {
-                    let mut observation=packet(10,&b,binding);
+                if let Some(o) = frame
+                    .metadata
+                    .measurement
+                    .as_ref()
+                    .filter(|o| o.valid_for(&frame.metadata))
+                {
+                    let mut observation = packet(10, &b, binding);
                     observation[68..].copy_from_slice(&crate::measurement::encode(o));
-                    receipt.write(&observation,Instant::now()+IO,&os::Cancel::default())?;
+                    receipt.write(&observation, Instant::now() + IO, &os::Cancel::default())?;
                 }
                 receipt.write(&header, Instant::now() + IO, &os::Cancel::default())?;
                 let deadline = Instant::now() + IO;
@@ -1550,8 +1691,11 @@ fn fake_backend(b: &Bootstrap, owner: &runtime::OwnerPort) -> Outcome {
             gain: 8,
             patterns: 0,
         };
-        let prepared =
-            crate::acquisition_recipe::initialize_continuous_intent(&mut recipe, b.settings().unwrap(), b.startup_intent);
+        let prepared = crate::acquisition_recipe::initialize_continuous_intent(
+            &mut recipe,
+            b.settings().unwrap(),
+            b.startup_intent,
+        );
         if prepared.is_ok() && owner.enable_live().is_ok() {
             owner.phase(3);
             let mut live = crate::acquisition_telemetry::Telemetry::new(
@@ -1579,7 +1723,10 @@ fn fake_backend(b: &Bootstrap, owner: &runtime::OwnerPort) -> Outcome {
                             (2048, 1536)
                         }
                         Fixture::XgaFrames => (1024, 768),
-                        Fixture::TypedFrames => { let (w,h)=b.settings().unwrap().dimensions(); (u32::from(w),u32::from(h)) },
+                        Fixture::TypedFrames => {
+                            let (w, h) = b.settings().unwrap().dimensions();
+                            (u32::from(w), u32::from(h))
+                        }
                         _ => (2, 2),
                     };
                     let raw = (0..width * height)
@@ -1588,11 +1735,16 @@ fn fake_backend(b: &Bootstrap, owner: &runtime::OwnerPort) -> Outcome {
                     let _ = owner.publish_frame(Frame {
                         raw: Arc::new(raw),
                         metadata: Metadata {
-                            acquisition: if fixture == Fixture::TypedFrames {Some(frame_contract(b,sequence).unwrap())} else {None},
-source: "No USB fixture".into(),
+                            acquisition: if fixture == Fixture::TypedFrames {
+                                Some(frame_contract(b, sequence).unwrap())
+                            } else {
+                                None
+                            },
+                            source: "No USB fixture".into(),
                             simulated: true,
                             sequence,
-                            measurement: None, unix_millis: 0,
+                            measurement: None,
+                            unix_millis: 0,
                             width,
                             height,
                             format: "BayerGRBG8".into(),
@@ -1701,7 +1853,7 @@ fn physical_backend(b: &Bootstrap, owner: &runtime::OwnerPort) -> Outcome {
         owner.checkpoint()?;
         let mut devices = nusb::list_devices()
             .wait()
-            .map_err(|e| crate::diagnostic::backend_text("@ID",e.to_string()))?
+            .map_err(|e| crate::diagnostic::backend_text("@ID", e.to_string()))?
             .filter(|d| {
                 d.vendor_id() == 0x0547
                     && d.product_id() == 0x4d33
@@ -1716,10 +1868,17 @@ fn physical_backend(b: &Bootstrap, owner: &runtime::OwnerPort) -> Outcome {
             return Err("@ID Ambiguous device".into());
         }
         owner.checkpoint()?;
-        if let Some(error)=crate::driver_policy::connection_error(&info) {return Err(error.into());}
-        let device = info.open().wait().map_err(|e| crate::diagnostic::backend_text("@OP",e.to_string()))?;
+        if let Some(error) = crate::driver_policy::connection_error(&info) {
+            return Err(error.into());
+        }
+        let device = info
+            .open()
+            .wait()
+            .map_err(|e| crate::diagnostic::backend_text("@OP", e.to_string()))?;
         opened = true;
-        let config = device.active_configuration().map_err(|e| crate::diagnostic::backend_text("@DS",e.to_string()))?;
+        let config = device
+            .active_configuration()
+            .map_err(|e| crate::diagnostic::backend_text("@DS", e.to_string()))?;
         const EXPECTED: &[u8] = &[
             9, 2, 32, 0, 1, 1, 0, 128, 50, 9, 4, 0, 0, 2, 255, 0, 0, 0, 7, 5, 129, 3, 64, 0, 0, 7,
             5, 130, 2, 0, 2, 0,
@@ -1732,8 +1891,10 @@ fn physical_backend(b: &Bootstrap, owner: &runtime::OwnerPort) -> Outcome {
         let interface = device
             .claim_interface(0)
             .wait()
-            .map_err(|e| crate::diagnostic::backend_text("@CL",e.to_string()))?;
-        let settings = b.settings().map_err(|e| crate::diagnostic::backend_text("@IN",e.to_string()))?;
+            .map_err(|e| crate::diagnostic::backend_text("@CL", e.to_string()))?;
+        let settings = b
+            .settings()
+            .map_err(|e| crate::diagnostic::backend_text("@IN", e.to_string()))?;
         crate::physical::with_resource_owners(interface, device, |interface| {
             crate::physical::continuous_acquire(
                 interface,
@@ -1762,7 +1923,11 @@ fn physical_backend(b: &Bootstrap, owner: &runtime::OwnerPort) -> Outcome {
                 },
                 &mut telemetry,
                 owner,
-                crate::startup::Binding { intent:b.startup_intent, session:b.nonce, generation:b.settings_generation },
+                crate::startup::Binding {
+                    intent: b.startup_intent,
+                    session: b.nonce,
+                    generation: b.settings_generation,
+                },
             )
         })
     })();
@@ -1811,10 +1976,18 @@ mod tests {
             assert_ne!(outcome.flags(true, false) & 7, 7);
             assert_eq!(outcome.cancelled, expected == crate::physical::CANCELLED);
             assert_eq!(outcome.failed, expected != crate::physical::CANCELLED);
-            assert_eq!(outcome.first_error, if expected == crate::physical::CANCELLED {None}else{Some(expected)});
+            assert_eq!(
+                outcome.first_error,
+                if expected == crate::physical::CANCELLED {
+                    None
+                } else {
+                    Some(expected)
+                }
+            );
         }
         for run in crate::physical::v041_tests::verified_runs() {
-            let expected_cleanup = run.session.records[4].as_ref().unwrap().cleanup_returned_ok == Some(true);
+            let expected_cleanup =
+                run.session.records[4].as_ref().unwrap().cleanup_returned_ok == Some(true);
             let expected_pending = !crate::physical::quiescence_unproved(&run.session.records[..4]);
             let expected_error = run.result.as_ref().err().cloned();
             let outcome = physical_outcome(run.result, &run.session, true);
@@ -1823,51 +1996,96 @@ mod tests {
             assert_eq!(outcome.released, expected_pending);
             assert_eq!(outcome.first_error, expected_error);
             assert_eq!(outcome.flags(true, false) & 2 != 0, expected_cleanup);
-            if !expected_cleanup {assert_ne!(outcome.flags(true, false) & 7, 7);}
+            if !expected_cleanup {
+                assert_ne!(outcome.flags(true, false) & 7, 7);
+            }
         }
     }
     #[test]
     fn startup_v3_rejects_old_missing_unknown_and_cross_intent_generation() {
         use crate::startup::Intent;
-        for intent in [Intent::Normal,Intent::Diagnostics] {
-            let mut b=sample();b.startup_intent=intent;
-            assert!(bootstrap_decode(&envelope(&b.bytes().unwrap()),true).is_ok());
-            let digest=os::digest(&b.bytes().unwrap()).unwrap();
-            let mut h=packet(5,&b,digest);
-            h[80..112].copy_from_slice(&frame_contract_hash(&b,1).unwrap());
+        for intent in [Intent::Normal, Intent::Diagnostics] {
+            let mut b = sample();
+            b.startup_intent = intent;
+            assert!(bootstrap_decode(&envelope(&b.bytes().unwrap()), true).is_ok());
+            let digest = os::digest(&b.bytes().unwrap()).unwrap();
+            let mut h = packet(5, &b, digest);
+            h[80..112].copy_from_slice(&frame_contract_hash(&b, 1).unwrap());
             h[112..120].copy_from_slice(&b.settings_generation.to_le_bytes());
-            assert!(frame_binding_valid(&h,&b,1));
-            let mut changed=b.clone();changed.startup_intent=if intent==Intent::Normal {Intent::Diagnostics} else {Intent::Normal};
-            assert_ne!(digest,os::digest(&changed.bytes().unwrap()).unwrap());
-            assert!(!frame_binding_valid(&h,&changed,1));
-            changed=b.clone();changed.settings_generation+=1;
-            assert!(!frame_binding_valid(&h,&changed,1));
-            for old in [1,2] { changed=b.clone();changed.version=old;assert!(bootstrap_decode(&envelope(&changed.bytes().unwrap()),true).is_err()); }
-            let value=serde_json::to_value(&b).unwrap();
-            let mut missing=value.clone();missing.as_object_mut().unwrap().remove("startup_intent");
-            assert!(bootstrap_decode(&envelope(&serde_json::to_vec(&missing).unwrap()),true).is_err());
-            let mut unknown=value;unknown["startup_intent"]="Normal".into();
-            assert!(bootstrap_decode(&envelope(&serde_json::to_vec(&unknown).unwrap()),true).is_err());
+            assert!(frame_binding_valid(&h, &b, 1));
+            let mut changed = b.clone();
+            changed.startup_intent = if intent == Intent::Normal {
+                Intent::Diagnostics
+            } else {
+                Intent::Normal
+            };
+            assert_ne!(digest, os::digest(&changed.bytes().unwrap()).unwrap());
+            assert!(!frame_binding_valid(&h, &changed, 1));
+            changed = b.clone();
+            changed.settings_generation += 1;
+            assert!(!frame_binding_valid(&h, &changed, 1));
+            for old in [1, 2] {
+                changed = b.clone();
+                changed.version = old;
+                assert!(bootstrap_decode(&envelope(&changed.bytes().unwrap()), true).is_err());
+            }
+            let value = serde_json::to_value(&b).unwrap();
+            let mut missing = value.clone();
+            missing.as_object_mut().unwrap().remove("startup_intent");
+            assert!(
+                bootstrap_decode(&envelope(&serde_json::to_vec(&missing).unwrap()), true).is_err()
+            );
+            let mut unknown = value;
+            unknown["startup_intent"] = "Normal".into();
+            assert!(
+                bootstrap_decode(&envelope(&serde_json::to_vec(&unknown).unwrap()), true).is_err()
+            );
         }
     }
     #[test]
     fn two_mode_bootstrap_geometry_and_frame_binding_rejections() {
-        let b=sample();b.validate(true).unwrap();
-        for i in 0..5 { let mut bad=b.clone();match i {
-            0=>bad.geometry.version=99,1=>bad.geometry.cfa="RGGB".into(),
-            2=>bad.geometry.source_window[2]=1024,3=>bad.mode="xga".into(),_=>bad.settings_generation=0,
-        }; assert!(bootstrap_decode(&envelope(&bad.bytes().unwrap()),true).is_err()); }
-        let digest=os::digest(&b.bytes().unwrap()).unwrap();let mut h=packet(5,&b,digest);
-        h[80..112].copy_from_slice(&frame_contract_hash(&b,1).unwrap());h[112..120].copy_from_slice(&1u64.to_le_bytes());
-        assert!(valid(&h,&b,digest));assert!(frame_binding_valid(&h,&b,1));
-        assert!(!frame_binding_valid(&h,&b,2));
-        let mut changed=b.clone();changed.nonce[0]^=1;assert!(!frame_binding_valid(&h,&changed,1));
-        changed=b.clone();changed.mode=Mode::Full.profile().id.into();changed.geometry=crate::sensor_contract::Geometry::for_mode(Mode::Full).unwrap();
-        changed.settings_digest=settings_hash(changed.settings().unwrap_or(Settings {mode:Mode::Full,..Default::default()})).unwrap();
-        assert!(!frame_binding_valid(&h,&changed,1)); // stale Full/skip contract cannot cross
-        for i in 80..128 {let mut bad=h;bad[i]^=1;assert!(!frame_binding_valid(&bad,&b,1));}
-        let mut old=h;old[2]=1;assert!(!valid(&old,&b,digest));
-        let old=packet(5,&b,digest);assert!(!frame_binding_valid(&old,&b,1)); // dimension-only old helper
+        let b = sample();
+        b.validate(true).unwrap();
+        for i in 0..5 {
+            let mut bad = b.clone();
+            match i {
+                0 => bad.geometry.version = 99,
+                1 => bad.geometry.cfa = "RGGB".into(),
+                2 => bad.geometry.source_window[2] = 1024,
+                3 => bad.mode = "xga".into(),
+                _ => bad.settings_generation = 0,
+            };
+            assert!(bootstrap_decode(&envelope(&bad.bytes().unwrap()), true).is_err());
+        }
+        let digest = os::digest(&b.bytes().unwrap()).unwrap();
+        let mut h = packet(5, &b, digest);
+        h[80..112].copy_from_slice(&frame_contract_hash(&b, 1).unwrap());
+        h[112..120].copy_from_slice(&1u64.to_le_bytes());
+        assert!(valid(&h, &b, digest));
+        assert!(frame_binding_valid(&h, &b, 1));
+        assert!(!frame_binding_valid(&h, &b, 2));
+        let mut changed = b.clone();
+        changed.nonce[0] ^= 1;
+        assert!(!frame_binding_valid(&h, &changed, 1));
+        changed = b.clone();
+        changed.mode = Mode::Full.profile().id.into();
+        changed.geometry = crate::sensor_contract::Geometry::for_mode(Mode::Full).unwrap();
+        changed.settings_digest = settings_hash(changed.settings().unwrap_or(Settings {
+            mode: Mode::Full,
+            ..Default::default()
+        }))
+        .unwrap();
+        assert!(!frame_binding_valid(&h, &changed, 1)); // stale Full/skip contract cannot cross
+        for i in 80..128 {
+            let mut bad = h;
+            bad[i] ^= 1;
+            assert!(!frame_binding_valid(&bad, &b, 1));
+        }
+        let mut old = h;
+        old[2] = 1;
+        assert!(!valid(&old, &b, digest));
+        let old = packet(5, &b, digest);
+        assert!(!frame_binding_valid(&old, &b, 1)); // dimension-only old helper
     }
     #[test]
     fn diagnostic_binding_covers_session_profile_settings_and_generation() {
@@ -1911,22 +2129,41 @@ mod tests {
     use std::sync::atomic::AtomicU64;
     #[test]
     fn v037_native_snapshot_supervisor_evaluate_first() {
-      use crate::diagnostic::ParentReport as P;
-      for evaluate_first in [false,true] {
-       let state=State::new(Arc::new(FakeClock(AtomicU64::new(0))));
-       if evaluate_first {state.snapshot.lock().unwrap().evaluate(IO);}
-       parent_report(&state,P::OwnerUnresponsive);
-       if !evaluate_first {state.snapshot.lock().unwrap().evaluate(IO);}
-       let mut s=state.snapshot.lock().unwrap();let first=s.first_error.clone();
-       let mut p=[0;128];p[69]=4;
-       let Snapshot{causes,first_error,..}=&mut *s;
-       crate::diagnostic::report_terminal(causes,first_error,&p).unwrap();
-       assert_eq!(s.causes.first,Some(P::OwnerUnresponsive.cause()));assert_eq!(s.first_error,first);
-      }
-      for r in [P::ChallengeLost,P::ChallengeMalformed,P::ChallengeUnanswered,P::ChallengeStalled] {
-       let state=State::new(Arc::new(FakeClock(AtomicU64::new(0))));parent_report(&state,r);
-       let mut s=state.snapshot.lock().unwrap();s.evaluate(IO);assert_eq!(s.causes.first,Some(r.cause()));
-      }
+        use crate::diagnostic::ParentReport as P;
+        for evaluate_first in [false, true] {
+            let state = State::new(Arc::new(FakeClock(AtomicU64::new(0))));
+            if evaluate_first {
+                state.snapshot.lock().unwrap().evaluate(IO);
+            }
+            parent_report(&state, P::OwnerUnresponsive);
+            if !evaluate_first {
+                state.snapshot.lock().unwrap().evaluate(IO);
+            }
+            let mut s = state.snapshot.lock().unwrap();
+            let first = s.first_error.clone();
+            let mut p = [0; 128];
+            p[69] = 4;
+            let Snapshot {
+                causes,
+                first_error,
+                ..
+            } = &mut *s;
+            crate::diagnostic::report_terminal(causes, first_error, &p).unwrap();
+            assert_eq!(s.causes.first, Some(P::OwnerUnresponsive.cause()));
+            assert_eq!(s.first_error, first);
+        }
+        for r in [
+            P::ChallengeLost,
+            P::ChallengeMalformed,
+            P::ChallengeUnanswered,
+            P::ChallengeStalled,
+        ] {
+            let state = State::new(Arc::new(FakeClock(AtomicU64::new(0))));
+            parent_report(&state, r);
+            let mut s = state.snapshot.lock().unwrap();
+            s.evaluate(IO);
+            assert_eq!(s.causes.first, Some(r.cause()));
+        }
     }
     struct FakeClock(AtomicU64);
     impl runtime::Clock for FakeClock {
@@ -1949,18 +2186,39 @@ mod tests {
                     (Some(15), Some(0), false, true),
                 ] {
                     let state = State::new(Arc::new(FakeClock(AtomicU64::new(0))));
-                    if stopped { request_stop(&state); }
-                    if prior_fault { fault(&state, "prior lifecycle fault"); }
+                    if stopped {
+                        request_stop(&state);
+                    }
+                    if prior_fault {
+                        fault(&state, "prior lifecycle fault");
+                    }
                     response_write_failed(&state, &io::Error::from_raw_os_error(code));
                     let mut s = state.snapshot.lock().unwrap();
-                    let expected = stopped && matches!(code, 109 | 232)
-                        && proof == Some(15) && exit == Some(0) && !prior_fault && !expired;
-                    assert_eq!(commit_release(&mut s,
-                        if expired { Duration::from_secs(9) } else { Duration::ZERO },
-                        proof, exit, false), expected);
+                    let expected = stopped
+                        && matches!(code, 109 | 232)
+                        && proof == Some(15)
+                        && exit == Some(0)
+                        && !prior_fault
+                        && !expired;
+                    assert_eq!(
+                        commit_release(
+                            &mut s,
+                            if expired {
+                                Duration::from_secs(9)
+                            } else {
+                                Duration::ZERO
+                            },
+                            proof,
+                            exit,
+                            false
+                        ),
+                        expected
+                    );
                     assert_eq!(s.release_committed, expected);
                     assert!(!s.marker_deleted); // only native exact-handle delete can set this
-                    if prior_fault { assert_eq!(s.first_error.as_deref(), Some("prior lifecycle fault")); }
+                    if prior_fault {
+                        assert_eq!(s.first_error.as_deref(), Some("prior lifecycle fault"));
+                    }
                 }
             }
         }

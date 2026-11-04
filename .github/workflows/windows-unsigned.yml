@@ -13,6 +13,7 @@ on:
       - 'crates/camera-lab/assets/**'
       - 'packaging/**'
       - 'scripts/**'
+      - 'bindings/control/**'
       - 'RECORDER-SOURCE-ID'
 
 permissions:

@@ -1,4 +1,11 @@
-# KohdaLab Camera 0.1.12
+# Changelog / 変更履歴
+
+## 0.1.16 — 2026-11-05
+
+- Ignore empty home-directory environment values and use the valid platform fallback consistently in the GUI and common Python client. / GUIと共通Pythonクライアントで、空のホーム環境変数を除外して有効な代替先を使います。
+- Search only newly received bytes for the common API response delimiter, preserving existing size limits and error handling. / 共通APIの受信済みデータを繰り返し走査せず、新しい断片だけで区切りを検出します。サイズ制限とエラー処理は維持します。
+- Format Rust sources consistently without changing acquisition or rendering algorithms. / 撮像・描画のアルゴリズムを変えず、Rustソースの書式を統一します。
+- Include common Python client changes in the Windows build trigger and refresh the derived source identity. / 共通Pythonクライアントの変更でもWindowsビルドを実行し、派生するソース識別子を更新します。
 
 ## 0.1.15
 

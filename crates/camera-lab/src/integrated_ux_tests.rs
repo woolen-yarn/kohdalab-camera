@@ -68,7 +68,8 @@ impl Transport for FakeOwner {
                 source: "typed deterministic product fake".into(),
                 simulated: true,
                 sequence: self.sequence,
-                measurement: None, unix_millis: 0,
+                measurement: None,
+                unix_millis: 0,
                 width: w.into(),
                 height: h.into(),
                 format: "BayerGRBG8".into(),
@@ -99,13 +100,13 @@ fn fresh(name: &str) -> PathBuf {
     p
 }
 fn frozen_equal(path: &std::path::Path, f: &Frame) {
-    frozen_recipe_equal(path,f,Recipe::default());
+    frozen_recipe_equal(path, f, Recipe::default());
 }
-fn frozen_recipe_equal(path: &std::path::Path, f: &Frame,recipe:Recipe) {
+fn frozen_recipe_equal(path: &std::path::Path, f: &Frame, recipe: Recipe) {
     assert!(path.is_file());
     assert_eq!(
         image::open(path).unwrap().to_rgb8().as_raw(),
-        &recipe.render(f,None).unwrap().2
+        &recipe.render(f, None).unwrap().2
     );
     assert_eq!(
         std::fs::read(format!("{}.raw", path.display())).unwrap(),
@@ -115,7 +116,10 @@ fn frozen_recipe_equal(path: &std::path::Path, f: &Frame,recipe:Recipe) {
         serde_json::from_slice(&std::fs::read(format!("{}.json", path.display())).unwrap())
             .unwrap();
     assert_eq!(meta["frame"], serde_json::to_value(&f.metadata).unwrap());
-    assert_eq!(meta["display_recipe"],serde_json::to_value(recipe).unwrap());
+    assert_eq!(
+        meta["display_recipe"],
+        serde_json::to_value(recipe).unwrap()
+    );
     assert!(meta["exposure_time_seconds"].is_null());
 }
 #[test]
@@ -140,7 +144,10 @@ fn coherent_flow_and_stop_precedence() {
         draw(&mut app, &ctx);
     }
     assert_eq!(opens.load(Ordering::SeqCst), count);
-    assert_eq!(app.product.applied.unwrap().settings.exposure_rows, Settings::default().exposure_rows);
+    assert_eq!(
+        app.product.applied.unwrap().settings.exposure_rows,
+        Settings::default().exposure_rows
+    );
     // The production action submits draft once; edits alone submit nothing.
     app.request(Some(Source::Simulation));
     let applied_revision = app.revision;
@@ -416,7 +423,8 @@ fn native_paired_completion() {
     let ctx = egui::Context::default();
     let worker = Worker::new();
     let mut guardian = worker.guardian();
-    let mut app = App::with_recipe_exporter_worker(&ctx, camera_lab::image_export::save_recipe, worker);
+    let mut app =
+        App::with_recipe_exporter_worker(&ctx, camera_lab::image_export::save_recipe, worker);
     app.fake_only = true;
     app.picker = false;
     app.request(Some(Source::Fixture {
@@ -432,9 +440,17 @@ fn native_paired_completion() {
     until(&mut app, &ctx, |a| {
         a.product.applied.is_some_and(|p| p.revision == rev)
     });
-    let recipe=Recipe{ev:0.5,gamma:1.25,wb:[1.1,1.,0.9],quarter_turns:1,mirror:true,..Default::default()};
-    app.recipe=recipe;app.recipe_changed();
-    until(&mut app,&ctx,|a|a.displayed_recipe==recipe);
+    let recipe = Recipe {
+        ev: 0.5,
+        gamma: 1.25,
+        wb: [1.1, 1., 0.9],
+        quarter_turns: 1,
+        mirror: true,
+        ..Default::default()
+    };
+    app.recipe = recipe;
+    app.recipe_changed();
+    until(&mut app, &ctx, |a| a.displayed_recipe == recipe);
     app.paused = true;
     let held = app.frame.clone().unwrap();
     until(&mut app, &ctx, |a| {
@@ -442,20 +458,24 @@ fn native_paired_completion() {
     });
     let path = root.join("visible.png");
     app.save_frozen(held.clone(), path.clone());
-    app.recipe=Recipe::default();app.recipe_changed();
+    app.recipe = Recipe::default();
+    app.recipe_changed();
     until(&mut app, &ctx, |a| !a.busy);
-    frozen_recipe_equal(&path, &held,recipe);
+    frozen_recipe_equal(&path, &held, recipe);
     app.paused = false;
     until(&mut app, &ctx, |a| {
         a.frame.as_ref().unwrap().metadata.sequence > held.metadata.sequence
     });
     let original = app.product.applied.unwrap().settings;
     let path = root.join("full.tiff");
-    app.recipe=recipe;app.recipe_changed();app.begin_full(path.clone());
-    app.recipe=Recipe::default();app.recipe_changed();
+    app.recipe = recipe;
+    app.recipe_changed();
+    app.begin_full(path.clone());
+    app.recipe = Recipe::default();
+    app.recipe_changed();
     until(&mut app, &ctx, |a| !a.product.busy() && !a.busy);
     assert_eq!(app.product.applied.unwrap().settings, original);
-    frozen_recipe_equal(&path, app.product.held.as_ref().unwrap(),recipe);
+    frozen_recipe_equal(&path, app.product.held.as_ref().unwrap(), recipe);
     // Hold the final session briefly so external native handles can be retained.
     let end = Instant::now() + Duration::from_millis(500);
     while Instant::now() < end {

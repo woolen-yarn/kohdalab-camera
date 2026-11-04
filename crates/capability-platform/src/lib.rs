@@ -30,7 +30,10 @@ pub fn replace_file(source: &std::path::Path, destination: &std::path::Path) -> 
     fn wide(path: &std::path::Path) -> io::Result<Vec<u16>> {
         let mut value: Vec<u16> = path.as_os_str().encode_wide().collect();
         if value.contains(&0) {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "File path contains a null character"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "File path contains a null character",
+            ));
         }
         value.push(0);
         Ok(value)
@@ -38,7 +41,13 @@ pub fn replace_file(source: &std::path::Path, destination: &std::path::Path) -> 
     let source = wide(source)?;
     let destination = wide(destination)?;
     // Both NUL-terminated buffers remain alive for this synchronous call.
-    check(unsafe { MoveFileExW(source.as_ptr(), destination.as_ptr(), MOVEFILE_REPLACE_EXISTING) })
+    check(unsafe {
+        MoveFileExW(
+            source.as_ptr(),
+            destination.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING,
+        )
+    })
 }
 fn raw(h: &OwnedHandle) -> HANDLE {
     h.as_raw_handle()
