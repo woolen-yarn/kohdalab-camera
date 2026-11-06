@@ -39,7 +39,7 @@ def main() -> int:
                 stderr=subprocess.STDOUT,
             )
         try:
-            directory = Path(home) / ".kohdalab" / "control"
+            directory = Path(home) / ".kohdalab" / "camera" / "run"
             endpoint = None
             for _ in range(300):
                 candidates = list(directory.glob("*.json")) if directory.exists() else []
