@@ -24,6 +24,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  macos-recording:
+    name: macOS simulation recording
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Verify source and device-free recording
+        run: |
+          python3 scripts/update_source_identity.py --check
+          cargo +1.99.1 test --locked -p camera-lab --lib image_export::
+          cargo +1.99.1 test --locked -p camera-lab --lib measurement::
+          cargo +1.99.1 test --locked -p kohdalab-control-protocol
+          cargo +1.99.1 build --release --locked -p camera-lab --bin camera-lab
+      - name: Verify GUI observer in Simulation
+        run: python3 scripts/verify_common_control.py target/release/camera-lab --output build/macos-common-control.json
   build:
     runs-on: windows-2025
     timeout-minutes: 45
@@ -75,6 +94,10 @@ jobs:
           if ($LASTEXITCODE) { throw 'Common API authentication tests failed' }
           cargo test --locked --target x86_64-pc-windows-gnu --lib driver_policy
           if ($LASTEXITCODE) { throw 'Driver policy tests failed' }
+          cargo test --locked --target x86_64-pc-windows-gnu --lib image_export::
+          if ($LASTEXITCODE) { throw 'Image/raw recording contract tests failed' }
+          cargo test --locked --target x86_64-pc-windows-gnu --lib measurement::
+          if ($LASTEXITCODE) { throw 'Frame provenance tests failed' }
           cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab preferences
           if ($LASTEXITCODE) { throw 'Preferences tests failed' }
           cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab natural_ui -- --test-threads=1

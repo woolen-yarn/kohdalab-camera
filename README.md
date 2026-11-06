@@ -94,6 +94,25 @@ user. Updating or uninstalling preserves settings, captures and device interlock
 `%ProgramFiles%\Kohdalab\KohdaLab Camera` へインストールします。
 アプリ本体は起動したユーザーで動作し、更新・アンインストール時も設定・保存画像・保護ロックを保持します。
 
+## Saved data / 保存仕様
+
+Keep each exported image and all its sidecars together:
+
+出力画像と次の付属ファイルを一緒に保管してください。
+
+| File / ファイル | Contents / 内容 |
+| --- | --- |
+| `.png` / `.tiff` | RGB8 image with the frozen display recipe applied; not calibrated radiometry. / 保存時の表示補正を適用したRGB8画像。校正済みの光量ではありません。 |
+| `.raw` | Exact received bytes before software image processing. / ソフトウェア画像処理前の受信バイト列をそのまま保存。 |
+| `.original-RAW.tiff` | Unchanged L8 Bayer mosaic when the source is BayerGRBG8; absent for RGB sources. / BayerGRBG8の場合の未加工L8モザイク。RGB入力では作成しません。 |
+| `.json` | Frame/acquisition settings when available, display recipe, dimensions, timing qualifications and application version/source identity. / 取得できたフレーム・撮像設定、表示補正、寸法、時刻の意味、アプリ版・ソース識別子。 |
+
+The supported GR300 transport carries 8 bits of its 10-bit sensor output. Saving RAW preserves those received 8 bits; it cannot restore the missing bits. The new `recording_contract` makes this distinction machine-readable. Exposure rows/gain are retained in the acquisition contract when available. Exposure seconds, measured sensor clock, exposure-start UTC and sensor frame-loss counts remain `null` because they are not observed. A host acceptance timestamp/sequence is not a sensor exposure timestamp/frame counter. Simulation is labeled explicitly; unknown values are never replaced with zero.
+
+対応するGR300の通信経路は10-bitセンサー出力のうち8-bitを運びます。RAW保存で保持するのは受信した8-bitであり、欠けたビットは復元できません。新しい`recording_contract`にこの区別を記録します。取得できた露光行数・ゲインは撮像設定に残しますが、露光秒数・実測センサークロック・露光開始UTC・センサー欠落フレーム数は未取得のため`null`です。ホスト受信時刻・連番はセンサーの露光時刻・フレームカウンターではありません。Simulationは明示し、不明値を0で補いません。
+
+Existing outputs are never overwritten. Files are flushed and synced to the OS; a sidecar error reports partial completion and preserves an already saved image. This does not guarantee survival of storage-device failure. / 既存出力は上書きしません。ファイルをOSへflush・syncし、付属ファイルの失敗時は部分保存を報告して保存済み画像を保持します。記憶装置故障まで保証するものではありません。
+
 ## Development / 開発
 
 Run commands from the repository root. The root `Cargo.toml` and `Cargo.lock` are the workspace entry point; product packages live under `crates/`.

@@ -103,7 +103,8 @@ pub fn save_recipe(
             } else {
                 serde_json::json!({"available":false,"reason":"source RGB8; no original Bayer sensor data"})
             };
-            let data = serde_json::json!({"frame":f.metadata,"processing":recipe.processing(&f.metadata.format),"original_sensor_tiff":original_info,"display_recipe":recipe,"image_dimensions":[width,height],"orientation":"software reflections then clockwise quarter turns; RAW orientation unchanged","color_assumptions":"Declared GRBG software reconstruction or source RGB8; software arithmetic on encoded channel values; no calibrated color/gamma","raw_preserved":true,"exposure_time_seconds":null,"timestamp_semantics":crate::measurement::timestamp_semantics(&f.metadata)});
+            let data = serde_json::json!({"frame":f.metadata,"processing":recipe.processing(&f.metadata.format),"original_sensor_tiff":original_info,"display_recipe":recipe,"image_dimensions":[width,height],"orientation":"software reflections then clockwise quarter turns; RAW orientation unchanged","color_assumptions":"Declared GRBG software reconstruction or source RGB8; software arithmetic on encoded channel values; no calibrated color/gamma","raw_preserved":true,"exposure_time_seconds":null,"timestamp_semantics":crate::measurement::timestamp_semantics(&f.metadata),
+                "recording_contract": recording_contract(f)});
             let mut out = OpenOptions::new()
                 .write(true)
                 .create_new(true)
@@ -122,6 +123,28 @@ pub fn save_recipe(
     })();
     let _ = fs::remove_file(temp);
     result
+}
+
+/// Describe preserved bytes separately from sensor precision and host timing.
+/// In particular a host sequence is not evidence of a sensor frame counter.
+fn recording_contract(f: &Frame) -> serde_json::Value {
+    let geometry = f.metadata.acquisition.as_ref().map(|a| &a.geometry);
+    serde_json::json!({
+        "version": 1,
+        "software": {"application":"kohdalab-camera", "version":env!("CARGO_PKG_VERSION"),
+            "source_identity":include_str!("../../../RECORDER-SOURCE-ID").trim()},
+        "raw": {"meaning":"exact_received_payload_before_software_display_processing",
+            "format":f.metadata.format,"bytes":f.raw.len(),"stored_bits_per_component":8,
+            "declared_sensor_bits":geometry.map(|g|g.sensor_bits),
+            "declared_transport_bits":geometry.map(|g|g.transport_bits),
+            "full_sensor_precision_preserved": geometry.map(|g| g.sensor_bits == g.transport_bits),
+            "simulated":f.metadata.simulated},
+        "timing": {"timestamp_semantics":crate::measurement::timestamp_semantics(&f.metadata),
+            "exposure_start_utc":null,"exposure_duration_seconds":null,
+            "measured_sensor_clock_hz":null,"sensor_frame_counter":null,"sensor_dropped_frames":null,
+            "sequence_semantics":"host_accepted_frame_sequence_not_sensor_counter",
+            "unknown_values":"null means not observed, never zero"}
+    })
 }
 
 #[cfg(test)]
@@ -152,6 +175,15 @@ mod tests {
             save_recipe(&f, &path, crate::display_recipe::Recipe::legacy()).unwrap();
             assert_eq!(image::open(&path).unwrap().to_rgb8().as_raw(), &expected);
             assert_eq!(fs::read(suffix(&path, ".raw")).unwrap(), *f.raw);
+            let metadata: serde_json::Value =
+                serde_json::from_slice(&fs::read(suffix(&path, ".json")).unwrap()).unwrap();
+            let contract = &metadata["recording_contract"];
+            assert_eq!(contract["raw"]["stored_bits_per_component"], 8);
+            assert!(contract["raw"]["declared_sensor_bits"].is_null());
+            assert!(contract["raw"]["full_sensor_precision_preserved"].is_null());
+            assert!(contract["timing"]["sensor_dropped_frames"].is_null());
+            assert!(contract["timing"]["exposure_start_utc"].is_null());
+            assert_eq!(contract["software"]["version"], env!("CARGO_PKG_VERSION"));
             assert!(
                 save_recipe(&f, &path, crate::display_recipe::Recipe::legacy())
                     .unwrap_err()
@@ -180,6 +212,33 @@ mod tests {
             assert_eq!(image::open(path).unwrap().to_rgb8().as_raw(), &expected);
         }
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn finite_acquisition_contract_does_not_claim_missing_sensor_bits_or_clock() {
+        let settings = crate::controls::Settings::default();
+        let acquisition =
+            crate::sensor_contract::Acquisition::new(settings, [1; 32], 1, 1).unwrap();
+        let frame = Frame {
+            raw: std::sync::Arc::new(vec![]),
+            metadata: crate::Metadata {
+                acquisition: Some(acquisition),
+                source: "contract test".into(),
+                simulated: true,
+                sequence: 1,
+                measurement: None,
+                unix_millis: 0,
+                width: 2,
+                height: 2,
+                format: "BayerGRBG8".into(),
+            },
+        };
+        let contract = recording_contract(&frame);
+        assert_eq!(contract["raw"]["declared_sensor_bits"], 10);
+        assert_eq!(contract["raw"]["declared_transport_bits"], 8);
+        assert_eq!(contract["raw"]["full_sensor_precision_preserved"], false);
+        assert!(contract["timing"]["measured_sensor_clock_hz"].is_null());
+        assert!(contract["timing"]["exposure_duration_seconds"].is_null());
     }
 }
 
