@@ -1,5 +1,6 @@
 //! Frozen full-resolution RGB plus exact original sensor sidecars.
 use crate::Frame;
+use sha2::{Digest, Sha256};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
@@ -12,6 +13,207 @@ fn suffix(path: &Path, suffix: &str) -> PathBuf {
     let mut name = path.as_os_str().to_os_string();
     name.push(suffix);
     PathBuf::from(name)
+}
+
+pub(crate) fn standard_sidecars(path: &Path) -> [PathBuf; 4] {
+    [
+        suffix(path, ".csv"),
+        suffix(path, ".raw.csv"),
+        suffix(path, ".log"),
+        suffix(path, ".run.json"),
+    ]
+}
+
+pub(crate) fn sha256(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn filename(path: &Path) -> Result<String, String> {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .ok_or_else(|| "Missing filename".into())
+}
+
+pub(crate) fn write_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut out = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(|e| e.to_string())?;
+    out.write_all(bytes)
+        .and_then(|_| out.sync_all())
+        .map_err(|e| e.to_string())
+}
+
+pub(crate) fn write_standard_sidecars(
+    f: &Frame,
+    primary: &Path,
+    raw: &Path,
+    conditions: Option<&Path>,
+    sidecars: &[PathBuf; 4],
+    mut conditions_data: serde_json::Value,
+) -> Result<(), String> {
+    let run_id = uuid::Uuid::new_v4().to_string();
+    let raw_name = filename(raw)?;
+    let primary_name = filename(primary)?;
+    let names = sidecars
+        .each_ref()
+        .map(|path| filename(path))
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+    let raw_hash = sha256(&f.raw);
+    let (image_width, image_height) =
+        image::image_dimensions(primary).map_err(|e| e.to_string())?;
+    let timestamp_semantics = crate::measurement::timestamp_semantics(&f.metadata);
+    let acquisition = serde_json::to_value(&f.metadata.acquisition).map_err(|e| e.to_string())?;
+    let mut summary = csv::Writer::from_writer(Vec::new());
+    summary
+        .write_record([
+            "run_id",
+            "frame_sequence",
+            "source",
+            "simulated",
+            "frame_timestamp_unix_ms",
+            "raw_format",
+            "sensor_width_px",
+            "sensor_height_px",
+            "image_width_px",
+            "image_height_px",
+            "timestamp_semantics",
+            "image_filename",
+            "raw_payload_filename",
+            "raw_payload_sha256",
+        ])
+        .map_err(|e| e.to_string())?;
+    summary
+        .write_record([
+            &run_id,
+            &f.metadata.sequence.to_string(),
+            &f.metadata.source,
+            &f.metadata.simulated.to_string(),
+            &f.metadata.unix_millis.to_string(),
+            &f.metadata.format,
+            &f.metadata.width.to_string(),
+            &f.metadata.height.to_string(),
+            &image_width.to_string(),
+            &image_height.to_string(),
+            timestamp_semantics,
+            &primary_name,
+            &raw_name,
+            &raw_hash,
+        ])
+        .map_err(|e| e.to_string())?;
+    let summary = summary.into_inner().map_err(|e| e.to_string())?;
+    let mut raw_summary = csv::Writer::from_writer(Vec::new());
+    raw_summary
+        .write_record([
+            "run_id",
+            "payload_filename",
+            "payload_sha256",
+            "payload_bytes",
+            "raw_format",
+            "sensor_width_px",
+            "sensor_height_px",
+            "frame_timestamp_unix_ms",
+            "simulated",
+            "acquisition_settings_json",
+        ])
+        .map_err(|e| e.to_string())?;
+    raw_summary
+        .write_record([
+            &run_id,
+            &raw_name,
+            &raw_hash,
+            &f.raw.len().to_string(),
+            &f.metadata.format,
+            &f.metadata.width.to_string(),
+            &f.metadata.height.to_string(),
+            &f.metadata.unix_millis.to_string(),
+            &f.metadata.simulated.to_string(),
+            &acquisition.to_string(),
+        ])
+        .map_err(|e| e.to_string())?;
+    let raw_summary = raw_summary.into_inner().map_err(|e| e.to_string())?;
+    let bundle = serde_json::json!({"schema":"kohdalab_run_bundle_v1","run_id":run_id,"filenames":{"analysis_csv":names[0],"raw_csv":names[1],"log":names[2],"conditions_json":names[3]},"image":{"native_payload":primary_name,"raw_payload":raw_name,"raw_payload_sha256":raw_hash,"raw_payload_bytes":f.raw.len()}});
+    let conditions_object = conditions_data
+        .as_object_mut()
+        .ok_or("Camera conditions must be a JSON object")?;
+    conditions_object.insert(
+        "frame".into(),
+        serde_json::to_value(&f.metadata).map_err(|e| e.to_string())?,
+    );
+    conditions_object.insert("observed_acquisition".into(), acquisition);
+    conditions_object.insert(
+        "host_timestamp".into(),
+        serde_json::json!({"timestamp_ms":f.metadata.unix_millis,"semantics":timestamp_semantics}),
+    );
+    conditions_object.insert("simulation".into(), serde_json::json!(f.metadata.simulated));
+    conditions_object.insert("run_bundle".into(), bundle.clone());
+    conditions_object.insert("run_id".into(), serde_json::json!(run_id));
+    conditions_object.insert(
+        "csv_schema".into(),
+        serde_json::json!("camera_frame_summary_v1"),
+    );
+    conditions_object.insert(
+        "raw_schema".into(),
+        serde_json::json!("camera_raw_payload_v1"),
+    );
+    conditions_object.insert("log".into(), serde_json::json!({"schema":"kohdalab_run_log_v1","timestamp_unit":"unix_ms","filename":names[2]}));
+    conditions_object.insert("application".into(), serde_json::json!("kohdalab-camera"));
+    conditions_object.insert(
+        "application_version".into(),
+        serde_json::json!(env!("CARGO_PKG_VERSION")),
+    );
+    conditions_object.insert(
+        "image_dimensions".into(),
+        serde_json::json!([image_width, image_height]),
+    );
+    write_new(&sidecars[0], &summary)?;
+    write_new(&sidecars[1], &raw_summary)?;
+    let saved_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_millis();
+    let log = format!(
+        "{saved_unix_ms}\tINFO\t{run_id}\tframe_saved\t{}\n",
+        serde_json::json!({"clock":"host_unix_ms","image":primary_name,"simulation":f.metadata.simulated,"frame_timestamp_semantics":timestamp_semantics})
+    );
+    write_new(&sidecars[2], log.as_bytes())?;
+    if let Some(conditions) = conditions {
+        write_new(
+            conditions,
+            &serde_json::to_vec_pretty(&conditions_data).map_err(|e| e.to_string())?,
+        )?;
+    }
+    conditions_data["status"] = serde_json::json!("complete");
+    conditions_data["file_hashes"] = serde_json::json!({
+        "csv_sha256":sha256(&summary), "raw_csv_sha256":sha256(&raw_summary),
+        "log_sha256":sha256(log.as_bytes()), "image_sha256":file_sha256(primary)?,
+        "raw_payload_sha256":raw_hash,
+    });
+    if let Some(conditions) = conditions {
+        conditions_data["legacy_conditions"] =
+            serde_json::json!({"filename":filename(conditions)?,"sha256":file_sha256(conditions)?});
+    }
+    write_new(
+        &sidecars[3],
+        &serde_json::to_vec_pretty(&conditions_data).map_err(|e| e.to_string())?,
+    )
+}
+
+fn file_sha256(path: &Path) -> Result<String, String> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut hash = Sha256::new();
+    let mut buffer = [0_u8; 65536];
+    loop {
+        let n = file.read(&mut buffer).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        hash.update(&buffer[..n]);
+    }
+    Ok(format!("{:x}", hash.finalize()))
 }
 /// Existing primary/sidecars are refused. Dialog cancellation never reaches this function.
 /// A same-directory hard link publishes a fully encoded primary atomically without overwrite.
@@ -39,8 +241,10 @@ pub fn save_recipe(
     let raw = suffix(path, ".raw");
     let metadata = suffix(path, ".json");
     let original = suffix(path, ".original-RAW.tiff");
-    if [path, raw.as_path(), metadata.as_path(), original.as_path()]
-        .iter()
+    let sidecars = standard_sidecars(path);
+    if std::iter::once(path)
+        .chain([raw.as_path(), metadata.as_path(), original.as_path()])
+        .chain(sidecars.iter().map(PathBuf::as_path))
         .any(|p| p.exists())
     {
         return Err("Existing image or sidecars: choose a new name; overwrite is disabled".into());
@@ -74,7 +278,7 @@ pub fn save_recipe(
             let mut out = OpenOptions::new()
                 .write(true)
                 .create_new(true)
-                .open(raw)
+                .open(&raw)
                 .map_err(|e| e.to_string())?;
             out.write_all(f.raw.as_slice())
                 .and_then(|_| out.sync_all())
@@ -103,16 +307,14 @@ pub fn save_recipe(
             } else {
                 serde_json::json!({"available":false,"reason":"source RGB8; no original Bayer sensor data"})
             };
-            let data = serde_json::json!({"frame":f.metadata,"processing":recipe.processing(&f.metadata.format),"original_sensor_tiff":original_info,"display_recipe":recipe,"image_dimensions":[width,height],"orientation":"software reflections then clockwise quarter turns; RAW orientation unchanged","color_assumptions":"Declared GRBG software reconstruction or source RGB8; software arithmetic on encoded channel values; no calibrated color/gamma","raw_preserved":true,"exposure_time_seconds":null,"timestamp_semantics":crate::measurement::timestamp_semantics(&f.metadata),
-                "recording_contract": recording_contract(f)});
-            let mut out = OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(metadata)
-                .map_err(|e| e.to_string())?;
-            out.write_all(&serde_json::to_vec_pretty(&data).map_err(|e| e.to_string())?)
-                .and_then(|_| out.sync_all())
-                .map_err(|e| e.to_string())
+            write_standard_sidecars(
+                f,
+                path,
+                &raw,
+                Some(&metadata),
+                &sidecars,
+                serde_json::json!({"display_recipe":recipe,"processing":recipe.processing(&f.metadata.format),"original_sensor_tiff":original_info,"image_dimensions":[width,height],"orientation":"software reflections then clockwise quarter turns; RAW orientation unchanged","color_assumptions":"Declared GRBG software reconstruction or source RGB8; software arithmetic on encoded channel values; no calibrated color/gamma","raw_preserved":true,"exposure_time_seconds":null,"timestamp_semantics":crate::measurement::timestamp_semantics(&f.metadata),"recording_contract":recording_contract(f)}),
+            )
         })();
         sidecars.map_err(|e| {
             format!(
@@ -177,6 +379,8 @@ mod tests {
             assert_eq!(fs::read(suffix(&path, ".raw")).unwrap(), *f.raw);
             let metadata: serde_json::Value =
                 serde_json::from_slice(&fs::read(suffix(&path, ".json")).unwrap()).unwrap();
+            let manifest: serde_json::Value =
+                serde_json::from_slice(&fs::read(suffix(&path, ".run.json")).unwrap()).unwrap();
             let contract = &metadata["recording_contract"];
             assert_eq!(contract["raw"]["stored_bits_per_component"], 8);
             assert!(contract["raw"]["declared_sensor_bits"].is_null());
@@ -184,6 +388,51 @@ mod tests {
             assert!(contract["timing"]["sensor_dropped_frames"].is_null());
             assert!(contract["timing"]["exposure_start_utc"].is_null());
             assert_eq!(contract["software"]["version"], env!("CARGO_PKG_VERSION"));
+            assert_eq!(manifest["run_bundle"]["schema"], "kohdalab_run_bundle_v1");
+            assert_eq!(manifest["status"], "complete");
+            assert_eq!(
+                manifest["run_bundle"]["filenames"]["conditions_json"],
+                filename(&suffix(&path, ".run.json")).unwrap()
+            );
+            assert_eq!(manifest["frame"]["format"], "BayerGRBG8");
+            assert!(
+                manifest["host_timestamp"]["semantics"]
+                    .as_str()
+                    .unwrap()
+                    .contains("unspecified")
+            );
+            for (extension, key) in [
+                (".csv", "csv_sha256"),
+                (".raw.csv", "raw_csv_sha256"),
+                (".log", "log_sha256"),
+            ] {
+                assert_eq!(
+                    manifest["file_hashes"][key],
+                    file_sha256(&suffix(&path, extension)).unwrap()
+                );
+            }
+            assert_eq!(
+                manifest["file_hashes"]["image_sha256"],
+                file_sha256(&path).unwrap()
+            );
+            assert_eq!(
+                manifest["run_bundle"]["image"]["raw_payload"],
+                "chosen.png.raw".replace("png", ext)
+            );
+            assert_eq!(
+                manifest["run_bundle"]["image"]["raw_payload_sha256"],
+                sha256(&f.raw)
+            );
+            assert_eq!(metadata["host_timestamp"]["timestamp_ms"], 0);
+            assert_eq!(
+                fs::read_to_string(suffix(&path, ".csv"))
+                    .unwrap()
+                    .lines()
+                    .next(),
+                Some(
+                    "run_id,frame_sequence,source,simulated,frame_timestamp_unix_ms,raw_format,sensor_width_px,sensor_height_px,image_width_px,image_height_px,timestamp_semantics,image_filename,raw_payload_filename,raw_payload_sha256"
+                )
+            );
             assert!(
                 save_recipe(&f, &path, crate::display_recipe::Recipe::legacy())
                     .unwrap_err()

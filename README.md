@@ -106,6 +106,8 @@ Keep each exported image and all its sidecars together:
 | `.raw` | Exact received bytes before software image processing. / ソフトウェア画像処理前の受信バイト列をそのまま保存。 |
 | `.original-RAW.tiff` | Unchanged L8 Bayer mosaic when the source is BayerGRBG8; absent for RGB sources. / BayerGRBG8の場合の未加工L8モザイク。RGB入力では作成しません。 |
 | `.json` | Frame/acquisition settings when available, display recipe, dimensions, timing qualifications and application version/source identity. / 取得できたフレーム・撮像設定、表示補正、寸法、時刻の意味、アプリ版・ソース識別子。 |
+| `.csv` / `.raw.csv` | One-row frame summary and native-payload index (pixel dimensions, host timestamp in ms, byte count and SHA-256); they never replace the native image or RAW bytes. / 1行のフレーム要約とネイティブpayload索引（pixel寸法、host時刻ms、byte数、SHA-256）。ネイティブ画像・RAWの代替ではありません。 |
+| `.log` / `.run.json` | Human-readable export log and `kohdalab_run_bundle_v1` manifest linking the image, raw payload and conditions. / 可読な出力logと、画像・RAW・conditionsを結ぶ`kohdalab_run_bundle_v1` manifest。 |
 
 The supported GR300 transport carries 8 bits of its 10-bit sensor output. Saving RAW preserves those received 8 bits; it cannot restore the missing bits. The new `recording_contract` makes this distinction machine-readable. Exposure rows/gain are retained in the acquisition contract when available. Exposure seconds, measured sensor clock, exposure-start UTC and sensor frame-loss counts remain `null` because they are not observed. A host acceptance timestamp/sequence is not a sensor exposure timestamp/frame counter. Simulation is labeled explicitly; unknown values are never replaced with zero.
 
@@ -163,3 +165,5 @@ Project code is [MIT licensed](LICENSE). Native helpers and redistributed depend
 ## Common GUI control / 共通GUI制御
 
 [Control Protocol 1 and Python/Notebook examples / 共通APIとPython・Notebook](docs/reference/common-control-api.md). The existing application API remains supported; operation payloads and safety policy are app-specific. Camera is read-only. / 既存APIは維持し、操作引数と安全方針は各アプリに従います。Cameraは読み取り専用です。
+
+See [Measurement output bundles / 測定データの保存セット](docs/reference/measurement-output.md) for common file roles and unit conventions.

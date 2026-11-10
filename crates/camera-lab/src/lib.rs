@@ -352,29 +352,53 @@ pub fn export(f: &Frame, path: &Path) -> Result<(), String> {
     let filename = path.file_name().ok_or("Missing filename")?;
     let bundle = path.with_file_name(format!("{}.capture", filename.to_string_lossy()));
     std::fs::create_dir(&bundle).map_err(|e| e.to_string())?;
-    let result = (|| {
-        image::save_buffer_with_format(
-            bundle.join(filename),
-            &f.legacy_display_rgb(),
-            f.metadata.width,
-            f.metadata.height,
-            image::ColorType::Rgb8,
-            format,
-        )
-        .map_err(|e| e.to_string())?;
-        std::fs::write(bundle.join("raw.bin"), f.raw.as_slice()).map_err(|e| e.to_string())?;
-        std::fs::write(
-            bundle.join("metadata.json"),
-            serde_json::to_vec_pretty(&f.metadata).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
-        std::fs::write(bundle.join("COMPLETE"), b"camera-lab capture v1\n")
-            .map_err(|e| e.to_string())
-    })();
-    if result.is_err() {
+    let primary = bundle.join(filename);
+    let raw = bundle.join("raw.bin");
+    let metadata = bundle.join("metadata.json");
+    let sidecars = image_export::standard_sidecars(&primary);
+    let primary_result = image::save_buffer_with_format(
+        &primary,
+        &f.legacy_display_rgb(),
+        f.metadata.width,
+        f.metadata.height,
+        image::ColorType::Rgb8,
+        format,
+    )
+    .map_err(|e| e.to_string());
+    if let Err(error) = primary_result {
         let _ = std::fs::remove_dir_all(bundle);
+        return Err(error);
     }
-    result
+    let sidecar_result = (|| {
+        let mut out = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&raw)
+            .map_err(|e| e.to_string())?;
+        use std::io::Write;
+        out.write_all(f.raw.as_slice())
+            .and_then(|_| out.sync_all())
+            .map_err(|e| e.to_string())?;
+        image_export::write_new(
+            &metadata,
+            &serde_json::to_vec_pretty(&f.metadata).map_err(|e| e.to_string())?,
+        )?;
+        image_export::write_standard_sidecars(
+            f,
+            &primary,
+            &raw,
+            None,
+            &sidecars,
+            serde_json::json!({"recipe":"legacy display reconstruction","raw_preserved":true,"legacy_metadata":"metadata.json"}),
+        )?;
+        image_export::write_new(&bundle.join("COMPLETE"), b"camera-lab capture v1\n")
+    })();
+    sidecar_result.map_err(|e| {
+        format!(
+            "PRIMARY IMAGE SAVED at {}; sidecars INCOMPLETE: {e}",
+            primary.display()
+        )
+    })
 }
 #[cfg(test)]
 mod tests {
@@ -558,6 +582,24 @@ mod tests {
                 f.raw.as_ref()
             );
             assert_eq!(std::fs::read(b.join("raw.bin")).unwrap(), *f.raw);
+            let manifest: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(b.join(format!("test.{ext}.run.json"))).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(manifest["run_bundle"]["schema"], "kohdalab_run_bundle_v1");
+            assert_eq!(
+                manifest["run_bundle"]["image"]["raw_payload_sha256"],
+                image_export::sha256(&f.raw)
+            );
+            assert!(b.join(format!("test.{ext}.csv")).is_file());
+            assert!(b.join(format!("test.{ext}.raw.csv")).is_file());
+            assert!(b.join(format!("test.{ext}.log")).is_file());
+            assert_eq!(manifest["frame"]["format"], f.metadata.format);
+            assert_eq!(
+                manifest["run_bundle"]["filenames"]["conditions_json"],
+                format!("test.{ext}.run.json")
+            );
+            assert!(!b.join("conditions.json").exists());
             let m: Metadata =
                 serde_json::from_slice(&std::fs::read(b.join("metadata.json")).unwrap()).unwrap();
             assert_eq!(m, f.metadata);
