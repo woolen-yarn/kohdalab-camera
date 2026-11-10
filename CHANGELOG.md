@@ -1,5 +1,9 @@
 # Changelog / 変更履歴
 
+## 0.1.19 — 2026-11-10
+
+- Align every Camera workspace member with the existing Rust 1.92 minimum, so ordinary Cargo and Dependabot updates are not constrained by the former lower member declarations. Acquisition behaviour, device policy, image/RAW exports, metadata, and the read-only GUI API are unchanged. / Cameraワークスペースの全クレートを既存のRust 1.92最小要件に揃え、通常のCargo／Dependabot更新が旧来の低いクレート宣言に制限されないよう修正。取得動作、機器方針、画像／RAW出力、メタデータ、読み取り専用GUI APIは変更なし。
+
 ## 0.1.16 — 2026-11-05
 
 - Ignore empty home-directory environment values and use the valid platform fallback consistently in the GUI and common Python client. / GUIと共通Pythonクライアントで、空のホーム環境変数を除外して有効な代替先を使います。

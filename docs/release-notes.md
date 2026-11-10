@@ -1,10 +1,10 @@
-# KohdaLab Camera 0.1.18
+# KohdaLab Camera 0.1.19
 
 ## Maintenance and compatibility / 保守性と互換性
 
-This release updates the desktop GUI foundation and removes the unmaintained font parser. Camera polling and the opt-in, read-only GUI observer continue independently of visible painting. Capture, image/RAW export, sidecar schemas, device policy and the observer's mutation restrictions are unchanged.
+This corrective release aligns every Camera workspace member with the application's existing Rust 1.92 minimum. Ordinary Cargo and Dependabot updates can now select supported current dependencies rather than being constrained by the former lower member declarations. Capture, image/RAW export, sidecar schemas, device policy and the opt-in observer's mutation restrictions are unchanged.
 
-本リリースではデスクトップGUI基盤を更新し、保守終了したフォント解析を除去します。Cameraのポーリングと、任意で有効化する読み取り専用GUI observerは、描画の表示状態と独立して継続します。撮影、画像／RAW出力、付属JSON形式、機器方針、observerによる変更操作の禁止は変わりません。
+この修正版では、全Cameraワークスペースクレートをアプリ既存のRust 1.92最小要件に揃えます。通常のCargo／Dependabot更新が旧来の低いクレート宣言に制限されず、対応する新しい依存を選べるようにします。撮影、画像／RAW出力、付属JSON形式、機器方針、任意observerによる変更操作の禁止は変わりません。
 
 Simulation and device-free recording/API checks cover the packaged Windows app; macOS CI covers Simulation only. No new physical-camera fault, power-loss, or stopping test was performed for this release. Windows x64 Setup/portable/source are provided with checksums and remain unsigned. Camera does not publish a macOS acquisition package.
 
