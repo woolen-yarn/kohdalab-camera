@@ -1,5 +1,9 @@
 # Changelog / 変更履歴
 
+## 0.1.20 — 2026-11-10
+
+- Add a frame-summary analysis CSV, raw-payload index CSV, lifecycle log and conditions manifest alongside the existing image and RAW exports. The bundle distinguishes sensor from encoded-image dimensions and host observation time from exposure timing; existing JSON/metadata and Bayer TIFF remain preserved. / 既存画像・RAW出力とともに、フレーム要約解析CSV・raw payload索引CSV・ライフサイクルlog・条件manifestを追加。センサー寸法と出力画像寸法、ホスト観測時刻と露光時刻を区別し、既存JSON／metadata・Bayer TIFFを維持します。
+
 ## 0.1.19 — 2026-11-10
 
 - Align every Camera workspace member with the existing Rust 1.92 minimum, so ordinary Cargo and Dependabot updates are not constrained by the former lower member declarations. Acquisition behaviour, device policy, image/RAW exports, metadata, and the read-only GUI API are unchanged. / Cameraワークスペースの全クレートを既存のRust 1.92最小要件に揃え、通常のCargo／Dependabot更新が旧来の低いクレート宣言に制限されないよう修正。取得動作、機器方針、画像／RAW出力、メタデータ、読み取り専用GUI APIは変更なし。
