@@ -330,10 +330,10 @@ impl CompiledRecipe {
                 pixel[0], pixel[1], pixel[2],
             ))
         })?;
-        Ok(eframe::egui::ColorImage {
-            size: [w as usize, h as usize],
+        Ok(eframe::egui::ColorImage::new(
+            [w as usize, h as usize],
             pixels,
-        })
+        ))
     }
     pub fn render_color_image(
         &self,

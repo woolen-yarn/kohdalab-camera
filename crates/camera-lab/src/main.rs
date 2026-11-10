@@ -609,13 +609,8 @@ impl App {
         self.frame = Some(f);
         self.gui_submits += 1;
     }
-    fn render(&mut self, ctx: &egui::Context) {
-        self.render_at(ctx, std::time::Instant::now);
-    }
-    fn render_at(&mut self, ctx: &egui::Context, mut clock: impl FnMut() -> std::time::Instant) {
+    fn logic_at(&mut self, ctx: &egui::Context, mut clock: impl FnMut() -> std::time::Instant) {
         self.process_control_api();
-        #[cfg(feature = "input-diagnostics")]
-        input_diagnostics::events(ctx);
         let now = clock();
         if let Some(result) = self.scan_rx.as_ref().and_then(|r| match r.try_recv() {
             Ok(v) => Some(v),
@@ -745,6 +740,34 @@ impl App {
                 }
             }
         }
+        if self.closing {
+            let started = self.close_started.get_or_insert(now);
+            let deadline = now.saturating_duration_since(*started) >= Duration::from_secs(70);
+            if deadline {
+                self.status = "Close deadline: acquisition cleanup/export completion unproved; inspect evidence before retry".into();
+            }
+            if self.worker.closed() && !self.busy {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            } else {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            }
+        }
+        self.persist_preferences(self.closing);
+        if self.needs_periodic_updates() {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        } else if self.preferences_path.is_some()
+            && self.current_preferences() != self.saved_preferences
+        {
+            ctx.request_repaint_after(Duration::from_secs(1));
+        }
+    }
+    fn draw(&mut self, root: &mut egui::Ui) {
+        self.draw_at(root, std::time::Instant::now);
+    }
+    fn draw_at(&mut self, root: &mut egui::Ui, mut clock: impl FnMut() -> std::time::Instant) {
+        let ctx = root.ctx().clone();
+        #[cfg(feature = "input-diagnostics")]
+        input_diagnostics::events(&ctx);
         if (!self.paused || self.recipe != self.displayed_recipe) && !self.closing {
             if let Some(image) = self.preview.as_ref().and_then(|p| p.take()) {
                 let matches = if image.held {
@@ -760,50 +783,33 @@ impl App {
                         self.displayed_revision = Some(image.key.generation.revision);
                     }
                     self.displayed_recipe = image.recipe;
-                    self.upload_frame(ctx, image.raw, image.image, clock());
+                    self.upload_frame(&ctx, image.raw, image.image, clock());
                 }
-            }
-        }
-        if (ctx.input(|i| i.viewport().close_requested())
-            || self.fake_until.is_some_and(|t| now >= t))
-            && !self.closing
-        {
-            self.closing = true;
-            self.preview_generation = None;
-            if let Some(preview) = &self.preview {
-                preview.close();
-            }
-            self.worker.close();
-            self.session = self.worker.snapshot();
-        }
-        if self.closing {
-            let started = self.close_started.get_or_insert(now);
-            let deadline = now.saturating_duration_since(*started) >= Duration::from_secs(70);
-            if deadline {
-                self.status = "Close deadline: acquisition cleanup/export completion unproved; inspect evidence before retry".into();
-            }
-            if self.worker.closed() && !self.busy {
-                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            } else {
-                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             }
         }
         // Observe after upload: an entry timestamp precedes the submitted frame and
         // would falsely trip Rolling's genuine clock-regression guard each update.
-        self.parity_ui(ctx, clock());
-        self.persist_preferences(self.closing);
-        if self.needs_periodic_updates() {
-            ctx.request_repaint_after(Duration::from_millis(100));
-        } else if self.preferences_path.is_some()
-            && self.current_preferences() != self.saved_preferences
-        {
-            ctx.request_repaint_after(Duration::from_secs(1));
-        }
+        self.parity_ui(root, clock());
+    }
+    #[cfg(test)]
+    fn render(&mut self, root: &mut egui::Ui) {
+        let ctx = root.ctx().clone();
+        self.logic_at(&ctx, std::time::Instant::now);
+        self.draw(root);
+    }
+    #[cfg(test)]
+    fn render_at(&mut self, root: &mut egui::Ui, mut clock: impl FnMut() -> std::time::Instant) {
+        let ctx = root.ctx().clone();
+        self.logic_at(&ctx, &mut clock);
+        self.draw_at(root, clock);
     }
 }
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        self.render(ctx);
+    fn logic(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        self.logic_at(ctx, std::time::Instant::now);
+    }
+    fn ui(&mut self, root: &mut egui::Ui, _: &mut eframe::Frame) {
+        self.draw(root);
     }
 }
 fn main() -> eframe::Result {

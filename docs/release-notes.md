@@ -1,14 +1,14 @@
-# KohdaLab Camera 0.1.17
+# KohdaLab Camera 0.1.18
 
-## Recording provenance / 保存データの由来
+## Maintenance and compatibility / 保守性と互換性
 
-Image sidecars now include a versioned recording contract: application version/source identity, exact received payload size/format, stored component bits, declared sensor/transport bits when available, simulation status and explicit timing limitations. Existing image pixels, RAW bytes and display recipes are unchanged.
+This release updates the desktop GUI foundation and removes the unmaintained font parser. Camera polling and the opt-in, read-only GUI observer continue independently of visible painting. Capture, image/RAW export, sidecar schemas, device policy and the observer's mutation restrictions are unchanged.
 
-画像の付属JSONに、版付きの保存仕様を追加します。アプリ版・ソース識別子、受信データのサイズ・形式・保存ビット数、確認できたセンサー／通信ビット数、Simulationの区別、時刻の制約を記録します。画像の画素値・RAWバイト列・表示補正は変更しません。
+本リリースではデスクトップGUI基盤を更新し、保守終了したフォント解析を除去します。Cameraのポーリングと、任意で有効化する読み取り専用GUI observerは、描画の表示状態と独立して継続します。撮影、画像／RAW出力、付属JSON形式、機器方針、observerによる変更操作の禁止は変わりません。
 
-The supported GR300 transport provides 8 bits from a 10-bit sensor. RAW preserves the received bytes; it cannot recover missing bits. Exposure duration/clock, sensor exposure-start time and dropped-frame count remain unknown (`null`). Host frame acceptance time/sequence is not relabeled as sensor timing.
+Simulation and device-free recording/API checks cover the packaged Windows app; macOS CI covers Simulation only. No new physical-camera fault, power-loss, or stopping test was performed for this release. Windows x64 Setup/portable/source are provided with checksums and remain unsigned. Camera does not publish a macOS acquisition package.
 
-対応GR300の通信経路は10-bitセンサーの8-bitを運びます。RAWは受信値を保持しますが、欠けたビットは復元しません。露光時間・実測クロック・センサー露光開始時刻・欠落フレーム数は不明（`null`）です。ホストの受信時刻・連番をセンサー時刻として扱いません。
+Simulationと機器不要の記録／API試験でWindows配布版を確認し、macOS CIはSimulationのみを確認しています。本リリースでは新たな実機カメラの異常・電源断・停止試験を実施していません。Windows x64 Setup／portable／sourceをチェックサム付きで提供し、引き続き未署名です。CameraのmacOS実機取得版は公開しません。
 
 ## Verification and distribution / 検証と配布
 

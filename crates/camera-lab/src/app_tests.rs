@@ -99,7 +99,7 @@ fn repair_capture_time_render_and_frozen_export() {
         app.show_frame(&ctx, frame.clone());
         // Overlay Areas perform an initial size pass before painting contents.
         draw(&mut app, &ctx, egui::vec2(1100., 750.));
-        let output = ctx.run(
+        let output = ctx.run_ui(
             egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
                     egui::Pos2::ZERO,
@@ -153,7 +153,7 @@ fn retained_simulation_is_labeled_even_after_disconnect_or_source_failure() {
     app.request(None);
     for tab in 0..3 {
         app.tab = tab;
-        let output = ctx.run(
+        let output = ctx.run_ui(
             egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
                     egui::Pos2::ZERO,
@@ -245,11 +245,37 @@ fn failed_source_does_not_generate_or_substitute_frames() {
     assert!(app.frame.is_none());
     assert!(app.texture.is_none());
 }
+
+#[test]
+fn logic_polls_simulated_acquisition_without_drawing_ui() {
+    let ctx = egui::Context::default();
+    let mut app = App::with_exporter(&ctx, camera_lab::export);
+    let mut frame = eframe::Frame::_new_kittest();
+    app.request(Some(Source::Simulation));
+    let revision = app.revision;
+    let deadline = Instant::now() + Duration::from_secs(3);
+
+    while app.matching_revision != Some(revision) && Instant::now() < deadline {
+        eframe::App::logic(&mut app, &ctx, &mut frame);
+        std::thread::yield_now();
+    }
+
+    assert_eq!(app.matching_revision, Some(revision));
+    assert!(app.session.active);
+    assert!(app.frame.is_none(), "no UI frame was drawn");
+
+    app.request(None);
+    while app.session.active && Instant::now() < deadline {
+        eframe::App::logic(&mut app, &ctx, &mut frame);
+        std::thread::yield_now();
+    }
+    assert!(!app.session.active);
+}
 use super::*;
 use camera_lab::{CameraAdapter, Simulation};
 use std::time::Instant;
 fn draw(app: &mut App, ctx: &egui::Context, size: egui::Vec2) {
-    let output = ctx.run(
+    let output = ctx.run_ui(
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
             ..Default::default()
@@ -264,7 +290,7 @@ fn tabs_sizes_simulation_pause_and_disconnect_keep_truthful_frame() {
     let mut app = App::with_exporter(&ctx, camera_lab::export);
     assert!(app.source.is_none());
     assert!(app.frame.is_none());
-    assert!(ctx.style().visuals.dark_mode);
+    assert!(ctx.global_style().visuals.dark_mode);
     for size in [
         egui::vec2(800., 550.),
         egui::vec2(1100., 750.),
@@ -374,7 +400,7 @@ fn close_outer_deadline_uses_injected_exact_boundary() {
         (Duration::from_secs(70) - Duration::from_nanos(1), false),
         (Duration::from_secs(70), true),
     ] {
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ctx| {
             app.render_at(ctx, || zero + elapsed)
         });
         assert_eq!(app.status.contains("Close deadline"), expired);

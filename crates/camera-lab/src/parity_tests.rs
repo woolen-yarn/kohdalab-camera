@@ -1,7 +1,7 @@
 use super::*;
 use camera_lab::display_recipe::Recipe;
 fn draw(app: &mut App, ctx: &egui::Context, size: egui::Vec2) {
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
             ..Default::default()
@@ -16,7 +16,7 @@ fn forced_light_system_geometry_labels_and_footer() {
     app.picker = false;
     let size = egui::vec2(1100., 750.);
     let render = |app: &mut App| {
-        ctx.run(
+        ctx.run_ui(
             egui::RawInput {
                 system_theme: Some(egui::Theme::Light),
                 screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
@@ -29,11 +29,11 @@ fn forced_light_system_geometry_labels_and_footer() {
     let viewport = app.viewport_rect;
     assert_eq!(ctx.theme(), egui::Theme::Dark);
     assert_eq!(
-        ctx.style().visuals.panel_fill,
+        ctx.global_style().visuals.panel_fill,
         egui::Color32::from_rgb(17, 19, 24)
     );
     assert_eq!(
-        ctx.style().visuals.window_fill,
+        ctx.global_style().visuals.window_fill,
         egui::Color32::from_rgb(21, 24, 30)
     );
     for tab in 0..5 {
@@ -205,7 +205,7 @@ fn overlay_preserves_full_window_fit_and_source_cursor() {
     }
     let rect = parity_ui::aspect_fit(app.viewport_rect, egui::vec2(1., 2.));
     let pointer = egui::pos2(rect.center().x, rect.top() + rect.height() * 0.25);
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
                 egui::Pos2::ZERO,
@@ -307,14 +307,15 @@ fn image_zoom_is_presentation_only_and_panel_wheel_does_not_zoom() {
         events,
         ..Default::default()
     };
-    let _ = ctx.run(input(vec![egui::Event::PointerMoved(pointer)]), |ctx| {
+    let _ = ctx.run_ui(input(vec![egui::Event::PointerMoved(pointer)]), |ctx| {
         app.render(ctx)
     });
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         input(vec![egui::Event::MouseWheel {
             unit: egui::MouseWheelUnit::Point,
             delta: egui::vec2(0., 120.),
             modifiers: Default::default(),
+            phase: egui::TouchPhase::Move,
         }]),
         |ctx| app.render(ctx),
     );
@@ -326,15 +327,16 @@ fn image_zoom_is_presentation_only_and_panel_wheel_does_not_zoom() {
     draw(&mut app, &ctx, size);
     draw(&mut app, &ctx, size);
     let pointer = egui::pos2(150., 250.);
-    let _ = ctx.run(input(vec![egui::Event::PointerMoved(pointer)]), |ctx| {
+    let _ = ctx.run_ui(input(vec![egui::Event::PointerMoved(pointer)]), |ctx| {
         app.render(ctx)
     });
     let zoom = app.view.zoom;
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         input(vec![egui::Event::MouseWheel {
             unit: egui::MouseWheelUnit::Point,
             delta: egui::vec2(0., 120.),
             modifiers: Default::default(),
+            phase: egui::TouchPhase::Move,
         }]),
         |ctx| app.render(ctx),
     );
@@ -414,11 +416,11 @@ fn footer_cursor_starts_at_the_left_without_reserved_space() {
         events,
         ..Default::default()
     };
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         input(vec![egui::Event::PointerMoved(egui::pos2(800., 400.))]),
         |ctx| app.render(ctx),
     );
-    let out = ctx.run(input(vec![]), |ctx| app.render(ctx));
+    let out = ctx.run_ui(input(vec![]), |ctx| app.render(ctx));
     let text = out
         .shapes
         .iter()

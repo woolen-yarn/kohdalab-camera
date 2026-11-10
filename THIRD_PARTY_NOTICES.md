@@ -41,6 +41,7 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | android-activity | 0.6.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | android-properties | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | arboard | 3.6.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| arrayvec | 0.7.8 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | atomic-waker | 1.1.2 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | autocfg | 1.5.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | bitflags | 1.3.2 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -78,14 +79,14 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | document-features | 0.2.12 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | downcast-rs | 1.2.1 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | dpi | 0.1.2 | Apache-2.0 AND MIT | registry+https://github.com/rust-lang/crates.io-index |
-| ecolor | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| eframe | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| egui | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| egui-winit | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| egui_glow | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| emath | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| epaint | 0.31.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| epaint_default_fonts | 0.31.1 | (MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0 | registry+https://github.com/rust-lang/crates.io-index |
+| ecolor | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| eframe | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| egui | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| egui-winit | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| egui_glow | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| emath | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| epaint | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| epaint_default_fonts | 0.34.3 | (MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0 | registry+https://github.com/rust-lang/crates.io-index |
 | equivalent | 1.0.3 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | errno | 0.3.14 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | error-code | 3.4.0 | BSL-1.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -103,13 +104,13 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | gethostname | 1.1.0 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | getrandom | 0.4.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | gl_generator | 0.14.0 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| glow | 0.16.0 | MIT OR Apache-2.0 OR Zlib | registry+https://github.com/rust-lang/crates.io-index |
+| glow | 0.17.0 | MIT OR Apache-2.0 OR Zlib | registry+https://github.com/rust-lang/crates.io-index |
 | glutin | 0.32.3 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | glutin-winit | 0.5.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | glutin_egl_sys | 0.7.1 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | glutin_wgl_sys | 0.6.1 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | half | 2.7.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
-| hashbrown | 0.17.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| hashbrown | 0.16.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | hermit-abi | 0.5.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | icu_collections | 2.3.0 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | icu_locale_core | 2.3.0 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -176,12 +177,11 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | objc2-metal | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | objc2-quartz-core | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | objc2-symbols | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| objc2-ui-kit | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
+| objc2-ui-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | objc2-uniform-type-identifiers | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | objc2-user-notifications | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | once_cell | 1.21.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | orbclient | 0.3.55 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| owned_ttf_parser | 0.25.1 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | parking_lot | 0.12.5 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | parking_lot_core | 0.9.12 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | percent-encoding | 2.3.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -246,7 +246,6 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | toml_parser | 1.1.5+spec-1.1.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | tracing | 0.1.44 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | tracing-core | 0.1.36 | MIT | registry+https://github.com/rust-lang/crates.io-index |
-| ttf-parser | 0.25.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | url | 2.5.8 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -321,5 +320,20 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | zmij | 1.0.23 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib | registry+https://github.com/rust-lang/crates.io-index |
 | zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib | registry+https://github.com/rust-lang/crates.io-index |
+| accesskit | 0.24.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| color | 0.3.3 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| euclid | 0.22.14 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| fearless_simd | 0.3.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| foldhash | 0.2.0 | Zlib | registry+https://github.com/rust-lang/crates.io-index |
+| font-types | 0.11.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| kurbo | 0.13.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| linebender_resource_handle | 0.1.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| peniko | 0.6.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| polycool | 0.4.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| read-fonts | 0.37.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| self_cell | 1.3.0 | Apache-2.0 OR GPL-2.0-only | registry+https://github.com/rust-lang/crates.io-index |
+| skrifa | 0.40.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| vello_common | 0.0.6 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| vello_cpu | 0.0.6 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 
 Bundled default fonts retain their own licenses in epaint_default_fonts-0.31.1/fonts: Ubuntu Font License, SIL Open Font License, Hack license, and emoji icon MIT license. The Windows candidate also links MinGW-w64 runtime support; its ZPL and contributor notices are in mingw-w64/. Rust standard library uses MIT OR Apache-2.0; corresponding notices are in rust-standard-library/.

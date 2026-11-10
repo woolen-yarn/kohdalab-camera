@@ -152,11 +152,12 @@ impl App {
     }
     pub(super) fn failure_visibility(
         &self,
-        ctx: &egui::Context,
+        root: &mut egui::Ui,
     ) -> Option<(egui::Rect, egui::Vec2)> {
         if self.has_failure_panel() {
             let mut geometry = None;
-            egui::TopBottomPanel::top("failure-details").show(ctx, |ui| {
+            let ctx = root.ctx().clone();
+            egui::Panel::top("failure-details").show_inside(root, |ui| {
                 ui.colored_label(egui::Color32::LIGHT_RED, "Operation error · Error details");
                 ui.add(egui::Label::new(&self.session.persistence).wrap());
                 let summary = self.pinned_failure_summary();
@@ -186,7 +187,7 @@ impl App {
                 let scroll = egui::ScrollArea::vertical()
                     .id_salt("failure-scroll")
                     .auto_shrink([false, false])
-                    .max_height((ctx.screen_rect().height() * 0.3).clamp(48., 160.))
+                    .max_height((ctx.content_rect().height() * 0.3).clamp(48., 160.))
                     .show(ui, |ui| {
                         ui.add(
                             egui::Label::new(
@@ -292,8 +293,9 @@ impl App {
         }
         (self.status.clone(), false)
     }
-    pub(super) fn selector_ui(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(ctx.style().visuals.panel_fill).inner_margin(8.)).show(ctx,|ui| {
+    pub(super) fn selector_ui(&mut self, root: &mut egui::Ui) {
+        let panel_fill = root.ctx().global_style().visuals.panel_fill;
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(panel_fill).inner_margin(8.)).show_inside(root,|ui| {
             ui.heading("Select a camera");
             ui.label("Select a camera, then load it.");
             ui.separator();
@@ -424,7 +426,7 @@ mod tests {
         }
     }
     fn draw(app: &mut App, ctx: &egui::Context) -> egui::FullOutput {
-        ctx.run(egui::RawInput::default(), |ctx| app.render(ctx))
+        ctx.run_ui(egui::RawInput::default(), |ctx| app.render(ctx))
     }
     fn until(app: &mut App, ctx: &egui::Context, p: impl Fn(&App) -> bool) {
         let end = Instant::now() + Duration::from_secs(30);
@@ -571,7 +573,7 @@ mod tests {
                 };
                 let mut geo = None;
                 for _ in 0..3 {
-                    let _ = ctx.run(input(vec![]), |ctx| {
+                    let _ = ctx.run_ui(input(vec![]), |ctx| {
                         app.parity_ui(ctx, Instant::now());
                         geo = ctx.data(|d| {
                             d.get_temp::<(egui::Rect, egui::Vec2)>(egui::Id::new(
@@ -590,13 +592,14 @@ mod tests {
                 assert_eq!(offset.y, 0.);
                 let mut routed = None;
                 for _ in 0..3 {
-                    let _ = ctx.run(
+                    let _ = ctx.run_ui(
                         input(vec![
                             egui::Event::PointerMoved(rect.center()),
                             egui::Event::MouseWheel {
                                 unit: egui::MouseWheelUnit::Point,
                                 delta: egui::vec2(0., -120.),
                                 modifiers: Default::default(),
+                                phase: egui::TouchPhase::Move,
                             },
                         ]),
                         |ctx| {
@@ -620,13 +623,14 @@ mod tests {
                 );
                 let before = routed.unwrap().1.y;
                 let mut outside = None;
-                let out = ctx.run(
+                let out = ctx.run_ui(
                     input(vec![
                         egui::Event::PointerMoved(egui::pos2(size.x - 10., size.y - 10.)),
                         egui::Event::MouseWheel {
                             unit: egui::MouseWheelUnit::Point,
                             delta: egui::vec2(0., -120.),
                             modifiers: Default::default(),
+                            phase: egui::TouchPhase::Move,
                         },
                     ]),
                     |ctx| {
@@ -687,7 +691,7 @@ mod tests {
                 for (next_picker, next_tab) in [(true, 0), (false, 0), (false, 4), (picker, tab)] {
                     app.picker = next_picker;
                     app.tab = next_tab;
-                    let out = ctx.run(input(vec![]), |ctx| app.parity_ui(ctx, Instant::now()));
+                    let out = ctx.run_ui(input(vec![]), |ctx| app.parity_ui(ctx, Instant::now()));
                     check_summary(&out);
                     let (_, offset) = ctx
                         .data(|d| {
@@ -771,11 +775,11 @@ mod tests {
                 ..Default::default()
             };
             for _ in 0..3 {
-                let _ = ctx.run(input(), |ctx| {
+                let _ = ctx.run_ui(input(), |ctx| {
                     app.failure_visibility(ctx);
                 });
             }
-            let out = ctx.run(input(), |ctx| {
+            let out = ctx.run_ui(input(), |ctx| {
                 app.failure_visibility(ctx);
             });
             for expected in ["First cause: Parent / Channel / Lost", expected] {
@@ -848,11 +852,11 @@ mod tests {
             ][case];
             assert_eq!(app.pinned_failure_summary(), expected);
             for _ in 0..3 {
-                let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                let _ = ctx.run_ui(egui::RawInput::default(), |ctx| {
                     app.failure_visibility(ctx);
                 });
             }
-            let out = ctx.run(egui::RawInput::default(), |ctx| {
+            let out = ctx.run_ui(egui::RawInput::default(), |ctx| {
                 app.failure_visibility(ctx);
             });
             assert!(out.shapes.iter().any(
@@ -871,7 +875,7 @@ mod tests {
         app.displayed_revision = Some(app.revision);
         app.outcome_fault = Some("Image sidecar save failed".into());
         assert_eq!(app.primary_state(), "Live");
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ctx| {
             app.failure_visibility(ctx);
         });
         assert!(out.shapes.iter().any(|s|matches!(&s.shape,egui::epaint::Shape::Text(t) if t.galley.text()=="Operation error · Error details")));
@@ -925,7 +929,7 @@ mod tests {
                     };
                     let mut geo = None;
                     for _ in 0..3 {
-                        let _ = ctx.run(input(vec![]), |ctx| {
+                        let _ = ctx.run_ui(input(vec![]), |ctx| {
                             app.parity_ui(ctx, Instant::now());
                             geo = ctx.data(|d| {
                                 d.get_temp::<(egui::Rect, egui::Vec2)>(egui::Id::new(
@@ -944,13 +948,14 @@ mod tests {
                     assert_eq!(offset.y, 0.);
                     let mut routed = None;
                     for _ in 0..3 {
-                        let _ = ctx.run(
+                        let _ = ctx.run_ui(
                             input(vec![
                                 egui::Event::PointerMoved(rect.center()),
                                 egui::Event::MouseWheel {
                                     unit: egui::MouseWheelUnit::Point,
                                     delta: egui::vec2(0., -120.),
                                     modifiers: Default::default(),
+                                    phase: egui::TouchPhase::Move,
                                 },
                             ]),
                             |ctx| {
@@ -974,13 +979,14 @@ mod tests {
                     );
                     let before = routed.unwrap().1.y;
                     let mut outside = None;
-                    let out = ctx.run(
+                    let out = ctx.run_ui(
                         input(vec![
                             egui::Event::PointerMoved(egui::pos2(size.x - 10., size.y - 10.)),
                             egui::Event::MouseWheel {
                                 unit: egui::MouseWheelUnit::Point,
                                 delta: egui::vec2(0., -120.),
                                 modifiers: Default::default(),
+                                phase: egui::TouchPhase::Move,
                             },
                         ]),
                         |ctx| {
@@ -1046,7 +1052,8 @@ mod tests {
                     {
                         app.picker = next_picker;
                         app.tab = next_tab;
-                        let out = ctx.run(input(vec![]), |ctx| app.parity_ui(ctx, Instant::now()));
+                        let out =
+                            ctx.run_ui(input(vec![]), |ctx| app.parity_ui(ctx, Instant::now()));
                         check_summary(&out);
                         let (_, offset) = ctx
                             .data(|d| {
@@ -1110,7 +1117,7 @@ mod tests {
         app.session = app.worker.snapshot();
         assert!(app.session.first_failure.is_some());
         for _ in 0..3 {
-            let _ = ctx.run(
+            let _ = ctx.run_ui(
                 egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_size(
                         egui::Pos2::ZERO,
@@ -1123,7 +1130,7 @@ mod tests {
                 },
             );
         }
-        let out = ctx.run(
+        let out = ctx.run_ui(
             egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
                     egui::Pos2::ZERO,
@@ -1224,8 +1231,8 @@ mod tests {
                 screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
                 ..Default::default()
             };
-            let _ = ctx.run(input(), |ctx| app.render(ctx));
-            let out = ctx.run(input(), |ctx| app.render(ctx));
+            let _ = ctx.run_ui(input(), |ctx| app.render(ctx));
+            let out = ctx.run_ui(input(), |ctx| app.render(ctx));
             let texts:Vec<_>=out.shapes.iter().filter_map(|s|if let egui::epaint::Shape::Text(t)=&s.shape {Some(serde_json::json!({"text":t.galley.text(),"x":t.pos.x,"y":t.pos.y,"width":t.galley.size().x,"height":t.galley.size().y}))}else{None}).collect();
             if !picker && tab == 2 {
                 assert!(texts.iter().any(|t| t["text"] == "Brightness ×"));
@@ -1254,7 +1261,7 @@ mod tests {
         app.viewport_picker = false;
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1100., 760.));
         for _ in 0..3 {
-            let _ = ctx.run(
+            let _ = ctx.run_ui(
                 egui::RawInput {
                     screen_rect: Some(screen),
                     ..Default::default()
@@ -1265,7 +1272,7 @@ mod tests {
         for tab in 0..5 {
             let point = egui::pos2(53. + 98. * tab as f32, 16.);
             for pressed in [true, false] {
-                let _ = ctx.run(
+                let _ = ctx.run_ui(
                     egui::RawInput {
                         screen_rect: Some(screen),
                         events: vec![
@@ -1303,7 +1310,7 @@ mod tests {
             egui::Pos2::ZERO,
             egui::vec2(1270., 830.),
         ));
-        let out = ctx.run(input, |ctx| app.sync_stage(ctx));
+        let out = ctx.run_ui(input, |ctx| app.sync_stage(ctx));
         assert!(sizes(&out).is_empty());
         assert_eq!(app.live_size, egui::vec2(1270., 830.));
         app.picker = true;
@@ -1316,11 +1323,11 @@ mod tests {
             egui::Pos2::ZERO,
             egui::vec2(640., 480.),
         ));
-        let out = ctx.run(input, |ctx| app.sync_stage(ctx));
+        let out = ctx.run_ui(input, |ctx| app.sync_stage(ctx));
         assert_eq!(sizes(&out), vec![egui::vec2(640., 480.)]);
         assert_eq!(app.live_size, egui::vec2(1270., 830.));
         app.picker = false;
-        let out = ctx.run(egui::RawInput::default(), |ctx| app.sync_stage(ctx));
+        let out = ctx.run_ui(egui::RawInput::default(), |ctx| app.sync_stage(ctx));
         assert_eq!(sizes(&out), vec![egui::vec2(1270., 830.)]);
         assert_eq!(app.live_size, egui::vec2(1270., 830.));
         app.worker.close();
@@ -1337,7 +1344,7 @@ mod tests {
         );
         app.fake_only = true;
         for size in [egui::vec2(520., 360.), egui::vec2(640., 480.)] {
-            let output = ctx.run(
+            let output = ctx.run_ui(
                 egui::RawInput {
                     system_theme: Some(egui::Theme::Light),
                     screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
@@ -1389,7 +1396,7 @@ mod tests {
             egui::vec2(1280., 800.),
         ));
         app.change_camera();
-        let out = ctx.run(input, |ctx| app.render(ctx));
+        let out = ctx.run_ui(input, |ctx| app.render(ctx));
         assert_eq!(sizes(&out), vec![egui::vec2(640., 480.)]);
         assert!(!app.can_connect());
         assert_eq!(app.primary_state(), "Stopping");

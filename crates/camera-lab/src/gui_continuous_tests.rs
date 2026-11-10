@@ -5,7 +5,7 @@ use camera_lab::continuous_session::Fixture;
 use std::time::Instant;
 
 fn draw(app: &mut App, ctx: &egui::Context) {
-    let _ = ctx.run(egui::RawInput::default(), |ctx| app.render(ctx));
+    let _ = ctx.run_ui(egui::RawInput::default(), |ctx| app.render(ctx));
 }
 fn until(app: &mut App, ctx: &egui::Context, seconds: u64, predicate: impl Fn(&App) -> bool) {
     let deadline = Instant::now() + Duration::from_secs(seconds);
@@ -243,7 +243,7 @@ fn repair_actual_app_drop_gui_return_unwind_and_active_poll_panic() {
                     _ => false,
                 }
             }
-            let output = ctx.run(
+            let output = ctx.run_ui(
                 egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_size(
                         egui::Pos2::ZERO,

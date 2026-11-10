@@ -78,7 +78,7 @@ impl Transport for FakeOwner {
     }
 }
 fn draw(app: &mut App, ctx: &egui::Context) {
-    let _ = ctx.run(egui::RawInput::default(), |ctx| app.render(ctx));
+    let _ = ctx.run_ui(egui::RawInput::default(), |ctx| app.render(ctx));
 }
 fn until(app: &mut App, ctx: &egui::Context, p: impl Fn(&App) -> bool) {
     let end = Instant::now() + Duration::from_secs(15);

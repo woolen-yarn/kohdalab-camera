@@ -7,8 +7,8 @@ pub fn aspect_fit(area: egui::Rect, size: egui::Vec2) -> egui::Rect {
 pub const TABS: [&str; 5] = ["Camera", "Acquisition", "Image", "Export", "Advanced"];
 pub fn force_dark(ctx: &egui::Context) {
     if ctx.theme() == egui::Theme::Dark
-        && ctx.style().visuals.panel_fill == egui::Color32::from_rgb(17, 19, 24)
-        && ctx.style().visuals.window_fill == egui::Color32::from_rgb(21, 24, 30)
+        && ctx.global_style().visuals.panel_fill == egui::Color32::from_rgb(17, 19, 24)
+        && ctx.global_style().visuals.window_fill == egui::Color32::from_rgb(21, 24, 30)
     {
         return;
     }
@@ -18,7 +18,7 @@ pub fn force_dark(ctx: &egui::Context) {
     v.window_fill = egui::Color32::from_rgb(21, 24, 30);
     v.selection.bg_fill = egui::Color32::from_rgb(54, 66, 82);
     v.window_corner_radius = egui::CornerRadius::same(10);
-    v.window_stroke = egui::Stroke::new(1., egui::Color32::from_rgb(54, 59, 68));
+    v.window_stroke = egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(54, 59, 68));
     for widget in [
         &mut v.widgets.inactive,
         &mut v.widgets.hovered,
@@ -75,7 +75,8 @@ impl App {
             }
         }
     }
-    pub(super) fn parity_ui(&mut self, ctx: &egui::Context, now: std::time::Instant) {
+    pub(super) fn parity_ui(&mut self, root: &mut egui::Ui, now: std::time::Instant) {
+        let ctx = root.ctx().clone();
         if let Some(r) = self.estimate_rx.as_ref().and_then(|r| match r.try_recv() {
             Ok(v) => Some(v),
             Err(mpsc::TryRecvError::Disconnected) => {
@@ -98,11 +99,11 @@ impl App {
                 }
             }
         }
-        force_dark(ctx);
-        self.sync_stage(ctx);
-        self.failure_visibility(ctx);
+        force_dark(&ctx);
+        self.sync_stage(&ctx);
+        self.failure_visibility(root);
         if self.picker {
-            self.selector_ui(ctx);
+            self.selector_ui(root);
             return;
         }
         ctx.input_mut(|input| {
@@ -122,8 +123,8 @@ impl App {
                 }
             }
         });
-        let toolbar = egui::TopBottomPanel::top("tabs")
-            .show(ctx, |ui| {
+        let toolbar = egui::Panel::top("tabs")
+            .show_inside(root, |ui| {
                 ui.horizontal(|ui| {
                     for (i, label) in TABS.iter().enumerate() {
                         let response = ui
@@ -147,7 +148,7 @@ impl App {
             })
             .response
             .rect;
-        egui::TopBottomPanel::bottom("compact-status").exact_height(42.).show(ctx,|ui| {
+        egui::Panel::bottom("compact-status").exact_size(42.).show_inside(root,|ui| {
             ui.spacing_mut().item_spacing.y=2.;
             ui.horizontal(|ui| {
                 let dimensions=self.frame.as_ref().map(|f|format!("{} × {}",f.metadata.width,f.metadata.height)).unwrap_or_else(||"— × —".into());
@@ -180,7 +181,7 @@ impl App {
         });
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE.fill(egui::Color32::BLACK))
-            .show(ctx, |ui| {
+            .show_inside(root, |ui| {
                 self.viewport_rect = ui.max_rect();
                 let previous_cursor = std::mem::take(&mut self.cursor);
                 if (self.source.is_none()
@@ -267,21 +268,26 @@ impl App {
                 .open(&mut open)
                 .fixed_pos(egui::pos2(toolbar.left() + 8., toolbar.bottom() + 8.))
                 .default_width(340.)
-                .max_height((ctx.screen_rect().height() - toolbar.height() - 80.).max(100.))
+                .max_height((ctx.content_rect().height() - toolbar.height() - 80.).max(100.))
                 .constrain_to(if self.has_failure_panel() {
                     egui::Rect::from_min_max(
                         egui::pos2(0., toolbar.bottom() + 4.),
-                        egui::pos2(ctx.screen_rect().right(), ctx.screen_rect().bottom() - 42.),
+                        egui::pos2(
+                            ctx.content_rect().right(),
+                            ctx.content_rect().bottom() - 42.,
+                        ),
                     )
                 } else {
-                    ctx.screen_rect()
+                    ctx.content_rect()
                 })
                 .resizable(false)
                 .collapsible(false)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     ui.set_width(340.);
                     egui::ScrollArea::vertical()
-                        .max_height((ctx.screen_rect().height() - toolbar.height() - 110.).max(80.))
+                        .max_height(
+                            (ctx.content_rect().height() - toolbar.height() - 110.).max(80.),
+                        )
                         .show(ui, |ui| {
                             ui.set_width(340.);
                             match self.tab {

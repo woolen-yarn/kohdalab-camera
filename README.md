@@ -34,7 +34,7 @@ macOS の Simulation で撮影したネイティブ画面です。公開済み�
 
 | Channel / チャンネル | Version / バージョン | Platforms / プラットフォーム |
 | --- | --- | --- |
-| Stable / 安定版 | [0.1.17](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.17) | Windows x64 Setup / portable ZIP |
+| Stable / 安定版 | [0.1.18](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.18) | Windows x64 Setup / portable ZIP |
 
 Rust and Python are not required to run the packaged application. Current Windows artifacts are unsigned; download packages and checksums together from Releases.
 
