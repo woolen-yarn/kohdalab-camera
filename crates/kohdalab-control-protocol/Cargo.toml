@@ -2,7 +2,7 @@
 name = "kohdalab-control-protocol"
 version = "1.0.1"
 edition = "2024"
-rust-version = "1.88"
+rust-version.workspace = true
 license = "MIT"
 description = "Shared, device-free KohdaLab GUI control boundary contract"
 

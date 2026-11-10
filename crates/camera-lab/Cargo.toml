@@ -2,7 +2,7 @@
 name = "camera-lab"
 version = "0.1.18"
 edition = "2024"
-rust-version = "1.92"
+rust-version.workspace = true
 license = "MIT"
 default-run = "camera-lab"
 
