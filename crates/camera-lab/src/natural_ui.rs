@@ -499,8 +499,56 @@ mod tests {
             .unwrap_or(Event::Waiting))
         }
     }
+    fn recorded_failure_snapshot() -> camera_lab::session::Snapshot {
+        let root = tempfile::tempdir().unwrap();
+        let mut recorder = camera_lab::failure_record::Recorder::at(root.path().into());
+        let mut engine = camera_lab::session::Engine::new(ReportFactory);
+        engine.request(
+            1,
+            Some(Request {
+                source: Source::Simulation,
+                settings: camera_lab::controls::Settings::default(),
+                startup_intent: camera_lab::startup::Intent::Normal,
+            }),
+        );
+        // Advance the fake transport through open, failure, and collection.
+        engine.tick();
+        engine.tick();
+        assert!(engine.snapshot.first_failure.is_some());
+        assert!(engine.snapshot.active);
+        recorder.observe(&mut engine.snapshot);
+        engine.tick();
+        assert!(!engine.snapshot.active);
+        recorder.finish(&mut engine.snapshot);
+        let snapshot = engine.snapshot;
+        let cause = snapshot.first_cause.unwrap();
+        assert_eq!(cause, camera_lab::diagnostic::backend_code("@OP x"));
+        assert!(
+            snapshot
+                .first_failure
+                .as_deref()
+                .unwrap()
+                .contains("SENTINEL_BUS")
+        );
+        let mut first = None;
+        for name in ["first.json", "collection.json"] {
+            let raw = std::fs::read_to_string(root.path().join("slot-00").join(name)).unwrap();
+            for sentinel in ["SENTINEL_BUS", "SENTINEL_PORT", "SENTINEL_USER", "/Users/"] {
+                assert!(!raw.contains(sentinel));
+            }
+            let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+            assert_eq!(v["first_failure"]["cause"], serde_json::json!(cause));
+            if let Some(ref first) = first {
+                assert_eq!(&v["first_failure"], first);
+            } else {
+                first = Some(v["first_failure"].clone());
+            }
+        }
+        snapshot
+    }
     #[test]
     fn v035_failure_geometry_and_retained_scroll() {
+        let snapshot = recorded_failure_snapshot();
         let mut records = Vec::new();
         for (picker, tab) in [(true, 0), (false, usize::MAX), (false, 4)] {
             for size in [
@@ -508,60 +556,9 @@ mod tests {
                 egui::vec2(640., 480.),
                 egui::vec2(900., 620.),
             ] {
-                let root = std::env::temp_dir().join(format!(
-                    "v037-panel-{}-{picker}-{tab}-{}",
-                    std::process::id(),
-                    size.x
-                ));
-                let worker = Worker::with_factory_recorder(
-                    ReportFactory,
-                    camera_lab::failure_record::Recorder::at(root.clone()),
-                );
-                worker
-                    .request(Some(Request {
-                        source: Source::Simulation,
-                        settings: camera_lab::controls::Settings::default(),
-                        startup_intent: camera_lab::startup::Intent::Normal,
-                    }))
-                    .unwrap();
-                let end = Instant::now() + Duration::from_secs(5);
-                while worker.snapshot().first_failure.is_none() {
-                    assert!(Instant::now() < end);
-                    std::thread::sleep(Duration::from_millis(2));
-                }
-                worker.close();
-                while !worker.closed() {
-                    assert!(Instant::now() < end);
-                    std::thread::sleep(Duration::from_millis(2));
-                }
-                let mut guard = worker.guardian();
-                guard.wait();
                 let ctx = egui::Context::default();
-                let mut app = App::with_exporter_worker(&ctx, |_, _| Ok(()), worker);
-                app.session = app.worker.snapshot();
-                let cause = app.session.first_cause.unwrap();
-                assert_eq!(cause, camera_lab::diagnostic::backend_code("@OP x"));
-                assert!(
-                    app.session
-                        .first_failure
-                        .as_deref()
-                        .unwrap()
-                        .contains("SENTINEL_BUS")
-                );
-                let mut first = None;
-                for name in ["first.json", "collection.json"] {
-                    let raw = std::fs::read_to_string(root.join("slot-00").join(name)).unwrap();
-                    for sentinel in ["SENTINEL_BUS", "SENTINEL_PORT", "SENTINEL_USER", "/Users/"] {
-                        assert!(!raw.contains(sentinel));
-                    }
-                    let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
-                    assert_eq!(v["first_failure"]["cause"], serde_json::json!(cause));
-                    if let Some(ref first) = first {
-                        assert_eq!(&v["first_failure"], first);
-                    } else {
-                        first = Some(v["first_failure"].clone());
-                    }
-                }
+                let mut app = App::with_exporter(&ctx, |_, _| Ok(()));
+                app.session = snapshot.clone();
                 app.picker = picker;
                 app.tab = tab;
                 app.session.persistence = "FAILURE RECORD NOT PERSISTED: injected denial".into();
@@ -714,8 +711,6 @@ mod tests {
                     .unwrap();
                 records.push(serde_json::json!({"summary_rect":[summary_rect.min.x,summary_rect.min.y,summary_rect.max.x,summary_rect.max.y],"summary_clip":[summary_clip.min.x,summary_clip.min.y,summary_clip.max.x,summary_clip.max.y],"summary_occlusion_checked":true,"retained_navigation_checked":true,"viewport":[size.x,size.y],"picker":picker,"tab":tab,"error_rect":[rect.min.x,rect.min.y,rect.max.x,rect.max.y],"inside_wheel_offset":before,"outside_wheel_offset":outside.unwrap().1.y,"physical":false,"input":"egui native PointerMoved and MouseWheel events"}));
                 assert!(out.shapes.iter().any(|s|matches!(&s.shape,egui::epaint::Shape::Text(t) if t.galley.text().contains("FAILURE RECORD NOT PERSISTED"))));
-                app.worker.close();
-                std::fs::remove_dir_all(root).unwrap();
             }
         }
         if let Some(path) = std::env::var_os("V035_GEOMETRY") {
