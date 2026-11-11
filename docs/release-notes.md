@@ -1,17 +1,21 @@
-# KohdaLab Camera 0.1.20
+# KohdaLab Camera 0.1.21
 
 ## Maintenance and compatibility / 保守性と互換性
 
-This release adds a four-file, hash-linked output bundle beside the image and exact RAW payload: frame-summary analysis CSV, raw-payload index CSV, lifecycle log and conditions manifest. It preserves legacy JSON/metadata and Bayer TIFF. Capture behavior, device policy and the opt-in observer's mutation restrictions are unchanged.
+This is a packaging and verification release. The bundled third-party notices and license texts now match the locked dependencies exactly. Packages through 0.1.20 omitted the notice rows and license texts for some linked crates, including `csv`, `sha2` and `uuid`; 0.1.21 corrects this. Published 0.1.20 and earlier assets are left unchanged.
 
-このリリースでは、画像と正確なRAW payloadに加え、フレーム要約解析CSV・raw payload索引CSV・ライフサイクルlog・条件manifestからなる、ハッシュで関連付けた4ファイル保存セットを追加します。既存JSON／metadata・Bayer TIFFを維持し、撮影動作、機器方針、任意observerによる変更操作の禁止は変わりません。
+配布物と検証を整えるリリースです。同梱の第三者通知とライセンス文を、固定した依存と完全に一致させました。0.1.20 までの配布物は、`csv`・`sha2`・`uuid` など一部のcrateの通知行とライセンス文を欠いていました。0.1.21 で修正します。公開済みの 0.1.20 以前のassetは変更しません。
 
-Simulation and device-free recording/API checks cover the packaged Windows app; macOS CI covers Simulation only. No new physical-camera fault, power-loss, or stopping test was performed for this release. Windows x64 Setup/portable/source are provided with checksums and remain unsigned. Camera does not publish a macOS acquisition package.
+Application source is unchanged from 0.1.20 apart from the version number. Capture behavior, device policy, image/RAW exports, output bundles, settings and the read-only GUI API are unchanged. The USB library remains nusb 0.2.7, the version shipped since 0.1.13.
 
-Simulationと機器不要の記録／API試験でWindows配布版を確認し、macOS CIはSimulationのみを確認しています。本リリースでは新たな実機カメラの異常・電源断・停止試験を実施していません。Windows x64 Setup／portable／sourceをチェックサム付きで提供し、引き続き未署名です。CameraのmacOS実機取得版は公開しません。
+アプリ本体のソースは、版番号を除いて 0.1.20 と同じです。撮影動作、機器方針、画像・RAW出力、保存セット、設定、読み取り専用のGUI APIは変わりません。USBライブラリは 0.1.13 以降と同じ nusb 0.2.7 のままです。
 
 ## Verification and distribution / 検証と配布
 
-Windows CI now exercises image/raw export and frame-provenance tests alongside existing installer checks. A macOS job verifies the same device-free recording tests and native Simulation observer. Windows x64 Setup/portable/source remain the supported distributions; no macOS physical-camera package is added. This change does not constitute new hardware qualification. Windows packages remain unsigned.
+CI now runs every Rust workspace test on Windows and macOS instead of a named subset, including the Windows-only helper and GUI tests that previously ran nowhere. A new check compares the bundled license directories and notice table with `cargo metadata` and fails on any missing, extra or mismatched entry. Rust 1.99.1 is pinned; formatting, Clippy output and the Rust 1.92 minimum are checked.
 
-Windows CIで画像・raw保存とフレーム情報のテストを、既存のインストーラー検証と合わせて実行します。macOSでも同じ機器不要の保存テストとネイティブSimulationのAPIを確認します。配布は引き続きWindows x64 Setup／portable／sourceで、Mac向け実機カメラ版は追加しません。新たな実機検証ではなく、Windows版は未署名です。
+CIは名前で選んだ一部ではなく、WindowsとmacOSで全workspaceテストを実行します。これまでどこでも実行されていなかったWindows専用のhelper・GUIテストも含みます。同梱ライセンスのディレクトリと通知の表を `cargo metadata` と照合し、不足・余剰・不一致があれば失敗する検査を追加しました。Rust 1.99.1を固定し、整形・Clippy・最低版1.92を確認します。
+
+All checks use Simulation and synthetic frames. No physical-camera test was performed on the 0.1.21 binaries. Windows x64 Setup/portable/source are provided with checksums and remain unsigned. Camera does not publish a macOS acquisition package.
+
+検査はすべてSimulationと合成フレームによるものです。0.1.21 のバイナリでは実機カメラの試験を行っていません。Windows x64 Setup／portable／sourceをチェックサム付きで提供し、引き続き未署名です。CameraのmacOS実機取得版は公開しません。
