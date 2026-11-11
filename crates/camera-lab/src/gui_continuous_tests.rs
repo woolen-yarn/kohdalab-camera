@@ -395,9 +395,13 @@ fn continuous_actual_gui_worker_finite_long_slow_export_latest_close() {
         let decoded = image::open(bundle.join(path.file_name().unwrap()))
             .unwrap()
             .to_rgb8();
-        let (width, height, pixels) = Recipe::default().render(&frozen, None).unwrap();
-        assert_eq!(decoded.dimensions(), (width, height));
-        assert_eq!(decoded.as_raw(), &pixels);
+        // This App injects the legacy public export, which ignores the recipe and
+        // preserves the established sensor-to-RGB conversion.
+        assert_eq!(
+            decoded.dimensions(),
+            (frozen.metadata.width, frozen.metadata.height)
+        );
+        assert_eq!(decoded.as_raw(), frozen.legacy_display_rgb().as_ref());
         // Wait for second bounded export result before starting the next export.
         app.busy = true;
         until(&mut app, &ctx, 8, |a| !a.busy);
@@ -445,9 +449,13 @@ fn continuous_actual_gui_worker_finite_long_slow_export_latest_close() {
     let decoded = image::open(bundle.join("across-change.tiff"))
         .unwrap()
         .to_rgb8();
-    let (width, height, pixels) = Recipe::default().render(&old, None).unwrap();
-    assert_eq!(decoded.dimensions(), (width, height));
-    assert_eq!(decoded.as_raw(), &pixels);
+    // This App injects the legacy public export, which ignores the recipe and
+    // preserves the established sensor-to-RGB conversion.
+    assert_eq!(
+        decoded.dimensions(),
+        (old.metadata.width, old.metadata.height)
+    );
+    assert_eq!(decoded.as_raw(), old.legacy_display_rgb().as_ref());
     // A real bounded export error must not end acquisition.
     app.tx
         .try_send((old.clone(), across, Recipe::default()))
