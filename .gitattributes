@@ -7,3 +7,7 @@
 
 # Retain upstream license notices without counting them as application code.
 third-party-licenses/** linguist-documentation=true
+
+# Preserve the checksummed upstream license files that use CRLF.
+third-party-licenses/generic-array-0.14.7/LICENSE -text whitespace=cr-at-eol
+third-party-licenses/glow-0.17.0/LICENSE-* -text whitespace=cr-at-eol

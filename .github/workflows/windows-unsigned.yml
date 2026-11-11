@@ -15,6 +15,8 @@ on:
       - 'scripts/**'
       - 'bindings/control/**'
       - 'RECORDER-SOURCE-ID'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'third-party-licenses/**'
 
 permissions:
   contents: read
@@ -34,6 +36,8 @@ jobs:
           persist-credentials: false
       - name: Install pinned Rust
         run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Check third-party license inventory
+        run: python3 scripts/check_third_party_licenses.py
       - name: Verify source and device-free recording
         run: |
           python3 scripts/update_source_identity.py --check
@@ -70,6 +74,8 @@ jobs:
           rustc -Vv
           cargo -V
           & $gcc --version
+      - name: Check third-party license inventory
+        run: python scripts/check_third_party_licenses.py
       - name: Common GUI control SDK (device-free)
         run: python -m unittest discover -s bindings/control -p "test_*.py" -v
       - name: Common control Rust contract
