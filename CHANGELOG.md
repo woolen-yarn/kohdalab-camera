@@ -1,5 +1,10 @@
 # Changelog / 変更履歴
 
+## Unreleased / 未リリース
+
+- Align bundled third-party licenses and notices with Cargo.lock; distributions through 0.1.20 omitted notices and license texts for some crates. / 同梱の第三者ライセンスと通知を Cargo.lock に一致させました。0.1.20 までの配布物では、一部のcrateの通知とライセンス文が欠けていました。
+- The lockfile reverted nusb from 0.2.9 to 0.2.7 in [#9](https://github.com/woolen-yarn/kohdalab-camera/pull/9) (`cceaae3`) and retained 0.2.7 in #16. / nusb は #9（`cceaae3`）で 0.2.9 から 0.2.7 に戻り、#16 でも 0.2.7 が維持されました。
+
 ## 0.1.20 — 2026-11-10
 
 - Add a frame-summary analysis CSV, raw-payload index CSV, lifecycle log and conditions manifest alongside the existing image and RAW exports. The bundle distinguishes sensor from encoded-image dimensions and host observation time from exposure timing; existing JSON/metadata and Bayer TIFF remain preserved. / 既存画像・RAW出力とともに、フレーム要約解析CSV・raw payload索引CSV・ライフサイクルlog・条件manifestを追加。センサー寸法と出力画像寸法、ホスト観測時刻と露光時刻を区別し、既存JSON／metadata・Bayer TIFFを維持します。
