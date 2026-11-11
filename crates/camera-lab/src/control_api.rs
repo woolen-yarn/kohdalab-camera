@@ -133,6 +133,8 @@ fn serve(
     sender: &mpsc::SyncSender<Request>,
     wake: &(dyn Fn() + Send + Sync),
 ) -> Result<(), String> {
+    // On macOS an accepted stream can inherit the listener's nonblocking mode.
+    stream.set_nonblocking(false).map_err(|e| e.to_string())?;
     let deadline = Instant::now() + TIMEOUT;
     let body = match read(&mut stream, deadline).and_then(|b| {
         serde_json::from_slice::<Value>(&b).map_err(|_| "Request must be JSON".into())
@@ -240,6 +242,42 @@ mod tests {
             .unwrap();
         request.reply.send(json!({"ok":true,"result":{}})).unwrap();
         peer.join().unwrap();
+    }
+    #[test]
+    fn authenticated_request_can_arrive_in_parts() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = Server::start(Some(dir.path().into())).unwrap();
+        let descriptor: Value =
+            serde_json::from_slice(&std::fs::read(&server.descriptor).unwrap()).unwrap();
+        let port = descriptor["port"].as_u64().unwrap() as u16;
+        let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
+        let body = json!({
+            "control_protocol": 1,
+            "method": "control.describe",
+            "token": descriptor["token"],
+        });
+        serde_json::to_writer(&mut stream, &body).unwrap();
+
+        // The server must wait for the newline even after it has read the JSON.
+        stream
+            .set_read_timeout(Some(Duration::from_millis(250)))
+            .unwrap();
+        let early_reply = stream.read(&mut [0]);
+        assert!(
+            matches!(&early_reply, Err(e) if matches!(e.kind(),
+                std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock)),
+            "server replied or closed before the newline: {early_reply:?}"
+        );
+        stream.write_all(b"\n").unwrap();
+
+        let request = server.requests.recv_timeout(TIMEOUT).unwrap();
+        assert_eq!(request.body, body);
+        let expected = json!({"ok":true,"result":{}});
+        request.reply.send(expected.clone()).unwrap();
+        stream.set_read_timeout(Some(TIMEOUT)).unwrap();
+        let mut line = String::new();
+        BufReader::new(stream).read_line(&mut line).unwrap();
+        assert_eq!(serde_json::from_str::<Value>(&line).unwrap(), expected);
     }
     #[test]
     fn descriptor_is_canonical_and_bad_token_never_reaches_gui() {
