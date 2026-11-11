@@ -40,10 +40,30 @@ check pass. Preserve license notices in source and portable distributions.
 
 Dependabot checks the Rust workspace weekly and GitHub Actions monthly.
 Dependency updates require review; automatic merging is not configured.
-For Cargo updates, refresh `RECORDER-SOURCE-ID` with
-`python scripts/update_source_identity.py`, review the dependency and license
-changes, and run the unsigned Windows workflow on the updated branch before
-merging. The workflow supports manual runs for dependency pull requests.
+Apply the reviewed Cargo manifest and lockfile changes to a maintainer branch
+based on `main`, then run this command from the repository root.
+
+```sh
+python3 scripts/check_third_party_licenses.py --update
+```
+
+The command reads locked Cargo metadata for all targets and checks the directories
+under `third-party-licenses/`. For each missing crate version, add the exact
+upstream license and notice files, including bundled attributions where applicable.
+Record the upstream URL and SHA-256 for each added file using the existing
+`RECOVERY.tsv` format. Review and remove directories for versions no longer in the
+lockfile. Keep the tool and runtime licenses. Rerun the same command after making
+these corrections.
+
+Once the inventory passes, the command regenerates the crate table in
+`THIRD_PARTY_NOTICES.md` and refreshes `RECORDER-SOURCE-ID`. Review and commit the
+dependency changes, notices, license files, and source ID together. Keep
+`nusb` at 0.2.7. A separate update to that dependency requires physical-camera
+validation.
+
+Run the Workspace tests and Windows unsigned build workflows on the maintainer
+branch before merging. Windows unsigned build also supports manual dispatch.
+Both the license and source-ID checks run in CI without modifying the checkout.
 
 ## Native input diagnostics
 
@@ -81,7 +101,17 @@ KohdaLab Camera は複数のカメラ系列に共通の取得ワークフロー�
 
 ## 依存関係更新 / Dependency updates
 
-Dependabot は Rust workspace を毎週、GitHub Actions を毎月確認します。自動マージは設定されていません。Cargo 更新では `python scripts/update_source_identity.py` で `RECORDER-SOURCE-ID` を更新し、依存関係とライセンスの変更を確認し、マージ前に更新 branch で unsigned Windows workflow を実行します。workflow は dependency PR の手動実行にも対応します。
+Dependabot は Rust workspace を毎週、GitHub Actions を毎月確認します。自動マージは設定されていません。レビュー済みの Cargo manifest と lockfile の変更を `main` ベースのメンテナーブランチに適用し、リポジトリ直下で次を実行します。
+
+```sh
+python3 scripts/check_third_party_licenses.py --update
+```
+
+全ターゲットの locked Cargo metadata を読み、`third-party-licenses/` を照合します。不足する crate の版には、対応する上流のライセンス文と通知を追加し、同梱素材の帰属表示も必要に応じて収録します。追加したファイルごとに上流 URL と SHA-256 を既存の `RECOVERY.tsv` 形式で記録します。lockfile から外れた版のディレクトリは確認して削除し、ツールとランタイムのライセンスは保持します。修正後に同じコマンドを再実行します。
+
+照合に通ると、`THIRD_PARTY_NOTICES.md` の crate 表と `RECORDER-SOURCE-ID` が更新されます。依存関係の差分、通知、ライセンス文、ソース ID を確認し、まとめてコミットします。`nusb` は 0.2.7 を維持します。この依存の更新は実機検証を伴う別作業です。
+
+マージ前にメンテナーブランチで Workspace tests と Windows unsigned build を実行します。Windows unsigned build は手動実行にも対応しています。CI のライセンス照合とソース ID チェックはチェックアウトを書き換えません。
 
 ## Native input diagnostics
 

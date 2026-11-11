@@ -1,24 +1,34 @@
-"""Check the shipped third-party inventory against locked Cargo metadata."""
+"""Check or refresh the shipped third-party inventory against locked Cargo metadata."""
 
+import argparse
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL_LICENSES = {"gcc-runtime", "mingw-w64", "nsis-3.12", "rust-standard-library"}
+NOTICES = ROOT / "THIRD_PARTY_NOTICES.md"
 TABLE_HEADER = "| Crate | Version | License | Source |"
 
 
-def notice_packages():
-    lines = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8").splitlines()
+def notice_table(lines):
     if lines.count(TABLE_HEADER) != 1:
         raise ValueError("expected one crate inventory table in THIRD_PARTY_NOTICES.md")
 
+    start = lines.index(TABLE_HEADER) + 2
+    if start > len(lines) or lines[start - 1] != "|---|---|---|---|":
+        raise ValueError("expected the crate inventory table separator in THIRD_PARTY_NOTICES.md")
+    end = start
+    while end < len(lines) and lines[end].startswith("|"):
+        end += 1
+    return start, end
+
+
+def notice_packages(rows):
     packages = {}
-    for line in lines[lines.index(TABLE_HEADER) + 2:]:
-        if not line.startswith("|"):
-            break
+    for line in rows:
         fields = [field.strip() for field in line.strip("|").split("|")]
         if len(fields) != 4 or not all(fields):
             raise ValueError(f"malformed notice row: {line}")
@@ -37,6 +47,12 @@ def report(label, entries):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--update", action="store_true",
+        help="refresh the notice table and recorder source identity after checking license files",
+    )
+    args = parser.parse_args()
     metadata = json.loads(subprocess.check_output(
         ["cargo", "metadata", "--locked", "--format-version", "1"], cwd=ROOT,
     ))
@@ -48,7 +64,17 @@ def main():
     actual_dirs = {
         path.name for path in (ROOT / "third-party-licenses").iterdir() if path.is_dir()
     }
-    notices = notice_packages()
+    document = NOTICES.read_text(encoding="utf-8")
+    lines = document.split("\n")
+    start, end = notice_table(lines)
+    if args.update:
+        rows = [
+            f"| {name} | {version} | {license_expression or ''} | {source} |"
+            for (name, version), (license_expression, source) in sorted(expected.items())
+        ]
+        lines[start:end] = rows
+        end = start + len(rows)
+    notices = notice_packages(lines[start:end])
     missing_dirs = expected_dirs - actual_dirs
     extra_dirs = actual_dirs - expected_dirs
     empty_crate_dirs = {
@@ -79,7 +105,16 @@ def main():
     report("Extra notice rows", {f"{name} {version}" for name, version in extra_notices})
     report("Notice version mismatches", version_mismatches)
     report("Notice license or source mismatches", metadata_mismatches)
-    return int(any((missing_dirs, extra_dirs, empty_crate_dirs, missing_notices, extra_notices, metadata_mismatches)))
+    if any((missing_dirs, extra_dirs, empty_crate_dirs, missing_notices, extra_notices, metadata_mismatches)):
+        if args.update:
+            print("Update the license files as described in CONTRIBUTING.md, then rerun --update.")
+        return 1
+    if args.update:
+        updated = "\n".join(lines)
+        if updated != document:
+            NOTICES.write_text(updated, encoding="utf-8", newline="\n")
+        subprocess.run([sys.executable, str(ROOT / "scripts/update_source_identity.py")], check=True)
+    return 0
 
 
 if __name__ == "__main__":

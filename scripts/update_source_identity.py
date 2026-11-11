@@ -24,7 +24,11 @@ for path in sorted(set(paths), key=lambda p: p.relative_to(root).as_posix()):
 marker = digest.hexdigest()
 if sys.argv[1:] == ['--check']:
     if (root / 'RECORDER-SOURCE-ID').read_text().strip() != marker:
-        raise SystemExit('Source identity is stale; refresh it before committing the build inputs.')
+        raise SystemExit(
+            'Source identity is stale. For Cargo dependency updates, run '
+            'python scripts/check_third_party_licenses.py --update. '
+            'For other build-input changes, run python scripts/update_source_identity.py.'
+        )
 elif sys.argv[1:]:
     raise SystemExit('Usage: update_source_identity.py [--check]')
 else:
