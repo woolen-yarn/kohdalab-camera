@@ -46,6 +46,14 @@ fn exact(frame: &Frame) {
     );
 }
 
+fn saved_metadata(frame: &Frame) -> camera_lab::Metadata {
+    let mut metadata = frame.metadata.clone();
+    if let Some(measurement) = &mut metadata.measurement {
+        measurement.received_at = None;
+    }
+    metadata
+}
+
 #[test]
 fn two_mode_actual_gui_full_skip_full_pause_capture_stop() {
     let root = root("two-mode");
@@ -118,7 +126,7 @@ fn two_mode_actual_gui_full_skip_full_pause_capture_stop() {
         assert_eq!(std::fs::read(bundle.join("raw.bin")).unwrap(), *frame.raw);
         let meta: camera_lab::Metadata =
             serde_json::from_slice(&std::fs::read(bundle.join("metadata.json")).unwrap()).unwrap();
-        assert_eq!(meta, frame.metadata);
+        assert_eq!(meta, saved_metadata(&frame));
         held = Some(frame);
         app.paused = false;
     }
@@ -237,22 +245,23 @@ fn repair_actual_app_drop_gui_return_unwind_and_active_poll_panic() {
             fn unavailable(s: &egui::epaint::Shape) -> bool {
                 match s {
                     egui::epaint::Shape::Text(t) => {
-                        t.galley.job.text.contains("Capture time unavailable")
+                        t.galley.job.text.contains("Capture timing unavailable")
                     }
                     egui::epaint::Shape::Vec(v) => v.iter().any(unavailable),
                     _ => false,
                 }
             }
-            let output = ctx.run_ui(
-                egui::RawInput {
-                    screen_rect: Some(egui::Rect::from_min_size(
-                        egui::Pos2::ZERO,
-                        egui::vec2(1100., 750.),
-                    )),
-                    ..Default::default()
-                },
-                |ctx| app.render(ctx),
-            );
+            app.tab = 4;
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1100., 750.),
+                )),
+                ..Default::default()
+            };
+            // Overlay Areas perform an initial size pass before painting contents.
+            let _ = ctx.run_ui(input.clone(), |ctx| app.render(ctx));
+            let output = ctx.run_ui(input, |ctx| app.render(ctx));
             assert!(output.shapes.iter().any(|s| unavailable(&s.shape)));
         }
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
@@ -382,11 +391,13 @@ fn continuous_actual_gui_worker_finite_long_slow_export_latest_close() {
         assert_eq!(std::fs::read(bundle.join("raw.bin")).unwrap(), *frozen.raw);
         let meta: camera_lab::Metadata =
             serde_json::from_slice(&std::fs::read(bundle.join("metadata.json")).unwrap()).unwrap();
-        assert_eq!(meta, frozen.metadata);
+        assert_eq!(meta, saved_metadata(&frozen));
         let decoded = image::open(bundle.join(path.file_name().unwrap()))
             .unwrap()
             .to_rgb8();
-        assert_eq!(decoded.as_raw(), frozen.display_rgb().as_ref());
+        let (width, height, pixels) = Recipe::default().render(&frozen, None).unwrap();
+        assert_eq!(decoded.dimensions(), (width, height));
+        assert_eq!(decoded.as_raw(), &pixels);
         // Wait for second bounded export result before starting the next export.
         app.busy = true;
         until(&mut app, &ctx, 8, |a| !a.busy);
@@ -430,11 +441,13 @@ fn continuous_actual_gui_worker_finite_long_slow_export_latest_close() {
     assert_eq!(std::fs::read(bundle.join("raw.bin")).unwrap(), *old.raw);
     let meta: camera_lab::Metadata =
         serde_json::from_slice(&std::fs::read(bundle.join("metadata.json")).unwrap()).unwrap();
-    assert_eq!(meta, old.metadata);
+    assert_eq!(meta, saved_metadata(&old));
     let decoded = image::open(bundle.join("across-change.tiff"))
         .unwrap()
         .to_rgb8();
-    assert_eq!(decoded.as_raw(), old.display_rgb().as_ref());
+    let (width, height, pixels) = Recipe::default().render(&old, None).unwrap();
+    assert_eq!(decoded.dimensions(), (width, height));
+    assert_eq!(decoded.as_raw(), &pixels);
     // A real bounded export error must not end acquisition.
     app.tx
         .try_send((old.clone(), across, Recipe::default()))
