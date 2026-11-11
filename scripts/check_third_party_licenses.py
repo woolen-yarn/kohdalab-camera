@@ -51,6 +51,15 @@ def main():
     notices = notice_packages()
     missing_dirs = expected_dirs - actual_dirs
     extra_dirs = actual_dirs - expected_dirs
+    empty_crate_dirs = {
+        f"{name}-{version}"
+        for name, version in expected
+        if f"{name}-{version}" in actual_dirs
+        and not any(
+            path.is_file() and path.name != "RECOVERY.tsv"
+            for path in (ROOT / "third-party-licenses" / f"{name}-{version}").rglob("*")
+        )
+    }
     missing_notices = expected.keys() - notices.keys()
     extra_notices = notices.keys() - expected.keys()
     version_mismatches = {name for name, _ in missing_notices} & {
@@ -65,11 +74,12 @@ def main():
     print(f"Checking {len(expected)} locked external crates and {len(TOOL_LICENSES)} tool licenses")
     report("Missing license directories", missing_dirs)
     report("Extra license directories", extra_dirs)
+    report("Crate directories without license files", empty_crate_dirs)
     report("Missing notice rows", {f"{name} {version}" for name, version in missing_notices})
     report("Extra notice rows", {f"{name} {version}" for name, version in extra_notices})
     report("Notice version mismatches", version_mismatches)
     report("Notice license or source mismatches", metadata_mismatches)
-    return int(any((missing_dirs, extra_dirs, missing_notices, extra_notices, metadata_mismatches)))
+    return int(any((missing_dirs, extra_dirs, empty_crate_dirs, missing_notices, extra_notices, metadata_mismatches)))
 
 
 if __name__ == "__main__":

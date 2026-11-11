@@ -2,6 +2,7 @@
 
 ## Unreleased / 未リリース
 
+- Align bundled third-party licenses and notices with Cargo.lock; distributions through 0.1.20 omitted notices and license texts for some crates. / 同梱の第三者ライセンスと通知を Cargo.lock に一致させました。0.1.20 までの配布物では、一部のcrateの通知とライセンス文が欠けていました。
 - The lockfile reverted nusb from 0.2.9 to 0.2.7 in [#9](https://github.com/woolen-yarn/kohdalab-camera/pull/9) (`cceaae3`) and retained 0.2.7 in #16. / nusb は #9（`cceaae3`）で 0.2.9 から 0.2.7 に戻り、#16 でも 0.2.7 が維持されました。
 
 ## 0.1.20 — 2026-11-10
