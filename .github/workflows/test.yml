@@ -1,0 +1,104 @@
+name: Workspace tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-tests:
+    name: Windows GNU workspace tests
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: target
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Rust and GNU tools
+        shell: pwsh
+        run: |
+          rustup target add x86_64-pc-windows-gnu
+          if ($LASTEXITCODE) { throw 'Rust target installation failed' }
+          $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+          $tools = Split-Path $gcc
+          $windres = Join-Path $tools 'windres.exe'
+          if (!(Test-Path $windres)) { throw 'GNU resource compiler missing' }
+          "CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=$gcc" >> $env:GITHUB_ENV
+          "WINDRES=$windres" >> $env:GITHUB_ENV
+          $tools >> $env:GITHUB_PATH
+      - name: Build synthetic-frame fixture helper
+        shell: pwsh
+        run: |
+          cargo build --locked --target x86_64-pc-windows-gnu --package continuous-helper-entry --bin continuous-helper
+          if ($LASTEXITCODE) { throw 'Fixture helper build failed' }
+          $debug = 'target/x86_64-pc-windows-gnu/debug'
+          New-Item -ItemType Directory -Force "$debug/deps" | Out-Null
+          Copy-Item "$debug/continuous-helper.exe" "$debug/deps/continuous-helper.exe"
+      - name: Run all Windows workspace tests
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP ('camera-fixture-' + [Guid]::NewGuid().ToString('N'))
+          $env:GUI_CONTINUOUS_FAKE_ROOT = Join-Path $fixture 'gui'
+          $env:DUAL_FAILURE_FAKE_ROOT = Join-Path $fixture 'dual'
+          New-Item -ItemType Directory -Force -Path $env:GUI_CONTINUOUS_FAKE_ROOT,$env:DUAL_FAILURE_FAKE_ROOT | Out-Null
+
+          # Both GUI tests require INTEGRATED_UX_FAKE_ROOT not to exist at startup.
+          # Run native_paired_completion with a dedicated root, then run every other test.
+          $PSNativeCommandUseErrorActionPreference = $false
+          $env:INTEGRATED_UX_FAKE_ROOT = Join-Path $fixture 'native-paired'
+          cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab integrated_ux_tests::native_paired_completion -- --exact --test-threads=1
+          $pairedExit = $LASTEXITCODE
+          $env:INTEGRATED_UX_FAKE_ROOT = Join-Path $fixture 'workspace'
+          cargo test --locked --workspace --target x86_64-pc-windows-gnu --no-fail-fast -- --test-threads=1 --skip integrated_ux_tests::native_paired_completion
+          if ($pairedExit -ne 0 -or $LASTEXITCODE -ne 0) { throw 'Windows workspace tests failed' }
+
+  macos-tests:
+    name: macOS workspace tests
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run all macOS workspace tests
+        run: cargo test --locked --workspace --no-fail-fast
+
+  rust-lints:
+    name: Rust formatting and Clippy
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install lint components
+        id: lint-tools
+        run: rustup component add rustfmt clippy
+      - name: Check Rust formatting
+        run: cargo fmt --all --check
+      - name: Report Clippy warnings
+        if: ${{ !cancelled() && steps.lint-tools.outcome == 'success' }}
+        shell: bash
+        run: |
+          cargo clippy --locked --workspace --all-targets --color never 2>&1 | tee "$RUNNER_TEMP/clippy.log"
+          warnings=$(awk '/^warning: / && !/^warning: `.*`.* generated [0-9]+ warning/ {count++} END {print count+0}' "$RUNNER_TEMP/clippy.log")
+          echo "Clippy run emitted $warnings warnings (including rustc warnings)." | tee -a "$GITHUB_STEP_SUMMARY"
+
+  msrv:
+    name: Rust 1.92 workspace check
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust 1.92
+        run: rustup toolchain install 1.92 --profile minimal
+      - name: Check workspace with Rust 1.92
+        run: cargo +1.92 check --locked --workspace
