@@ -14,6 +14,20 @@
 
 - Align every Camera workspace member with the existing Rust 1.92 minimum, so ordinary Cargo and Dependabot updates are not constrained by the former lower member declarations. Acquisition behaviour, device policy, image/RAW exports, metadata, and the read-only GUI API are unchanged. / Cameraワークスペースの全クレートを既存のRust 1.92最小要件に揃え、通常のCargo／Dependabot更新が旧来の低いクレート宣言に制限されないよう修正。取得動作、機器方針、画像／RAW出力、メタデータ、読み取り専用GUI APIは変更なし。
 
+## 0.1.18 — 2026-11-10
+
+- Update eframe from 0.31.1 to 0.34.3 and remove the unmaintained font parser. Camera polling and the opt-in, read-only GUI observer continue independently of visible painting. / eframe を 0.31.1 から 0.34.3 に更新し、保守が終了したフォントパーサーを除去しました。カメラのポーリングと任意で有効化する読み取り専用 GUI observer は、画面描画と独立して動作します。
+- Verify the packaged Windows app with Simulation and device-free recording and API checks, and run Simulation on macOS CI. This release adds no physical-camera qualification. / Windows 配布版を Simulation と機器不要の記録・API テストで検証し、macOS CI でも Simulation を確認しました。この版で実機の適格性確認は追加していません。
+
+[Release / リリース](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.18) · Source / ソース `41e11b6`
+
+## 0.1.17 — 2026-11-06
+
+- Add versioned recording provenance to image sidecar JSON, including application and source identity, received payload size and format, stored bit depth, declared sensor and transport bit depths when available, and Simulation status. / 画像の付属 JSON に版付きの保存来歴を追加しました。アプリとソースの識別子、受信データのサイズと形式、保存ビット数、判明しているセンサーと通信経路のビット数、Simulation の区別を記録します。
+- Document that GR300 RAW preserves the 8 bits received from its 10-bit sensor. Unknown exposure timing and dropped-frame counts remain `null`. Add device-free recording checks on Windows and macOS and a native Simulation observer check on macOS. / GR300 の RAW は10ビットのセンサーから受信した8ビットを保持することを明記しました。不明な露光時刻や欠落フレーム数は `null` のままです。Windows と macOS に機器不要の保存テストを追加し、macOS ではネイティブ Simulation の observer も検証しました。
+
+[Release / リリース](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.17) · Source / ソース `f0f752a`
+
 ## 0.1.16 — 2026-11-05
 
 - Ignore empty home-directory environment values and use the valid platform fallback consistently in the GUI and common Python client. / GUIと共通Pythonクライアントで、空のホーム環境変数を除外して有効な代替先を使います。
@@ -60,6 +74,14 @@
 Windows CI validates synthetic GUI flows, settings, build metadata and installer
 lifecycle. Physical capture qualification remains the v0.1.9 record; this release
 has not repeated physical acquisition. Executables remain unsigned.
+
+## 0.1.12 — 2026-10-29
+
+- Update nusb to 0.2.9 and rfd to 0.17.2 for this release, retain upstream notices, and consolidate the Rust workspace under `crates/` with English/Japanese documentation. / この版では nusb を 0.2.9、rfd を 0.17.2 に更新し、上流の通知を保持しました。Rust ワークスペースを `crates/` 配下に整理し、英日併記の文書を整備しました。
+- Move settings to `~/.kohdalab/camera/config.json` with validated atomic writes. The application starts with defaults at the new path and leaves earlier preference files in place. / 設定を `~/.kohdalab/camera/config.json` に移し、内容を検証してからアトミックに保存します。新しい保存先での初回起動は既定値を使い、旧設定ファイルは保持します。
+- Change Windows Setup to an all-users install under `%ProgramFiles%\Kohdalab\KohdaLab Camera`. Remove earlier per-user installations before upgrading. Updates and uninstallation preserve captures, settings and device interlocks. Windows CI covered installer lifecycle and synthetic GUI checks. Physical capture qualification remained at 0.1.9. / Windows Setup を `%ProgramFiles%\Kohdalab\KohdaLab Camera` への全ユーザー向けインストールに変更しました。更新前に旧ユーザー別インストールを削除します。更新・アンインストール時も保存画像、設定、機器インターロックは保持します。Windows CI でインストーラーのライフサイクルと模擬 GUI を検証しました。実機撮影の検証記録は 0.1.9 のままです。
+
+[Release / リリース](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.12) · Source / ソース `6e82f3c`
 
 # KohdaLab Camera 0.1.11
 

@@ -22,10 +22,13 @@
 
 - [Code signing / コード署名](reference/code-signing.md)
 - [Hardware / 対応機器](reference/hardware.md)
+- [Measurement output / 測定データ出力](reference/measurement-output.md)
 - [Provenance / 由来とソース識別](reference/provenance.md)
 
 ## Validation and evidence / 検証記録
 
+- [Maintained GUI stack / GUI 基盤の検証](validation/maintained-gui-stack.md)
+- [Screenshot provenance / 画面例の来歴](images/README.md)
 - [Repository-layout validation / 構成移行の検証](validation/repository-layout.md)
 - [Rendering performance / 描画性能](validation/rendering-performance.md)
 - [Responsiveness / 応答性能](validation/responsiveness.md)
@@ -42,6 +45,8 @@
 - [CONTRIBUTING.md / 開発への参加](../CONTRIBUTING.md)
 - [THIRD_PARTY_NOTICES.md / 第三者の権利表記](../THIRD_PARTY_NOTICES.md)
 - [CHANGELOG.md / 変更履歴](../CHANGELOG.md)
+- [Release notes / リリースノート](release-notes.md)
+- [Security reporting / セキュリティ報告](../SECURITY.md)
 
 English and Japanese share the links above. Machine-readable JSON evidence, source identifiers, and exact upstream license texts remain original. / 英日とも上の同じリンクをご利用ください。機械可読のJSON証跡、ソース識別子、上流ライセンス本文は原本を保持しています。
 
