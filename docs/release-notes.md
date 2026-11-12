@@ -1,21 +1,17 @@
-# KohdaLab Camera 0.1.21
+# KohdaLab Camera 0.1.22
 
-## Maintenance and compatibility / 保守性と互換性
+## Fixes and maintenance / 修正と保守
 
-This is a packaging and verification release. The bundled third-party notices and license texts now match the locked dependencies exactly. Packages through 0.1.20 omitted the notice rows and license texts for some linked crates, including `csv`, `sha2` and `uuid`; 0.1.21 corrects this. Published 0.1.20 and earlier assets are left unchanged.
+- On macOS, the read-only GUI API now waits within the existing two-second deadline for a local request to finish arriving. A loopback regression test covers requests that arrive in parts. / macOS の読み取り専用 GUI API は、ローカルのリクエストが分割して届いても既存の2秒の期限内で受信を待ちます。分割受信をループバック回帰テストで確認します。
+- The failure-panel test uses a deterministic simulated failure. The dependency update command refreshes the notice table and source identity after checking the license inventory. / 障害パネルのテストには再現可能な模擬障害を使います。依存更新コマンドはライセンス一覧の照合後に通知一覧とソース ID を更新します。
+- The changelog, documentation index, and vulnerability reporting policy have been updated. / 変更履歴、文書索引、脆弱性の報告手順を整備しました。
 
-配布物と検証を整えるリリースです。同梱の第三者通知とライセンス文を、固定した依存と完全に一致させました。0.1.20 までの配布物は、`csv`・`sha2`・`uuid` など一部のcrateの通知行とライセンス文を欠いていました。0.1.21 で修正します。公開済みの 0.1.20 以前のassetは変更しません。
+## Distribution and validation / 配布と検証
 
-Application source is unchanged from 0.1.20 apart from the version number. Capture behavior, device policy, image/RAW exports, output bundles, settings and the read-only GUI API are unchanged. The USB library remains nusb 0.2.7, the version shipped since 0.1.13.
+Windows x64 Setup and portable ZIP are unsigned. The source ZIP and SHA-256 checksums accompany the release. The USB library stays at nusb 0.2.7.
 
-アプリ本体のソースは、版番号を除いて 0.1.20 と同じです。撮影動作、機器方針、画像・RAW出力、保存セット、設定、読み取り専用のGUI APIは変わりません。USBライブラリは 0.1.13 以降と同じ nusb 0.2.7 のままです。
+Windows x64 の Setup と portable ZIP は未署名です。ソース ZIP と SHA-256 チェックサムも配布します。USB ライブラリは nusb 0.2.7 を使用します。
 
-## Verification and distribution / 検証と配布
+The [physical GR300 validation record](validation/physical-gr300-0.1.21.md) applies to the 0.1.21 portable build. Validation for 0.1.22 uses CI with Simulation and synthetic frames.
 
-CI now runs every Rust workspace test on Windows and macOS instead of a named subset, including the Windows-only helper and GUI tests that previously ran nowhere. A new check compares the bundled license directories and notice table with `cargo metadata` and fails on any missing, extra or mismatched entry. Rust 1.99.1 is pinned; formatting, Clippy output and the Rust 1.92 minimum are checked.
-
-CIは名前で選んだ一部ではなく、WindowsとmacOSで全workspaceテストを実行します。これまでどこでも実行されていなかったWindows専用のhelper・GUIテストも含みます。同梱ライセンスのディレクトリと通知の表を `cargo metadata` と照合し、不足・余剰・不一致があれば失敗する検査を追加しました。Rust 1.99.1を固定し、整形・Clippy・最低版1.92を確認します。
-
-All checks use Simulation and synthetic frames. No physical-camera test was performed on the 0.1.21 binaries. Windows x64 Setup/portable/source are provided with checksums and remain unsigned. Camera does not publish a macOS acquisition package.
-
-検査はすべてSimulationと合成フレームによるものです。0.1.21 のバイナリでは実機カメラの試験を行っていません。Windows x64 Setup／portable／sourceをチェックサム付きで提供し、引き続き未署名です。CameraのmacOS実機取得版は公開しません。
+[GR300 の実機検証記録](validation/physical-gr300-0.1.21.md)の対象は 0.1.21 の portable 版です。0.1.22 は CI の Simulation と合成フレームで検証します。

@@ -1,5 +1,12 @@
 # Changelog / 変更履歴
 
+## 0.1.22 — 2026-11-12
+
+- Fix premature responses from the read-only GUI API on macOS when a local request arrives in parts. Accepted connections now wait within the existing two-second request deadline. / macOS の読み取り専用 GUI API で、ローカルのリクエストが分割して届くと応答が早すぎる問題を修正しました。受け付けた接続は既存の2秒の期限内で受信を待ちます。
+- Stabilize the failure-panel geometry test and add a loopback regression test for delayed requests. / 障害パネルの表示テストを安定化し、分割受信のループバック回帰テストを追加しました。
+- Add a maintainer command for dependency license checks, notice table updates and source identity refresh. Complete the historical changelog and documentation index, and document vulnerability reporting. / 依存ライセンスの照合・通知一覧とソース ID の更新をまとめるコマンドを追加しました。過去の変更履歴と文書索引を補い、脆弱性の報告手順を整備しました。
+- Document the [GR300 physical validation performed on 0.1.21](docs/validation/physical-gr300-0.1.21.md). / [0.1.21 で実施した GR300 の実機検証](docs/validation/physical-gr300-0.1.21.md)を記録しました。
+
 ## 0.1.21 — 2026-11-11
 
 - Align bundled third-party licenses and notices with Cargo.lock; distributions through 0.1.20 omitted notices and license texts for some crates. / 同梱の第三者ライセンスと通知を Cargo.lock に一致させました。0.1.20 までの配布物では、一部のcrateの通知とライセンス文が欠けていました。
