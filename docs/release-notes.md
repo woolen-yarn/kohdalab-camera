@@ -1,29 +1,33 @@
-# KohdaLab Camera 0.1.24
+# KohdaLab Camera 0.1.25
 
-## GUI control API / GUI 制御 API
+## Rendering performance / 描画性能
 
-For common-protocol requests, Camera returns transport-level `timeout`, `busy`
-and `unavailable` errors with the original `request_id` and structured error
-fields. The two-second request deadline still applies. A Windows save dialog
-can delay status processing. Retry a read-only status request after the
-dialog closes if needed.
+The v2 renderer now advances source coordinates along each row when the image
+needs no downsampling. A box containing one sample emits that sample directly.
+The rotation, reflection, Bayer interpolation, color processing and rounding
+retain their existing results.
 
-共通 GUI API リクエストの通信エラー `timeout`、`busy`、`unavailable` は、
-元の `request_id` と構造化エラーを含む形式で返します。リクエスト期限は引き続き
-2秒です。Windows の保存ダイアログを開いている間は状態照会の処理が遅れる場合が
-あります。必要に応じてダイアログを閉じてから状態を再取得してください。
+縮小が不要な v2 描画では、行に沿って元画像の座標を進めます。縮小ブロックが
+1画素の場合は、その処理済み画素を直接出力します。回転・反転、Bayer 補間、
+色処理と丸めの結果は従来どおりです。
 
-## Distribution and validation / 配布と検証
+On one macOS development machine, the median synthetic 1024 × 768 preview
+render time across eight orientations fell from 3.80 to 2.24 ms per frame.
+For a 2048 × 1536 input downsampled to a 1024-pixel long edge, the median
+was 11.27 ms before and 11.48 ms after. Rendered pixel hashes matched 0.1.24
+across all 16 timed cases and the aggregate of 160 additional cases. These
+measurements cover CPU rendering of synthetic inputs.
 
-Windows x64 Setup and portable ZIP are unsigned. The release includes a source
-ZIP and SHA-256 checksums. The USB library remains nusb 0.2.7. The
-[GR300 physical record](validation/physical-gr300-0.1.21.md) covers 0.1.21.
-The [0.1.23 release](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.23)
-records a separate GR300 trial. Validation for 0.1.24 uses CI with Simulation
-and synthetic frames.
+macOS 開発機1台で、1024 × 768 の合成画像を8方向で描画したときの中央値は
+1フレームあたり 3.80 ms から 2.24 ms に短縮しました。2048 × 1536 を長辺1024に
+縮小した場合の中央値は変更前 11.27 ms、変更後 11.48 ms でした。計測16条件の
+画素ハッシュと追加160条件の集約ハッシュは 0.1.24 と一致しました。測定対象は
+合成入力の CPU 描画処理です。
+
+## Distribution / 配布
+
+Windows x64 Setup and portable ZIP are unsigned. The source ZIP and SHA-256
+checksums accompany the release. The USB library remains nusb 0.2.7.
 
 Windows x64 の Setup と portable ZIP は未署名です。ソース ZIP と SHA-256
 チェックサムも配布します。USB ライブラリは nusb 0.2.7 です。
-[GR300 実機検証記録](validation/physical-gr300-0.1.21.md)は 0.1.21 を対象とし、
-[0.1.23 のリリース](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.23)
-には別の実機試験を記録しています。0.1.24 は CI の Simulation と合成フレームで検証します。

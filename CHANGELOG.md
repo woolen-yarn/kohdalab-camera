@@ -1,5 +1,9 @@
 # Changelog / 変更履歴
 
+## 0.1.25
+
+- Speed up the v2 image renderer when no downsampling is needed by advancing source coordinates along each row and emitting each processed pixel directly. The measured synthetic 1024 × 768 preview output matched 0.1.24 byte for byte across eight orientations. / 縮小が不要な v2 描画では、行に沿って元画像の座標を進め、処理済み画素を直接出力します。1024 × 768 の合成画像では、8方向すべてで 0.1.24 と出力画素が一致しました。
+
 ## 0.1.24 — 2026-11-12
 
 - Return GUI API transport errors (`timeout`, `busy`, `unavailable`) for common-protocol requests in the standard response envelope, including the original `request_id`. The two-second request deadline remains in effect. / 共通 GUI API リクエストの通信エラー（`timeout`、`busy`、`unavailable`）を、元の `request_id` を含む標準形式で返します。リクエスト期限は引き続き2秒です。
