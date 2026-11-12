@@ -27,6 +27,7 @@
 
 ## Validation and evidence / 検証記録
 
+- [GR300 physical validation 0.1.21 / GR300 実機検証 0.1.21](validation/physical-gr300-0.1.21.md)
 - [Maintained GUI stack / GUI 基盤の検証](validation/maintained-gui-stack.md)
 - [Screenshot provenance / 画面例の来歴](images/README.md)
 - [Repository-layout validation / 構成移行の検証](validation/repository-layout.md)
