@@ -38,6 +38,11 @@ second unit as supported.
 
 ## Validation status
 
+The published 0.1.21 Windows x64 portable build passed physical Live acquisition,
+normal and full-sensor export, return to Live, disconnect/reconnect and normal
+shutdown on the tested GR300. See the [0.1.21 record](../validation/physical-gr300-0.1.21.md)
+for the exact scope and export checks.
+
 The exact published version 0.1.9 binaries completed 399.4 seconds of physical
 Live acquisition, image adjustment and Fit controls, a pixel-checked endpoint
 export, and normal GUI/helper shutdown. A single supported camera was
@@ -78,6 +83,11 @@ limits. Hardware support will be added to this matrix only after scoped testing.
 GUI は USB ID で物理候補を filter します。enumeration は互換 sensor、成功した acquisition、hardware qualification の証明ではありません。二台目を対応扱いする前に USB identity、sensor、firmware compatibility、driver setup を確認してください。
 
 ## 検証状況 / Validation status
+
+公開版 **0.1.21** の Windows x64 portable 版で、検証対象の GR300 の Live 取得、
+通常・フルセンサー保存、Live 復帰、切断・再接続、通常終了を確認しました。
+保存セットの照合と検証範囲は [0.1.21 実機検証記録](../validation/physical-gr300-0.1.21.md)
+を参照してください。
 
 公開済み **0.1.9** binaries は SHODENSHA GR300 で 399.4 秒の physical Live acquisition、image adjustment/Fit controls、pixel-checked endpoint export、通常の GUI/helper shutdown を完了しました。対応 camera 一台は自動選択されました。[scoped record](../validation/validation-0.1.9.json) を参照してください。所有者は過去の確認で manual mouse、任意サイズへの resize、変更サイズの保持も確認しています（[earlier record](../validation/validation-0.1.4.json)）。色と field of view は視覚的に acceptable と報告されていますが optical/color calibration は行っていません。full-sensor capture/Live restoration は公開前 feature code で確認済みでもこの有限 run では再実施しておらず、picker round-trip size retention も再実施していません。以前の記録は元の scope と runtime hash を保ちます。
 

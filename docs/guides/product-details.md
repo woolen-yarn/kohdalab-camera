@@ -118,8 +118,10 @@ No new physical capture validation is claimed for this build.
 Version 0.1.10 added installed-driver preservation and startup diagnostics. Windows
 Setup was checked for fresh install, update, uninstall and preservation of an
 unrelated user file. Its application, helper, uninstaller and Setup are unsigned;
-SignPath application preparation is available; enrollment/signing are not active. The last physical capture
-validation is version 0.1.9 below, not a new 0.1.10 hardware test.
+SignPath application preparation is available; enrollment/signing are not active.
+The 0.1.10 verification covered installation and startup. The earlier 0.1.9
+physical trial is described below. See the [hardware support matrix](../reference/hardware.md#validation-status)
+for subsequent physical validation.
 
 The exact published version 0.1.9 binaries completed 399.4 seconds of Live
 acquisition on SHODENSHA GR300, with 15,701 accepted frames. The camera was
@@ -228,7 +230,7 @@ supported camera が一台なら自動選択されますが Live を開くには
 
 ## 検証・制限・roadmap / Validation, limitations and roadmap
 
-0.1.11 は [public Windows CI](https://github.com/woolen-yarn/kohdalab-camera/actions/runs/39187983298) で build/install test 済みです。GUI/helper/Setup/uninstaller metadata と unsigned status、runtime hash、install/update/uninstall/user-file preservation を pass し、exact CI runtime は workstation に install/startup-check 済みです（[validation](../validation/validation-0.1.11.json)、[CI details](../development/continuous-integration.md)）。この build に new physical capture validation はありません。0.1.10 は installed-driver preservation/startup diagnostic と Windows Setup を fresh install/update/uninstall/unrelated file preservation で確認しましたが application/helper/uninstaller/Setup は unsigned、physical capture は 0.1.9 のままです。
+0.1.11 は [public Windows CI](https://github.com/woolen-yarn/kohdalab-camera/actions/runs/39187983298) で build/install test 済みです。GUI/helper/Setup/uninstaller metadata と unsigned status、runtime hash、install/update/uninstall/user-file preservation を pass し、exact CI runtime は workstation に install/startup-check 済みです（[validation](../validation/validation-0.1.11.json)、[CI details](../development/continuous-integration.md)）。この build に new physical capture validation はありません。0.1.10 は installed-driver preservation/startup diagnostic と Windows Setup を fresh install/update/uninstall/unrelated file preservation で確認しましたが application/helper/uninstaller/Setup は unsigned、実機撮影はその版の検証範囲外です。その後の実機検証は[対応機器ページ](../reference/hardware.md#validation-status)を参照してください。
 
 exact published 0.1.9 binary は SHODENSHA GR300 で **399.4 seconds**、**15,701 accepted frames** の Live acquisition、automatic selection/**Load camera**、brightness/default restore/zoom/Fit/PNG-RAW-Bayer TIFF export/Disconnect/Close を完了しました。全 PNG pixel は independent RAW reconstruction と、original Bayer TIFF は RAW と一致し、GUI/helper は remaining process/protective lock なく normal exit しました（[scoped validation record](../validation/validation-0.1.9.json)）。owner は past check で manual mouse/arbitrary resize/size retention を確認し、latest run では held mouse click が Windows App で動作しました。keyboard/wheel tool limitation、full-sensor switching/picker round-trip resize の未再実施、visual color/FOV assessment は optical/color calibration ではない点は残ります。software renderer は previous version と pixel-equivalent で independent pixel test を pass しました（[performance verification](../validation/rendering-performance.md)）。観測した約 **39.5 frames/s** は test condition 固有で保証値/optical frame-rate calibration ではありません。
 
