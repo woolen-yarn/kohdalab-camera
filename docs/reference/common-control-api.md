@@ -34,7 +34,13 @@ For multiple instances choose an explicit private descriptor with `endpoint=`.
 Camera currently offers read-only `describe/status/config`; inspect it without a
 context manager because context entry requests ownership. Camera capture/start/
 stop/ownership are not exposed by this adapter. Do not substitute internal camera
-helper IPC for a public GUI API.
+helper IPC for a public GUI API. A Windows save dialog can keep the GUI from
+handling `control.status` within the two-second request deadline. If status
+times out while the dialog is open, query it again after closing the dialog.
+
+Windows の保存ダイアログを開いている間は、GUI が2秒の期限内に
+`control.status` を処理できない場合があります。ダイアログを閉じてから
+状態を再取得してください。
 
 ## Contract / 通信仕様
 

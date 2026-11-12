@@ -1,8 +1,6 @@
 //! Opt-in, loopback-only GUI control transport for Camera.
 //! The server only queues requests; the eframe App owns every Worker operation.
-use kohdalab_control_protocol::{
-    descriptor, is_common, paths::AppPaths, response as common_response,
-};
+use kohdalab_control_protocol::{descriptor, paths::AppPaths, response as common_response};
 use serde_json::{Value, json};
 use std::{
     io::{Read, Write},
@@ -154,13 +152,9 @@ fn serve(
         .map_err(|e| e.to_string())?;
         return Ok(());
     }
+    let transport_error = |code, message| common_response(&body, error(code, message));
     if body.get("token").and_then(Value::as_str) != Some(token) {
-        let native = error("authentication", "GUI API authentication failed");
-        let value = if is_common(&body) {
-            common_response(&body, native)
-        } else {
-            native
-        };
+        let value = transport_error("authentication", "GUI API authentication failed");
         serde_json::to_writer(&mut stream, &value).map_err(|e| e.to_string())?;
         return Ok(());
     }
@@ -173,10 +167,12 @@ fn serve(
         Ok(()) => {
             wake();
             rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
-                .unwrap_or_else(|_| error("timeout", "GUI request timed out"))
+                .unwrap_or_else(|_| transport_error("timeout", "GUI request timed out"))
         }
-        Err(mpsc::TrySendError::Full(_)) => error("busy", "GUI request queue is full"),
-        Err(mpsc::TrySendError::Disconnected(_)) => error("unavailable", "GUI API is stopping"),
+        Err(mpsc::TrySendError::Full(_)) => transport_error("busy", "GUI request queue is full"),
+        Err(mpsc::TrySendError::Disconnected(_)) => {
+            transport_error("unavailable", "GUI API is stopping")
+        }
     };
     serde_json::to_writer(&mut stream, &value).map_err(|e| e.to_string())?;
     stream.write_all(b"\n").map_err(|e| e.to_string())
@@ -278,6 +274,42 @@ mod tests {
         let mut line = String::new();
         BufReader::new(stream).read_line(&mut line).unwrap();
         assert_eq!(serde_json::from_str::<Value>(&line).unwrap(), expected);
+    }
+    #[test]
+    fn unprocessed_status_request_returns_canonical_timeout() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = Server::start(Some(dir.path().into())).unwrap();
+        let descriptor: Value =
+            serde_json::from_slice(&std::fs::read(&server.descriptor).unwrap()).unwrap();
+        let port = descriptor["port"].as_u64().unwrap() as u16;
+        let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        writeln!(
+            stream,
+            "{}",
+            json!({
+                "control_protocol": 1,
+                "method": "control.status",
+                "token": descriptor["token"],
+                "request_id": "unprocessed-status",
+            })
+        )
+        .unwrap();
+
+        // Leave the request queued to model a GUI blocked in a modal dialog.
+        let mut line = String::new();
+        BufReader::new(stream).read_line(&mut line).unwrap();
+        let reply: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(reply["ok"], false);
+        assert_eq!(reply["error"]["application_code"], "timeout");
+        assert_eq!(reply["control_protocol"], 1);
+        assert_eq!(reply["request_id"], "unprocessed-status");
+        assert_eq!(
+            server.requests.try_recv().unwrap().body["request_id"],
+            "unprocessed-status"
+        );
     }
     #[test]
     fn descriptor_is_canonical_and_bad_token_never_reaches_gui() {
