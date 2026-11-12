@@ -1,5 +1,9 @@
 # Changelog / 変更履歴
 
+## 0.1.23 — 2026-11-12
+
+- Preserve pending camera frames while handling authenticated `control.status` requests. The status response uses the same session snapshot as the GUI update. A loopback regression test checks that the GUI receives the pending frame and the client receives the status response. / 認証済みの `control.status` を処理する間も、GUI がまだ取り込んでいないフレームを保持します。状態応答と GUI 更新は同じセッションのスナップショットを使います。ループバック回帰テストで、GUI のフレーム取り込みとクライアントへの状態応答を確認します。
+
 ## 0.1.22 — 2026-11-12
 
 - Fix premature responses from the read-only GUI API on macOS when a local request arrives in parts. Accepted connections now wait within the existing two-second request deadline. / macOS の読み取り専用 GUI API で、ローカルのリクエストが分割して届くと応答が早すぎる問題を修正しました。受け付けた接続は既存の2秒の期限内で受信を待ちます。

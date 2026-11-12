@@ -290,7 +290,7 @@ impl App {
                                 serde_json::json!({"ok":true,"result":{"protocol":"kohdalab-control","control_protocol":1,"application":"kohdalab-camera","application_version":env!("CARGO_PKG_VERSION"),"api_version":1,"methods":["control.describe","control.status","control.config"],"safety":{"supports_ownership":false,"exclusive_control":false,"physical_auto_connect":false,"simulation_required_for_tests":true},"native":{"gui_owned":true}}})
                             }
                             "status" => {
-                                let s = self.worker.snapshot();
+                                let s = &self.session;
                                 let phase = match s.state {
                                     camera_lab::session::State::Disconnected => "disconnected",
                                     camera_lab::session::State::Connecting => "initializing",
@@ -610,7 +610,6 @@ impl App {
         self.gui_submits += 1;
     }
     fn logic_at(&mut self, ctx: &egui::Context, mut clock: impl FnMut() -> std::time::Instant) {
-        self.process_control_api();
         let now = clock();
         if let Some(result) = self.scan_rx.as_ref().and_then(|r| match r.try_recv() {
             Ok(v) => Some(v),
@@ -673,6 +672,8 @@ impl App {
             self.worker.close();
         }
         self.session = self.worker.snapshot();
+        // Status reads this tick's snapshot without consuming its pending frame.
+        self.process_control_api();
         if self.session.restart_disabled || self.session.state == camera_lab::session::State::Error
         {
             self.connection_fault = true;
