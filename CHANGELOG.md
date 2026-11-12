@@ -1,5 +1,10 @@
 # Changelog / 変更履歴
 
+## 0.1.24 — 2026-11-12
+
+- Return GUI API transport errors (`timeout`, `busy`, `unavailable`) for common-protocol requests in the standard response envelope, including the original `request_id`. The two-second request deadline remains in effect. / 共通 GUI API リクエストの通信エラー（`timeout`、`busy`、`unavailable`）を、元の `request_id` を含む標準形式で返します。リクエスト期限は引き続き2秒です。
+- Add a loopback regression test for a queued status request that the GUI cannot process in time. Document the effect of the Windows save dialog on status requests. / GUI が期限内に処理できない状態照会のループバック回帰テストを追加し、Windows の保存ダイアログが状態照会に与える影響を文書化しました。
+
 ## 0.1.23 — 2026-11-12
 
 - Preserve pending camera frames while handling authenticated `control.status` requests. The status response uses the same session snapshot as the GUI update. A loopback regression test checks that the GUI receives the pending frame and the client receives the status response. / 認証済みの `control.status` を処理する間も、GUI がまだ取り込んでいないフレームを保持します。状態応答と GUI 更新は同じセッションのスナップショットを使います。ループバック回帰テストで、GUI のフレーム取り込みとクライアントへの状態応答を確認します。
