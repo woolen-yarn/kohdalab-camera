@@ -407,3 +407,98 @@ fn close_outer_deadline_uses_injected_exact_boundary() {
         assert_eq!(app.close_started, Some(zero));
     }
 }
+
+#[test]
+fn control_status_preserves_pending_gui_frame() {
+    use super::*;
+    use camera_lab::session::{Event, Factory, Transport};
+    use camera_lab::{CameraAdapter, Simulation};
+    use std::{
+        io::{BufRead, BufReader, Write},
+        net::{Ipv4Addr, TcpStream},
+        time::Instant,
+    };
+
+    struct SingleFrame {
+        frame: Option<Frame>,
+        stopped: bool,
+    }
+    impl Transport for SingleFrame {
+        fn poll(&mut self) -> Result<Event, String> {
+            Ok(if self.stopped {
+                Event::Done { clean: true }
+            } else {
+                self.frame.take().map_or(Event::Waiting, Event::Frame)
+            })
+        }
+        fn stop(&mut self) -> Result<(), String> {
+            self.stopped = true;
+            Ok(())
+        }
+    }
+
+    struct SingleFrameFactory;
+    impl Factory for SingleFrameFactory {
+        fn open(&mut self, _: &Request) -> Result<Box<dyn Transport>, String> {
+            Ok(Box::new(SingleFrame {
+                frame: Some(Simulation { sequence: 0 }.next_frame()?),
+                stopped: false,
+            }))
+        }
+    }
+
+    let dir = tempfile::tempdir().unwrap();
+    let worker = Worker::with_factory_recorder(
+        SingleFrameFactory,
+        camera_lab::failure_record::Recorder::at(dir.path().join("failures")),
+    );
+    let mut guardian = worker.guardian();
+    let ctx = egui::Context::default();
+    let mut app = App::with_exporter_worker(&ctx, |_, _| Ok(()), worker);
+    let (frame_ready, frame_pending) = mpsc::sync_channel(1);
+    app.worker.set_wake(move || {
+        let _ = frame_ready.try_send(());
+    });
+    app.request(Some(Source::Simulation));
+    frame_pending.recv_timeout(Duration::from_secs(5)).unwrap();
+
+    let (request_ready, request_pending) = mpsc::sync_channel(1);
+    let server = camera_lab::control_api::Server::start_with_wake(
+        Some(dir.path().join("control")),
+        move || {
+            let _ = request_ready.try_send(());
+        },
+    )
+    .unwrap();
+    let descriptor: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&server.descriptor).unwrap()).unwrap();
+    let port = descriptor["port"].as_u64().unwrap() as u16;
+    let mut peer = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
+    peer.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    writeln!(
+        peer,
+        "{}",
+        serde_json::json!({
+            "control_protocol": 1,
+            "method": "control.status",
+            "token": descriptor["token"],
+        })
+    )
+    .unwrap();
+    request_pending
+        .recv_timeout(Duration::from_secs(3))
+        .unwrap();
+
+    app.control_api = Some(server);
+    let _ = ctx.run_ui(egui::RawInput::default(), |_| {
+        app.logic_at(&ctx, Instant::now)
+    });
+    let mut reply = String::new();
+    BufReader::new(peer).read_line(&mut reply).unwrap();
+    let reply: serde_json::Value = serde_json::from_str(&reply).unwrap();
+    assert_eq!(reply["result"]["phase"], "running");
+    assert_eq!(app.matching_revision, Some(app.revision));
+
+    app.worker.close();
+    guardian.wait();
+}
