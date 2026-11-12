@@ -225,6 +225,56 @@ impl Recipe {
         Ok(r)
     }
 }
+/// Output-to-sensor coordinate map equivalent to [`Recipe::source`], expressed
+/// as an origin plus per-output-pixel steps.  `Recipe::source` is affine in
+/// the display coordinates, so the v2 renderer can resolve the orientation
+/// once per pass and advance by constant steps instead of re-evaluating the
+/// rotation / reflection for every pixel.  Values are signed so a step may
+/// move backwards; every coordinate actually sampled lies inside the sensor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct SourceSteps {
+    /// Sensor coordinate of display pixel (0, 0).
+    origin: [i64; 2],
+    /// Sensor delta for display x + 1.
+    step_x: [i64; 2],
+    /// Sensor delta for display y + 1.
+    step_y: [i64; 2],
+}
+impl SourceSteps {
+    /// `w` / `h` are the original sensor dimensions, as for `Recipe::source`.
+    /// Reflection precedes clockwise rotation, exactly as in `Recipe::source`.
+    fn new(recipe: Recipe, w: u32, h: u32) -> Self {
+        let (wm, hm) = (i64::from(w) - 1, i64::from(h) - 1);
+        // [constant, display-x coefficient, display-y coefficient] for the
+        // sensor x and sensor y coordinates after rotation.
+        let (mut sx, mut sy): ([i64; 3], [i64; 3]) = match recipe.quarter_turns {
+            1 => ([0, 0, 1], [hm, -1, 0]),
+            2 => ([wm, -1, 0], [hm, 0, -1]),
+            3 => ([wm, 0, -1], [0, 1, 0]),
+            _ => ([0, 1, 0], [0, 0, 1]),
+        };
+        if recipe.mirror {
+            sx = [wm - sx[0], -sx[1], -sx[2]];
+        }
+        if recipe.flip {
+            sy = [hm - sy[0], -sy[1], -sy[2]];
+        }
+        Self {
+            origin: [sx[0], sy[0]],
+            step_x: [sx[1], sy[1]],
+            step_y: [sx[2], sy[2]],
+        }
+    }
+    /// Sensor coordinate of display pixel (`x`, `y`).
+    #[inline]
+    fn at(&self, x: u32, y: u32) -> [i64; 2] {
+        let (x, y) = (i64::from(x), i64::from(y));
+        [
+            self.origin[0] + x * self.step_x[0] + y * self.step_y[0],
+            self.origin[1] + x * self.step_x[1] + y * self.step_y[1],
+        ]
+    }
+}
 impl CompiledRecipe {
     pub fn recipe(&self) -> Recipe {
         self.recipe
@@ -255,6 +305,49 @@ impl CompiledRecipe {
             // LUT is bounded by recipe, never pixel count. V2 monochrome
             // averages processed encoded channels (half up), before box scaling.
             let lut = self.v2_lut.as_ref().expect("validated v2 recipe has LUT");
+            let monochrome = recipe.monochrome;
+            // Shared per-sample stage for both paths: interpolation
+            // (`render_rgb`), channel LUT, then optional half-up mono mean.
+            let sample = |sx: usize, sy: usize| -> [u8; 3] {
+                let p = source.render_rgb(sx, sy);
+                let p: [u8; 3] = std::array::from_fn(|c| lut[c][p[c] as usize]);
+                if monochrome {
+                    [((u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2]) + 1) / 3) as u8; 3]
+                } else {
+                    p
+                }
+            };
+            if stride == 1 {
+                // Orientation resolved once per pass; identical to `Recipe::source`
+                // for every display pixel (see `source_steps_*` tests).
+                let steps = SourceSteps::new(recipe, f.metadata.width, f.metadata.height);
+                // The map is affine, so the four display corners bound every
+                // sampled coordinate; checked once per pass, never per pixel.
+                debug_assert!(
+                    [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]
+                        .iter()
+                        .all(|&(x, y)| {
+                            let [sx, sy] = steps.at(x, y);
+                            (0..i64::from(f.metadata.width)).contains(&sx)
+                                && (0..i64::from(f.metadata.height)).contains(&sy)
+                        }),
+                    "display corners map outside the sensor"
+                );
+                let [step_sx, step_sy] = steps.step_x;
+                // Each output box is exactly one processed sample, and the
+                // half-up mean of one value is that value: emit it directly,
+                // with no accumulator or division. Byte-identical to the
+                // general path below with `n == 1`.
+                for y in 0..h {
+                    let [mut sx, mut sy] = steps.at(0, y);
+                    for _ in 0..w {
+                        write(sample(sx as usize, sy as usize));
+                        sx += step_sx;
+                        sy += step_sy;
+                    }
+                }
+                return Ok((ow, oh));
+            }
             for by in 0..oh {
                 for bx in 0..ow {
                     let mut sum = [0u64; 3];
@@ -262,12 +355,7 @@ impl CompiledRecipe {
                     for y in by * stride..((by + 1) * stride).min(h) {
                         for x in bx * stride..((bx + 1) * stride).min(w) {
                             let (sx, sy) = recipe.source(x, y, f.metadata.width, f.metadata.height);
-                            let p = source.render_rgb(sx as usize, sy as usize);
-                            let mut p: [u8; 3] = std::array::from_fn(|c| lut[c][p[c] as usize]);
-                            if recipe.monochrome {
-                                p = [((u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2]) + 1) / 3)
-                                    as u8; 3];
-                            }
+                            let p = sample(sx as usize, sy as usize);
                             for c in 0..3 {
                                 sum[c] += u64::from(p[c]);
                             }
@@ -432,6 +520,67 @@ mod tests {
         let estimated = Recipe::default().estimate(&f, false).unwrap();
         assert_eq!(estimated.ev, 1.);
         assert_eq!(Recipe::default().estimate(&f, true).unwrap().wb, [1.; 3]);
+    }
+    /// The precomputed origin/steps must reproduce the public per-pixel
+    /// `Recipe::source` for every display pixel, both by direct evaluation and
+    /// by incremental stepping along each row (as the renderer walks).
+    #[test]
+    fn source_steps_match_public_source_for_all_orientations_and_small_sizes() {
+        for (w, h) in [
+            (1, 1),
+            (1, 2),
+            (2, 1),
+            (2, 2),
+            (3, 2),
+            (2, 3),
+            (1, 5),
+            (5, 1),
+            (4, 6),
+            (7, 3),
+        ] {
+            let mut distinct = std::collections::HashSet::new();
+            for quarter_turns in 0..4 {
+                for mirror in [false, true] {
+                    for flip in [false, true] {
+                        let recipe = Recipe {
+                            quarter_turns,
+                            mirror,
+                            flip,
+                            ..Recipe::neutral()
+                        };
+                        let steps = SourceSteps::new(recipe, w, h);
+                        let (dw, dh) = recipe.dimensions(w, h);
+                        let mut mapped = Vec::new();
+                        for y in 0..dh {
+                            let [mut sx, mut sy] = steps.at(0, y);
+                            for x in 0..dw {
+                                let expected = recipe.source(x, y, w, h);
+                                let expected = [i64::from(expected.0), i64::from(expected.1)];
+                                let ctx = format!(
+                                    "{w}x{h} turn={quarter_turns} mirror={mirror} flip={flip} at ({x},{y})"
+                                );
+                                assert_eq!(steps.at(x, y), expected, "direct {ctx}");
+                                assert_eq!([sx, sy], expected, "stepped {ctx}");
+                                assert!((0..i64::from(w)).contains(&sx), "x range {ctx}");
+                                assert!((0..i64::from(h)).contains(&sy), "y range {ctx}");
+                                mapped.push(expected);
+                                sx += steps.step_x[0];
+                                sy += steps.step_x[1];
+                            }
+                        }
+                        // Bijection onto the sensor rectangle.
+                        let unique: std::collections::HashSet<_> = mapped.iter().collect();
+                        assert_eq!(unique.len(), (w * h) as usize);
+                        distinct.insert(mapped);
+                    }
+                }
+            }
+            // 16 flag combinations collapse to the 8 dihedral orientations
+            // whenever the sensor has no extra symmetry.
+            if w > 1 && h > 1 && w != h {
+                assert_eq!(distinct.len(), 8, "{w}x{h}");
+            }
+        }
     }
 }
 
@@ -730,6 +879,66 @@ mod quality_v2 {
                                 );
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    /// Larger non-square Bayer frame with bounds whose stride leaves partial
+    /// terminal boxes on both axes, compared byte-for-byte against the
+    /// independent per-pixel `Recipe::source` + `Frame::rgb` reference.
+    #[test]
+    fn stepped_v2_render_matches_reference_for_large_non_square_bayer_and_partial_boxes() {
+        let (w, h) = (250_u32, 146_u32);
+        let mut state = 0x9E37_79B9_u32;
+        let raw = (0..w * h)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                (state >> 24) as u8
+            })
+            .collect();
+        let f = frame(w, h, raw, "BayerGRBG8");
+        let bounds = [None, Some(97), Some(64), Some(37)];
+        for bound in bounds.into_iter().flatten() {
+            let stride = w.max(h).div_ceil(bound);
+            assert!(
+                stride > 1 && !w.is_multiple_of(stride) && !h.is_multiple_of(stride),
+                "bound={bound}"
+            );
+        }
+        let mut index = 0_u32;
+        for quarter_turns in 0..4 {
+            for mirror in [false, true] {
+                for flip in [false, true] {
+                    index += 1;
+                    let recipe = Recipe {
+                        ev: 0.37,
+                        gamma: 1.73,
+                        wb: [0.63, 1.24, 1.81],
+                        quarter_turns,
+                        mirror,
+                        flip,
+                        monochrome: index.is_multiple_of(3),
+                        ..Recipe::neutral()
+                    };
+                    let compiled = recipe.compile().unwrap();
+                    for bound in bounds {
+                        let expected = reference_v2_render(recipe, &f, bound);
+                        let ctx = format!(
+                            "turn={quarter_turns} mirror={mirror} flip={flip} mono={} bound={bound:?}",
+                            recipe.monochrome
+                        );
+                        assert_eq!(compiled.render(&f, bound).unwrap(), expected, "{ctx}");
+                        assert_eq!(
+                            compiled.render_color_image(&f, bound).unwrap(),
+                            eframe::egui::ColorImage::from_rgb(
+                                [expected.0 as usize, expected.1 as usize],
+                                &expected.2
+                            ),
+                            "ColorImage {ctx}"
+                        );
                     }
                 }
             }
