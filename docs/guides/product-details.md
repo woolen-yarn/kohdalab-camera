@@ -26,19 +26,10 @@ firmware revision, or sensor. See [camera support and validation](../reference/h
 
 ## Downloads and quick start
 
-The current published baseline is **0.1.11**, for **Windows x64**.
-
-- [Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
-- [Windows Setup (unsigned)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/KohdaLab-Camera-0.1.11-Setup.exe)
-- [Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/kohdalab-camera-0.1.11-windows-x64.zip)
-- [Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/kohdalab-camera-0.1.11-source.zip)
-- [SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/SHA256SUMS.txt)
-
-Run Setup for a per-user installation, or extract the entire Windows ZIP and launch `KohdaLab Camera.exe`. Keep
-`continuous-helper.exe` and the license files alongside it. Rust and Python are
-not required to run the portable application. The physical backend requires an
-existing WinUSB setup; the application does not install or change drivers.
-No macOS or Linux executable is distributed in this release.
+Choose a package from the [OS download table](../../README.md#downloads--ダウンロード).
+Windows Setup installs for all users. For portable use, extract the complete archive.
+The verified physical setup uses Windows and an existing WinUSB binding. See the
+[quick start](quick-start.md) for Simulation and physical setup.
 
 See [Windows installation, drivers and signing](windows-installation.md)
 for the installed-driver policy, Setup workflow, signature status and execution
@@ -212,7 +203,7 @@ KohdaLab Camera は laboratory camera acquisition、live imaging、image adjustm
 
 tested camera は owner により **SHODENSHA GR300** と識別され、USB product string は `3.1M USB2.0 Camera` です。sensor/USB ID は tested unit の補助情報であり、別 GR300 revision/同名 model は検証していません。USB ID 一致だけでは firmware/sensor/camera compatibility を示しません（[camera support and validation](../reference/hardware.md)）。
 
-公開 baseline は **0.1.11**、対象は **Windows x64** です。[Latest release and portable downloads](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)、[Windows Setup (unsigned)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/KohdaLab-Camera-0.1.11-Setup.exe)、[Windows portable ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/kohdalab-camera-0.1.11-windows-x64.zip)、[Source ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/kohdalab-camera-0.1.11-source.zip)、[SHA-256 checksums](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v0.1.11/SHA256SUMS.txt) を提供します。Setup は per-user install、portable は ZIP 全体を展開して `KohdaLab Camera.exe` を起動します。`continuous-helper.exe` と license file を同じ場所に保ちます。Rust/Python は portable app 実行に不要です。physical backend は existing WinUSB setup を必要とし、app は driver を install/change しません。macOS/Linux executable は配布していません。driver/signing/execution warning は [Windows installation](windows-installation.md) を参照し、official SDK integration は deferred で existing manufacturer driver を置換しません。
+配布形式は[OS別ダウンロード表](../../README.md#downloads--ダウンロード)をご覧ください。Windows Setupは全ユーザー向けです。ポータブル版はアーカイブ全体を展開します。実機検証はWindowsと既存のWinUSB構成で行いました。
 
 Windows download は **unsigned** です。free SignPath Foundation signing を準備中ですが application は未提出/未受諾です。[Code signing policy](../reference/code-signing.md) と [application preparation](../development/signpath-application.md) に status/privacy/role/build requirement を示します。[Quick start guide](quick-start.md) は Simulation screenshot、[responsiveness measurements](../validation/responsiveness.md) は rendering cost/interaction time とその scope/limitation を示します。
 

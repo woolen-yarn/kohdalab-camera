@@ -1,7 +1,6 @@
 # KohdaLab Camera quick start
 
-KohdaLab Camera is currently distributed for Windows x64. Its supported physical
-configuration is the owner-confirmed **SHODENSHA GR300**, using the tested
+Use the [OS download table](../../README.md#downloads--ダウンロード) for Windows x64, macOS Apple Silicon and Linux x64. The verified physical setup uses Windows x64 and the owner-confirmed **SHODENSHA GR300**, using the tested
 Micron MT9T001 / USB `0547:4d33` configuration with an existing WinUSB binding.
 Other GR300 units, cameras with the same USB ID, and other camera models are not
 automatically supported. See [camera support](../reference/hardware.md) for the exact
@@ -12,10 +11,9 @@ scope.
 ![Camera selection with Simulation selected](../images/camera-selection.png)
 
 The screenshots show the native development preview in Simulation on macOS.
-The distributed executable is Windows x64; window decorations differ.
+Window decorations vary by platform.
 
-1. Extract the complete Windows portable ZIP. Keep `KohdaLab Camera.exe`,
-   `continuous-helper.exe`, and the included license files in the same folder.
+1. Install the package for your OS or extract the entire portable archive. On Windows, keep the executable, acquisition helper and licenses together.
 2. Start **KohdaLab Camera**. The title bar shows the installed application
    version.
 3. If one supported USB camera is found, it is selected automatically. Select
@@ -83,11 +81,11 @@ acquisition controls.
 
 # KohdaLab Camera クイックスタート / Quick start（日本語）
 
-KohdaLab Camera の配布対象は Windows x64 です。対応する物理構成は、所有者が確認した既存 WinUSB binding の **SHODENSHA GR300**（Micron MT9T001 / USB `0547:4d33`）です。同一 USB ID の別個体、別の GR300、その他のカメラが自動的に対応するわけではありません。正確な範囲は [camera support](../reference/hardware.md) を参照してください。
+配布対象はWindows x64、macOS Apple Silicon、Linux x64です。実機検証はWindows x64で行いました。対応する物理構成は、所有者が確認した既存 WinUSB binding の **SHODENSHA GR300**（Micron MT9T001 / USB `0547:4d33`）です。同一 USB ID の別個体、別の GR300、その他のカメラが自動的に対応するわけではありません。正確な範囲は [camera support](../reference/hardware.md) を参照してください。
 
 ## セッション開始 / Start a session
 
-画面写真は macOS 上の Simulation における native development preview です。配布 executable は Windows x64 で、window decoration は異なります。
+画面写真は macOS 上の Simulation における native development preview です。ウィンドウの外観はOSによって異なります。
 
 1. Windows portable ZIP 全体を展開し、`KohdaLab Camera.exe`、`continuous-helper.exe`、同梱ライセンスファイルを同じ folder に置きます。
 2. **KohdaLab Camera** を起動します。title bar にインストール済み application version が表示されます。
