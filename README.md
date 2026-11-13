@@ -22,6 +22,8 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
   物理セッションは分離された取得ヘルパーが所有し、ハードウェアなしの Simulation も利用可能です。
 
+[Try without hardware / 機器なしで試す](docs/guides/quick-start.md) · [Hardware and connections / 機器と接続](docs/reference/hardware.md) · [Python and API / PythonとAPI](docs/reference/common-control-api.md)
+
 ## Downloads / ダウンロード
 
 **KohdaLab Camera 1.0.1**
