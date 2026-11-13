@@ -10,7 +10,7 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
 実験室用カメラの取得、ライブ表示、再現可能な画像出力を行う Rust デスクトップアプリケーションです。
 
-[Download / ダウンロード](#downloads--ダウンロード) · [Documentation / ドキュメント](docs/README.md) · [Report an issue / Issue を報告](https://github.com/woolen-yarn/kohdalab-camera/issues)
+[Documentation / ドキュメント](docs/README.md) · [Report an issue / Issue を報告](https://github.com/woolen-yarn/kohdalab-camera/issues)
 
 - Live preview with exposure/gain controls and image adjustments.
 
@@ -22,23 +22,33 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
   物理セッションは分離された取得ヘルパーが所有し、ハードウェアなしの Simulation も利用可能です。
 
-[Try without hardware / 機器なしで試す](docs/guides/quick-start.md) · [Hardware and connections / 機器と接続](docs/reference/hardware.md) · [Python and API / PythonとAPI](docs/reference/common-control-api.md)
+[Downloads / ダウンロード](#downloads--ダウンロード) · [Hardware and verification / 対応機器と実機検証](#hardware-and-verification--対応機器と実機検証) · [Try without hardware / 機器なしで試す](docs/guides/quick-start.md) · [Python and API / PythonとAPI](docs/reference/common-control-api.md)
 
 ## Downloads / ダウンロード
 
-**KohdaLab Camera 1.0.1**
+[Latest stable release / 最新安定版](https://github.com/woolen-yarn/kohdalab-camera/releases/latest) · [v1.0.2 release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.2)
 
-| Platform / OS | Install / インストール版 | Portable / ポータブル版 | Hardware validation / 実機検証 |
-| --- | --- | --- | --- |
-| Windows x64 | [Setup (.exe)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.1/KohdaLab-Camera-1.0.1-Setup.exe) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.1/kohdalab-camera-1.0.1-windows-x64.zip) | GR300 with existing WinUSB (v1.0.0 hardware test) / GR300（既存 WinUSB、v1.0.0 で実機確認） |
-| macOS arm64 | [DMG](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.1/kohdalab-camera-1.0.1-macos-arm64.dmg) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.1/kohdalab-camera-1.0.1-macos-arm64-portable.zip) | Simulation only / Simulation 専用 |
-| Ubuntu 22.04+ x64 (X11 or XWayland) | [DEB](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.1/kohdalab-camera-1.0.1-linux-x64.deb) | [tar.gz](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.1/kohdalab-camera-1.0.1-linux-x64-portable.tar.gz) | Simulation only / Simulation 専用 |
+| OS / 対応環境 | Installer / インストーラー | Portable / ポータブル |
+| --- | --- | --- |
+| Windows x64 | [Setup (.exe)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.2/KohdaLab-Camera-1.0.2-Setup.exe) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.2/kohdalab-camera-1.0.2-windows-x64.zip) |
+| macOS Apple Silicon · Simulation only / シミュレーション専用 | [DMG](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.2/kohdalab-camera-1.0.2-macos-arm64.dmg) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.2/kohdalab-camera-1.0.2-macos-arm64-portable.zip) |
+| Ubuntu 22.04+ x64 (X11/XWayland) · Simulation only / シミュレーション専用 | [DEB](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.2/kohdalab-camera-1.0.2-linux-x64.deb) | [tar.gz](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.2/kohdalab-camera-1.0.2-linux-x64-portable.tar.gz) |
+
+[SHA-256](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.2/SHA256SUMS.txt) · [Source ZIP / ソース](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.2/kohdalab-camera-1.0.2-source.zip)
 
 Windows packages are unsigned. The macOS application is ad hoc signed and is not notarized. Windows Setup installs in `C:\Program Files\Kohdalab\KohdaLab Camera`. Extract the entire portable archive before launching.
 
 Windows 版は未署名、macOS 版はアドホック署名で未公証です。Windows Setup のインストール先は `C:\Program Files\Kohdalab\KohdaLab Camera` です。ポータブル版はアーカイブ全体を展開してから起動してください。
 
-[Release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.1) · [SHA-256](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.1/SHA256SUMS.txt) · [Source ZIP / ソース](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.1/kohdalab-camera-1.0.1-source.zip)
+## Hardware and verification / 対応機器と実機検証
+
+| Model / 機器 | Role / 役割 | Connection / 接続方法 | Physical test scope / 実機検証の範囲 |
+| --- | --- | --- | --- |
+| SHODENSHA GR300 · Micron MT9T001 | Camera / カメラ | Windows x64 · USB 0547:4d33 · existing WinUSB / 既存WinUSB | v1.0.0 lab unit: Live, normal and full-sensor save, return to Live / v1.0.0の検証機でLive・通常保存・フルセンサー保存・Live復帰 |
+
+The evidence applies to the tested GR300 unit. Other models or revisions are unqualified. Simulation works without a camera. / 実機の記録は検証したGR300個体が対象です。他の機種・リビジョンは未検証です。シミュレーションにカメラは不要です。
+
+[Connection guide / 接続手順](docs/reference/hardware.md) · [Verification record / 検証記録](docs/reference/hardware.md)
 
 ## Interface / 画面
 
@@ -57,18 +67,6 @@ Camera exposes an opt-in, loopback-only observer when started with `--gui-api`. 
 ### オプションのGUI制御API
 
 `--gui-api`を付けたときだけ、GUIスレッドの`Worker`スナップショットを読むloopback専用APIを起動します。`control.describe`・`control.status`・`control.config`のみを提供し、物理カメラへの自動接続、内部IPC公開、所有権取得、撮影・停止操作は行いません。`describe.safety.supports_ownership`は`false`です。
-
-## Supported hardware / 対応機器
-
-| Source / 機器 | Support / 対応範囲 |
-| --- | --- |
-| SHODENSHA GR300 | Tested laboratory unit: Micron MT9T001, USB `0547:4d33`, existing WinUSB binding / 検証済み実験室ユニット: Micron MT9T001、USB `0547:4d33`、既存 WinUSB binding |
-| Simulation / demo | Synthetic source; no camera required / 合成ソース。カメラ不要 |
-| Other camera models / その他のカメラ | Not supported yet / 現在は未対応 |
-
-See [camera support and qualification](docs/reference/hardware.md). A matching model name or USB ID alone does not establish compatibility. Multi-camera/vendor support is a roadmap, not a current capability.
-
-詳細は [camera support and qualification](docs/reference/hardware.md) を参照してください。モデル名や USB ID が一致するだけでは互換性は確立しません。複数カメラ・複数ベンダー対応は roadmap であり、現在の機能ではありません。
 
 ## Quick start / はじめに
 
