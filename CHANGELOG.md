@@ -1,5 +1,9 @@
 # Changelog / 変更履歴
 
+## 1.0.2
+
+- Clarify OS setup and the read-only external API, and update the common Python SDK. / OS別導入案内と参照専用APIの説明、共通Python SDKを更新しました。
+
 ## 1.0.1
 
 - Stabilize the Windows simulated preview regression test by checking the rate when a new frame is displayed. / 新規フレームの表示時にレートを確認し、Windows の模擬プレビュー回帰テストを安定化しました。
