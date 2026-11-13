@@ -50,4 +50,4 @@ sensor dimension、public register specification、timing は public Micron MT9T
 - Rust registry dependencies: exact checksum は `Cargo.lock` に記録します。`THIRD_PARTY_NOTICES.md` と `third-party-licenses/` を保持してください。
 - local `platform` crate は project-authored MIT code です。
 
-配布 executable は Windows x64 向けです。Apple-only `dispatch` dependency の missing upstream license text を含む macOS distribution compliance はこの release の qualification scope 外です。旧 application version を削除しても references と third-party license notices は必要です。将来の camera backend は明確な provenance と redistribution basis を持つ documented interface を使用しなければなりません。manufacturer binary reverse engineering、private traffic capture、proprietary initialization data は導入禁止です。現 backend の public-research provenance は開示し続け、platform roadmap を公式 vendor API の事後的根拠にしてはいけません。
+macOS版はSimulation専用です。dispatch 0.2.0について、上流のMIT宣言と著者名を原本で保存し、標準MIT条文と著者表記を配布物に同梱します。メーカーSDKによる取得は実装していません。
