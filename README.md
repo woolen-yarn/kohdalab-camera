@@ -26,17 +26,23 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
 ![KohdaLab Camera interface](docs/images/image-controls.png)
 
-Native interface in Simulation on macOS. Published executables currently target Windows x64; window decorations differ.
+Native interface in Simulation on macOS. Window decorations differ by platform.
 
-macOS の Simulation で撮影したネイティブ画面です。公開済み実行ファイルは現在 Windows x64 向けであり、ウィンドウ装飾は異なります。
+macOS の Simulation で撮影した画面です。ウィンドウ装飾は OS により異なります。
 
 ## Downloads / ダウンロード
 
-| Channel / チャンネル | Version / バージョン | Platforms / プラットフォーム |
-| --- | --- | --- |
-| Stable / 安定版 | [0.1.25](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.25) | Windows x64 Setup / portable ZIP |
+| Platform | Installer | Portable | Acquisition |
+| --- | --- | --- | --- |
+| Windows x64 | Setup.exe | ZIP | GR300 with existing WinUSB, or Simulation |
+| macOS arm64 | DMG | ZIP | Simulation |
+| Ubuntu 22.04+ x64 (X11 or XWayland) | DEB | TAR.GZ | Simulation |
 
-Rust and Python are not required to run the packaged application. Current Windows artifacts are unsigned; download packages and checksums together from Releases.
+v1.0.0 packages and SHA-256 checksums are listed on the release page when available.
+Windows packages are unsigned. The macOS application is ad hoc signed and is not notarized.
+Windows Setup installs in `C:\Program Files\Kohdalab\KohdaLab Camera`.
+
+v1.0.0 の配布物とSHA-256はリリースページを参照してください。Windows x64は既存WinUSBを使用するGR300実機とSimulationに対応します。macOS arm64とUbuntu x64はSimulation専用です。Windowsは未署名、macOSはアドホック署名で公証なしです。
 
 ### Optional GUI control API
 
