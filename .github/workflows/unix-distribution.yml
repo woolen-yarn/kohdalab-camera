@@ -18,7 +18,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev libgl1-mesa-dev libxkbcommon-dev libwayland-dev xvfb xauth
+          sudo apt-get install -y libudev-dev libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0 libegl1-mesa libgl1-mesa-dri libwayland-dev xvfb xauth
       - run: rustup toolchain install 1.99.1 --profile minimal
       - run: python3 scripts/update_source_identity.py --check
       - run: cargo +1.99.1 test --locked --workspace
@@ -31,7 +31,7 @@ jobs:
           tar -xzf dist/*-portable.tar.gz -C portable --strip-components=1
           dpkg-deb -x dist/*.deb extracted
           cmp portable/kohdalab-camera extracted/usr/bin/kohdalab-camera
-          xvfb-run -a python3 scripts/verify_common_control.py portable/kohdalab-camera --output dist/linux-control.json
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1280x1024x24 +extension GLX" python3 scripts/verify_common_control.py portable/kohdalab-camera --output dist/linux-control.json || { cat dist/linux-control.log; exit 1; }
       - name: Verify packaged macOS Simulation
         if: runner.os == 'macOS'
         run: |

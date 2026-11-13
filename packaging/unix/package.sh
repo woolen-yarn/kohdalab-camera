@@ -50,7 +50,7 @@ Package: kohdalab-camera
 Version: $version
 Architecture: amd64
 Maintainer: KohdaLab
-Depends: libc6 (>= 2.35), libgcc-s1, libgl1, libx11-6, libxkbcommon0, libwayland-client0
+Depends: libc6 (>= 2.35), libgcc-s1, libgl1, libx11-6, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1-mesa-dri, libwayland-client0
 Description: KohdaLab Camera desktop application (Simulation)
 CONTROL
     cat > "$pkg/usr/share/applications/kohdalab-camera.desktop" <<DESKTOP
