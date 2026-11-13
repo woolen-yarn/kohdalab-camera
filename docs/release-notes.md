@@ -1,3 +1,9 @@
+# KohdaLab Camera 1.0.2
+
+Clarify OS setup and the read-only external API, and update the common Python SDK. / OS別導入案内と参照専用APIの説明、共通Python SDKを更新しました。
+
+---
+
 # KohdaLab Camera 0.1.25
 
 ## Rendering performance / 描画性能
