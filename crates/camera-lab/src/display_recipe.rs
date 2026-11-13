@@ -1,0 +1,1178 @@
+//! Independent software-only rendering. Sensor bytes and typed metadata never change.
+use crate::Frame;
+use serde::{Deserialize, Serialize};
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Recipe {
+    pub version: u32,
+    pub ev: f32,
+    pub gamma: f32,
+    pub wb: [f32; 3],
+    pub monochrome: bool,
+    pub mirror: bool,
+    pub flip: bool,
+    pub quarter_turns: u8,
+}
+/// Validated, immutable processing state for one display recipe.
+///
+/// Preview workers retain this object while a recipe is unchanged.  In
+/// particular, the v2 gamma / white-balance lookup table is built once per
+/// recipe change, never once per camera frame.  It owns no frame data: RAW
+/// bytes are still rendered from the submitted frame every time.
+#[derive(Clone, Debug)]
+pub struct CompiledRecipe {
+    recipe: Recipe,
+    v2_lut: Option<[[u8; 256]; 3]>,
+}
+impl Default for Recipe {
+    fn default() -> Self {
+        Self {
+            ev: 1.20_f32.log2(),
+            gamma: 2.2,
+            quarter_turns: 2,
+            ..Self::neutral()
+        }
+    }
+}
+impl Recipe {
+    pub fn reference() -> Self {
+        Self {
+            ev: 1.5,
+            gamma: 2.2,
+            quarter_turns: 2,
+            ..Self::neutral()
+        }
+    }
+    pub fn brightness(self) -> f32 {
+        2_f32.powf(self.ev)
+    }
+    pub fn set_brightness(&mut self, value: f32) {
+        if value.is_finite() && (0.0625..=16.).contains(&value) {
+            self.ev = value.log2();
+        }
+    }
+    pub fn neutral() -> Self {
+        Self {
+            version: 2,
+            ev: 0.,
+            gamma: 1.,
+            wb: [1.; 3],
+            monochrome: false,
+            mirror: false,
+            flip: false,
+            quarter_turns: 0,
+        }
+    }
+    pub fn legacy() -> Self {
+        Self {
+            version: 1,
+            ..Self::neutral()
+        }
+    }
+    pub fn processing(self, format: &str) -> String {
+        let reconstruction = if format == "RGB8" {
+            "source-RGB8"
+        } else if self.version == 1 {
+            "GRBG-cell-RGB8"
+        } else {
+            "GRBG-bilinear-reflect101-u16-half-up"
+        };
+        format!(
+            "{reconstruction}; software recipe/v{}; {}",
+            self.version,
+            if self.version == 1 {
+                "integer-stride"
+            } else {
+                "channel-gain-clamp-gamma-LUT256; mono-post-gamma-half-up; processed-RGB-box-u64-half-up; terminal-box-clipped"
+            }
+        )
+    }
+
+    pub fn validate(self) -> Result<(), String> {
+        if !matches!(self.version, 1 | 2)
+            || !self.ev.is_finite()
+            || !(-4.0..=4.0).contains(&self.ev)
+            || !self.gamma.is_finite()
+            || !(0.25..=4.).contains(&self.gamma)
+            || self
+                .wb
+                .iter()
+                .any(|v| !v.is_finite() || !(0.25..=4.).contains(v))
+            || self.quarter_turns > 3
+        {
+            return Err("Invalid software display recipe".into());
+        }
+        Ok(())
+    }
+    /// Validate and prepare bounded recipe-only state.  The result contains no
+    /// sensor data and may therefore be reused across frames with this exact
+    /// recipe.
+    pub fn compile(self) -> Result<CompiledRecipe, String> {
+        self.validate()?;
+        let v2_lut = if self.version == 2 {
+            let gain = 2_f32.powf(self.ev);
+            let linear: [[f32; 256]; 3] = std::array::from_fn(|channel| {
+                std::array::from_fn(|value| {
+                    (value as f32 / 255. * gain * self.wb[channel]).clamp(0., 1.)
+                })
+            });
+            Some(std::array::from_fn(|channel| {
+                std::array::from_fn(|value| {
+                    (255. * linear[channel][value].powf(1. / self.gamma)).round() as u8
+                })
+            }))
+        } else {
+            None
+        };
+        Ok(CompiledRecipe {
+            recipe: self,
+            v2_lut,
+        })
+    }
+    pub fn dimensions(self, w: u32, h: u32) -> (u32, u32) {
+        if self.quarter_turns % 2 == 1 {
+            (h, w)
+        } else {
+            (w, h)
+        }
+    }
+    /// Output to original sensor pixel; reflection precedes clockwise rotation.
+    pub fn source(self, x: u32, y: u32, w: u32, h: u32) -> (u32, u32) {
+        let (mut x, mut y) = match self.quarter_turns {
+            1 => (y, h - 1 - x),
+            2 => (w - 1 - x, h - 1 - y),
+            3 => (w - 1 - y, x),
+            _ => (x, y),
+        };
+        if self.mirror {
+            x = w - 1 - x;
+        }
+        if self.flip {
+            y = h - 1 - y;
+        }
+        (x, y)
+    }
+    pub fn pixel(self, rgb: [u8; 3]) -> [u8; 3] {
+        if self.version == 2 && self.monochrome {
+            let p = Self {
+                monochrome: false,
+                ..self
+            }
+            .pixel(rgb);
+            let mean = ((u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2]) + 1) / 3) as u8;
+            return [mean; 3];
+        }
+        if self.ev == 0. && self.gamma == 1. && self.wb == [1.; 3] && !self.monochrome {
+            return rgb;
+        }
+        let mut p = std::array::from_fn::<_, 3, _>(|i| {
+            (f32::from(rgb[i]) / 255. * 2f32.powf(self.ev) * self.wb[i]).clamp(0., 1.)
+        });
+        if self.monochrome {
+            let mean = (p[0] + p[1] + p[2]) / 3.;
+            p = [mean; 3];
+        }
+        p.map(|v| (255. * v.powf(1. / self.gamma)).round().clamp(0., 255.) as u8)
+    }
+    pub fn render(self, f: &Frame, max_edge: Option<u32>) -> Result<(u32, u32, Vec<u8>), String> {
+        // Preserve the established error ordering: malformed sensor data is
+        // rejected before a bad display recipe.
+        f.validate()?;
+        self.compile()?.render_validated(f, max_edge)
+    }
+    /// Render directly into egui's retained preview pixels. This deliberately
+    /// avoids the transient packed RGB byte buffer used by `render` for image
+    /// export while using the exact same pixel traversal.
+    pub fn render_color_image(
+        self,
+        f: &Frame,
+        max_edge: Option<u32>,
+    ) -> Result<eframe::egui::ColorImage, String> {
+        f.validate()?;
+        self.compile()?.render_color_image_validated(f, max_edge)
+    }
+    /// Bounded scene estimate from the held valid RAW, never calibration.
+    pub fn estimate(self, f: &Frame, white_balance: bool) -> Result<Self, String> {
+        self.validate()?;
+        f.validate()?;
+        let stride = f.metadata.width.max(f.metadata.height).div_ceil(128);
+        let mut sum = [0f64; 3];
+        let mut n = 0.;
+        for y in (0..f.metadata.height).step_by(stride as usize) {
+            for x in (0..f.metadata.width).step_by(stride as usize) {
+                let p = if self.version == 1 {
+                    f.legacy_rgb(x, y)
+                } else {
+                    f.rgb(x, y)
+                }
+                .ok_or("Estimate coordinate")?;
+                for i in 0..3 {
+                    sum[i] += f64::from(p[i]);
+                }
+                n += 1.;
+            }
+        }
+        if sum.iter().any(|v| *v <= 0.) || n == 0. {
+            return Err("Scene estimate unavailable: zero-content channel".into());
+        }
+        let means = sum.map(|v| v / n);
+        let mean = means.iter().sum::<f64>() / 3.;
+        let mut r = self;
+        if white_balance {
+            r.wb = means.map(|v| (mean / v).clamp(0.25, 4.) as f32);
+        } else {
+            r.ev = (128. / mean).log2().clamp(-4., 4.) as f32;
+        }
+        Ok(r)
+    }
+}
+/// Output-to-sensor coordinate map equivalent to [`Recipe::source`], expressed
+/// as an origin plus per-output-pixel steps.  `Recipe::source` is affine in
+/// the display coordinates, so the v2 renderer can resolve the orientation
+/// once per pass and advance by constant steps instead of re-evaluating the
+/// rotation / reflection for every pixel.  Values are signed so a step may
+/// move backwards; every coordinate actually sampled lies inside the sensor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct SourceSteps {
+    /// Sensor coordinate of display pixel (0, 0).
+    origin: [i64; 2],
+    /// Sensor delta for display x + 1.
+    step_x: [i64; 2],
+    /// Sensor delta for display y + 1.
+    step_y: [i64; 2],
+}
+impl SourceSteps {
+    /// `w` / `h` are the original sensor dimensions, as for `Recipe::source`.
+    /// Reflection precedes clockwise rotation, exactly as in `Recipe::source`.
+    fn new(recipe: Recipe, w: u32, h: u32) -> Self {
+        let (wm, hm) = (i64::from(w) - 1, i64::from(h) - 1);
+        // [constant, display-x coefficient, display-y coefficient] for the
+        // sensor x and sensor y coordinates after rotation.
+        let (mut sx, mut sy): ([i64; 3], [i64; 3]) = match recipe.quarter_turns {
+            1 => ([0, 0, 1], [hm, -1, 0]),
+            2 => ([wm, -1, 0], [hm, 0, -1]),
+            3 => ([wm, 0, -1], [0, 1, 0]),
+            _ => ([0, 1, 0], [0, 0, 1]),
+        };
+        if recipe.mirror {
+            sx = [wm - sx[0], -sx[1], -sx[2]];
+        }
+        if recipe.flip {
+            sy = [hm - sy[0], -sy[1], -sy[2]];
+        }
+        Self {
+            origin: [sx[0], sy[0]],
+            step_x: [sx[1], sy[1]],
+            step_y: [sx[2], sy[2]],
+        }
+    }
+    /// Sensor coordinate of display pixel (`x`, `y`).
+    #[inline]
+    fn at(&self, x: u32, y: u32) -> [i64; 2] {
+        let (x, y) = (i64::from(x), i64::from(y));
+        [
+            self.origin[0] + x * self.step_x[0] + y * self.step_y[0],
+            self.origin[1] + x * self.step_x[1] + y * self.step_y[1],
+        ]
+    }
+}
+impl CompiledRecipe {
+    pub fn recipe(&self) -> Recipe {
+        self.recipe
+    }
+    /// Traverse rendered pixels in display order. The traversal is shared by
+    /// exported RGB rendering and the preview's direct `ColorImage` path so
+    /// both retain identical reconstruction and recipe semantics.
+    fn render_each(
+        &self,
+        f: &Frame,
+        max_edge: Option<u32>,
+        mut write: impl FnMut([u8; 3]),
+    ) -> Result<(u32, u32), String> {
+        let recipe = self.recipe;
+        let (w, h) = recipe.dimensions(f.metadata.width, f.metadata.height);
+        let stride = match max_edge {
+            Some(0) => return Err("Zero preview bound".into()),
+            Some(n) => w.max(h).div_ceil(n),
+            None => 1,
+        };
+        let (ow, oh) = (w.div_ceil(stride), h.div_ceil(stride));
+        if recipe.version == 2 {
+            // `Frame::rgb` validates storage before every pixel. Rendering has
+            // already validated this immutable frame, so retain one validated
+            // view for the whole pass while preserving the public API's
+            // malformed-frame and bounds behavior.
+            let source = f.rgb_view().ok_or("Render coordinate")?;
+            // LUT is bounded by recipe, never pixel count. V2 monochrome
+            // averages processed encoded channels (half up), before box scaling.
+            let lut = self.v2_lut.as_ref().expect("validated v2 recipe has LUT");
+            let monochrome = recipe.monochrome;
+            // Shared per-sample stage for both paths: interpolation
+            // (`render_rgb`), channel LUT, then optional half-up mono mean.
+            let sample = |sx: usize, sy: usize| -> [u8; 3] {
+                let p = source.render_rgb(sx, sy);
+                let p: [u8; 3] = std::array::from_fn(|c| lut[c][p[c] as usize]);
+                if monochrome {
+                    [((u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2]) + 1) / 3) as u8; 3]
+                } else {
+                    p
+                }
+            };
+            if stride == 1 {
+                // Orientation resolved once per pass; identical to `Recipe::source`
+                // for every display pixel (see `source_steps_*` tests).
+                let steps = SourceSteps::new(recipe, f.metadata.width, f.metadata.height);
+                // The map is affine, so the four display corners bound every
+                // sampled coordinate; checked once per pass, never per pixel.
+                debug_assert!(
+                    [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]
+                        .iter()
+                        .all(|&(x, y)| {
+                            let [sx, sy] = steps.at(x, y);
+                            (0..i64::from(f.metadata.width)).contains(&sx)
+                                && (0..i64::from(f.metadata.height)).contains(&sy)
+                        }),
+                    "display corners map outside the sensor"
+                );
+                let [step_sx, step_sy] = steps.step_x;
+                // Each output box is exactly one processed sample, and the
+                // half-up mean of one value is that value: emit it directly,
+                // with no accumulator or division. Byte-identical to the
+                // general path below with `n == 1`.
+                for y in 0..h {
+                    let [mut sx, mut sy] = steps.at(0, y);
+                    for _ in 0..w {
+                        write(sample(sx as usize, sy as usize));
+                        sx += step_sx;
+                        sy += step_sy;
+                    }
+                }
+                return Ok((ow, oh));
+            }
+            for by in 0..oh {
+                for bx in 0..ow {
+                    let mut sum = [0u64; 3];
+                    let mut n = 0u64;
+                    for y in by * stride..((by + 1) * stride).min(h) {
+                        for x in bx * stride..((bx + 1) * stride).min(w) {
+                            let (sx, sy) = recipe.source(x, y, f.metadata.width, f.metadata.height);
+                            let p = sample(sx as usize, sy as usize);
+                            for c in 0..3 {
+                                sum[c] += u64::from(p[c]);
+                            }
+                            n += 1;
+                        }
+                    }
+                    write(sum.map(|v| ((v + n / 2) / n) as u8));
+                }
+            }
+            return Ok((ow, oh));
+        }
+        for y in 0..oh {
+            for x in 0..ow {
+                let (sx, sy) =
+                    recipe.source(x * stride, y * stride, f.metadata.width, f.metadata.height);
+                write(recipe.pixel(f.legacy_rgb(sx, sy).ok_or("Render coordinate")?));
+            }
+        }
+        Ok((ow, oh))
+    }
+    fn render_validated(
+        &self,
+        f: &Frame,
+        max_edge: Option<u32>,
+    ) -> Result<(u32, u32, Vec<u8>), String> {
+        let (w, h) = self.recipe.dimensions(f.metadata.width, f.metadata.height);
+        let capacity = match max_edge {
+            Some(0) => 0,
+            Some(edge) => {
+                let stride = w.max(h).div_ceil(edge);
+                (w.div_ceil(stride) * h.div_ceil(stride) * 3) as usize
+            }
+            None => (w * h * 3) as usize,
+        };
+        let mut out = Vec::with_capacity(capacity);
+        let (w, h) = self.render_each(f, max_edge, |pixel| out.extend_from_slice(&pixel))?;
+        Ok((w, h, out))
+    }
+    pub fn render(&self, f: &Frame, max_edge: Option<u32>) -> Result<(u32, u32, Vec<u8>), String> {
+        f.validate()?;
+        self.render_validated(f, max_edge)
+    }
+    fn render_color_image_validated(
+        &self,
+        f: &Frame,
+        max_edge: Option<u32>,
+    ) -> Result<eframe::egui::ColorImage, String> {
+        let (w, h) = self.recipe.dimensions(f.metadata.width, f.metadata.height);
+        let capacity = match max_edge {
+            Some(0) => 0,
+            Some(edge) => {
+                let stride = w.max(h).div_ceil(edge);
+                (w.div_ceil(stride) * h.div_ceil(stride)) as usize
+            }
+            None => (w * h) as usize,
+        };
+        let mut pixels = Vec::with_capacity(capacity);
+        let (w, h) = self.render_each(f, max_edge, |pixel| {
+            pixels.push(eframe::egui::Color32::from_rgb(
+                pixel[0], pixel[1], pixel[2],
+            ))
+        })?;
+        Ok(eframe::egui::ColorImage::new(
+            [w as usize, h as usize],
+            pixels,
+        ))
+    }
+    pub fn render_color_image(
+        &self,
+        f: &Frame,
+        max_edge: Option<u32>,
+    ) -> Result<eframe::egui::ColorImage, String> {
+        f.validate()?;
+        self.render_color_image_validated(f, max_edge)
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn literal_arithmetic_and_coordinates() {
+        let d = Recipe::legacy();
+        assert_eq!(d.pixel([10, 15, 20]), [10, 15, 20]);
+        assert_eq!(Recipe { ev: 1., ..d }.pixel([10, 15, 20]), [20, 30, 40]);
+        assert_eq!(Recipe { gamma: 2., ..d }.pixel([0, 64, 255]), [0, 128, 255]);
+        assert_eq!(
+            Recipe {
+                wb: [2., 1., 0.5],
+                ..d
+            }
+            .pixel([10, 20, 40]),
+            [20, 20, 20]
+        );
+        assert_eq!(
+            Recipe {
+                quarter_turns: 1,
+                ..d
+            }
+            .source(0, 0, 3, 2),
+            (0, 1)
+        );
+        assert_eq!(
+            Recipe {
+                quarter_turns: 3,
+                ..d
+            }
+            .source(1, 2, 3, 2),
+            (0, 1)
+        );
+        assert_eq!(
+            Recipe {
+                mirror: true,
+                flip: true,
+                ..d
+            }
+            .source(0, 0, 3, 2),
+            (2, 1)
+        );
+        assert_eq!(
+            Recipe {
+                monochrome: true,
+                ..d
+            }
+            .pixel([30, 60, 90]),
+            [60, 60, 60]
+        );
+    }
+    #[test]
+    fn independent_rotation_grid_and_estimate_refusal() {
+        let mut f = Frame {
+            raw: std::sync::Arc::new(vec![1, 0, 0, 2, 0, 0, 3, 0, 0, 4, 0, 0, 5, 0, 0, 6, 0, 0]),
+            metadata: crate::Metadata {
+                acquisition: None,
+                source: "literal grid 123 / 456".into(),
+                simulated: true,
+                sequence: 1,
+                measurement: None,
+                unix_millis: 0,
+                width: 3,
+                height: 2,
+                format: "RGB8".into(),
+            },
+        };
+        for (turn, expected) in [
+            (0, vec![1, 2, 3, 4, 5, 6]),
+            (1, vec![4, 1, 5, 2, 6, 3]),
+            (2, vec![6, 5, 4, 3, 2, 1]),
+            (3, vec![3, 6, 2, 5, 1, 4]),
+        ] {
+            let r = Recipe {
+                quarter_turns: turn,
+                ..Recipe::legacy()
+            };
+            let (_, _, p) = r.render(&f, None).unwrap();
+            assert_eq!(
+                p.chunks_exact(3).map(|p| p[0]).collect::<Vec<_>>(),
+                expected
+            );
+        }
+        assert!(Recipe::default().estimate(&f, true).is_err());
+        f.raw = std::sync::Arc::new(vec![64; 18]);
+        let estimated = Recipe::default().estimate(&f, false).unwrap();
+        assert_eq!(estimated.ev, 1.);
+        assert_eq!(Recipe::default().estimate(&f, true).unwrap().wb, [1.; 3]);
+    }
+    /// The precomputed origin/steps must reproduce the public per-pixel
+    /// `Recipe::source` for every display pixel, both by direct evaluation and
+    /// by incremental stepping along each row (as the renderer walks).
+    #[test]
+    fn source_steps_match_public_source_for_all_orientations_and_small_sizes() {
+        for (w, h) in [
+            (1, 1),
+            (1, 2),
+            (2, 1),
+            (2, 2),
+            (3, 2),
+            (2, 3),
+            (1, 5),
+            (5, 1),
+            (4, 6),
+            (7, 3),
+        ] {
+            let mut distinct = std::collections::HashSet::new();
+            for quarter_turns in 0..4 {
+                for mirror in [false, true] {
+                    for flip in [false, true] {
+                        let recipe = Recipe {
+                            quarter_turns,
+                            mirror,
+                            flip,
+                            ..Recipe::neutral()
+                        };
+                        let steps = SourceSteps::new(recipe, w, h);
+                        let (dw, dh) = recipe.dimensions(w, h);
+                        let mut mapped = Vec::new();
+                        for y in 0..dh {
+                            let [mut sx, mut sy] = steps.at(0, y);
+                            for x in 0..dw {
+                                let expected = recipe.source(x, y, w, h);
+                                let expected = [i64::from(expected.0), i64::from(expected.1)];
+                                let ctx = format!(
+                                    "{w}x{h} turn={quarter_turns} mirror={mirror} flip={flip} at ({x},{y})"
+                                );
+                                assert_eq!(steps.at(x, y), expected, "direct {ctx}");
+                                assert_eq!([sx, sy], expected, "stepped {ctx}");
+                                assert!((0..i64::from(w)).contains(&sx), "x range {ctx}");
+                                assert!((0..i64::from(h)).contains(&sy), "y range {ctx}");
+                                mapped.push(expected);
+                                sx += steps.step_x[0];
+                                sy += steps.step_x[1];
+                            }
+                        }
+                        // Bijection onto the sensor rectangle.
+                        let unique: std::collections::HashSet<_> = mapped.iter().collect();
+                        assert_eq!(unique.len(), (w * h) as usize);
+                        distinct.insert(mapped);
+                    }
+                }
+            }
+            // 16 flag combinations collapse to the 8 dihedral orientations
+            // whenever the sensor has no extra symmetry.
+            if w > 1 && h > 1 && w != h {
+                assert_eq!(distinct.len(), 8, "{w}x{h}");
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod quality_v2 {
+    use super::*;
+    fn frame(w: u32, h: u32, raw: Vec<u8>, format: &str) -> Frame {
+        Frame {
+            raw: std::sync::Arc::new(raw),
+            metadata: crate::Metadata {
+                acquisition: None,
+                source: "reference-free literal".into(),
+                simulated: true,
+                sequence: 1,
+                measurement: None,
+                unix_millis: 0,
+                width: w,
+                height: h,
+                format: format.into(),
+            },
+        }
+    }
+    /// Deliberately uses the public per-pixel API so this remains an exact
+    /// reference for the cached-layout render path.
+    fn reference_v2_render(
+        recipe: Recipe,
+        frame: &Frame,
+        max_edge: Option<u32>,
+    ) -> (u32, u32, Vec<u8>) {
+        frame.validate().unwrap();
+        recipe.validate().unwrap();
+        let (width, height) = recipe.dimensions(frame.metadata.width, frame.metadata.height);
+        let stride = match max_edge {
+            Some(0) => panic!("reference only accepts positive bounds"),
+            Some(edge) => width.max(height).div_ceil(edge),
+            None => 1,
+        };
+        let (output_width, output_height) = (width.div_ceil(stride), height.div_ceil(stride));
+        let gain = 2_f32.powf(recipe.ev);
+        let lut: [[u8; 256]; 3] = std::array::from_fn(|channel| {
+            std::array::from_fn(|value| {
+                (255.
+                    * (value as f32 / 255. * gain * recipe.wb[channel])
+                        .clamp(0., 1.)
+                        .powf(1. / recipe.gamma))
+                .round() as u8
+            })
+        });
+        let mut output = Vec::with_capacity((output_width * output_height * 3) as usize);
+        for block_y in 0..output_height {
+            for block_x in 0..output_width {
+                let mut sum = [0_u64; 3];
+                let mut count = 0_u64;
+                for y in block_y * stride..((block_y + 1) * stride).min(height) {
+                    for x in block_x * stride..((block_x + 1) * stride).min(width) {
+                        let (source_x, source_y) =
+                            recipe.source(x, y, frame.metadata.width, frame.metadata.height);
+                        let raw = frame.rgb(source_x, source_y).unwrap();
+                        let mut processed =
+                            std::array::from_fn(|channel| lut[channel][raw[channel] as usize]);
+                        if recipe.monochrome {
+                            processed = [((u16::from(processed[0])
+                                + u16::from(processed[1])
+                                + u16::from(processed[2])
+                                + 1)
+                                / 3) as u8; 3];
+                        }
+                        for channel in 0..3 {
+                            sum[channel] += u64::from(processed[channel]);
+                        }
+                        count += 1;
+                    }
+                }
+                output.extend_from_slice(&sum.map(|value| ((value + count / 2) / count) as u8));
+            }
+        }
+        (output_width, output_height, output)
+    }
+    #[test]
+    fn literal_smallest_border_and_legacy_defect() {
+        let f = frame(2, 2, vec![0, 10, 20, 30], "BayerGRBG8");
+        let literal = vec![10, 0, 20, 10, 15, 20, 10, 15, 20, 10, 30, 20];
+        assert_eq!(Recipe::neutral().render(&f, None).unwrap().2, literal);
+        assert_eq!(f.display_rgb().as_ref(), literal);
+        assert_eq!(
+            Recipe::legacy().render(&f, None).unwrap().2,
+            vec![10, 15, 20, 10, 15, 20, 10, 15, 20, 10, 15, 20]
+        );
+        assert_eq!(
+            Recipe::neutral().render(&f, Some(1)).unwrap(),
+            (1, 1, vec![10, 15, 20])
+        );
+    }
+    #[test]
+    fn independent_planes_ramp_diagonal_checker_and_immutability() {
+        for kind in 0..3 {
+            let plane = |x: u32, y: u32, c: usize| -> u8 {
+                match kind {
+                    0 => [20 + 2 * x + 4 * y, 60 + 4 * x + 2 * y, 100 + 2 * x + 2 * y][c] as u8,
+                    1 => {
+                        if x > y {
+                            [210, 150, 90][c]
+                        } else {
+                            [10, 30, 50][c]
+                        }
+                    }
+                    _ => {
+                        if (x / 2 + y / 2) % 2 == 0 {
+                            [240, 160, 80][c]
+                        } else {
+                            [12, 24, 36][c]
+                        }
+                    }
+                }
+            };
+            let raw = (0..8)
+                .flat_map(|y| {
+                    (0..10).map(move |x| {
+                        plane(
+                            x,
+                            y,
+                            match (y % 2, x % 2) {
+                                (0, 1) => 0,
+                                (1, 0) => 2,
+                                _ => 1,
+                            },
+                        )
+                    })
+                })
+                .collect();
+            let f = frame(10, 8, raw, "BayerGRBG8");
+            let before = f.raw.clone();
+            let meta = f.metadata.clone();
+            for y in 0..8 {
+                for x in 0..10 {
+                    let c = match (y % 2, x % 2) {
+                        (0, 1) => 0,
+                        (1, 0) => 2,
+                        _ => 1,
+                    };
+                    let p = f.rgb(x, y).unwrap();
+                    assert_eq!(p[c], plane(x, y, c));
+                    if kind == 0 && x > 0 && x < 9 && y > 0 && y < 7 {
+                        assert_eq!(p, std::array::from_fn(|c| plane(x, y, c)));
+                    }
+                }
+            }
+            let r = Recipe {
+                mirror: true,
+                flip: true,
+                quarter_turns: 1,
+                ..Recipe::neutral()
+            };
+            let (w, h, out) = r.render(&f, None).unwrap();
+            assert_eq!((w, h), (8, 10));
+            // Independent oriented coordinate equation for clockwise turn after both reflections.
+            for y in 0..h {
+                for x in 0..w {
+                    assert_eq!(
+                        &out[((y * w + x) * 3) as usize..((y * w + x) * 3 + 3) as usize],
+                        &f.rgb(9 - y, x).unwrap()
+                    );
+                }
+            }
+            assert_eq!(f.raw, before);
+            assert_eq!(f.metadata, meta);
+            assert_eq!(r.version, 2);
+        }
+    }
+    #[test]
+    fn frozen_all_sites_and_reflect101_edges() {
+        let f = frame(4, 4, (0..16).collect(), "BayerGRBG8");
+        assert_eq!(
+            Recipe::neutral().render(&f, None).unwrap().2,
+            vec![
+                1, 0, 4, 1, 3, 5, 2, 2, 6, 3, 5, 6, 5, 5, 4, 5, 5, 5, 6, 6, 6, 7, 7, 6, 9, 8, 8, 9,
+                9, 9, 10, 10, 10, 11, 11, 10, 9, 11, 12, 9, 13, 13, 10, 12, 14, 11, 15, 14
+            ]
+        );
+    }
+    #[test]
+    fn rgb_identity_scaling_and_invalid() {
+        let f = frame(
+            3,
+            2,
+            vec![
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+            ],
+            "RGB8",
+        );
+        assert_eq!(Recipe::neutral().render(&f, None).unwrap().2, *f.raw);
+        assert_eq!(
+            Recipe::neutral().render(&f, Some(2)).unwrap(),
+            (2, 1, vec![7, 8, 9, 12, 13, 14])
+        );
+        for r in [
+            Recipe {
+                version: 3,
+                ..Recipe::neutral()
+            },
+            Recipe {
+                gamma: f32::NAN,
+                ..Recipe::neutral()
+            },
+            Recipe {
+                ev: f32::INFINITY,
+                ..Recipe::neutral()
+            },
+        ] {
+            assert!(r.render(&f, None).is_err());
+        }
+    }
+    #[test]
+    fn v2_lut_matches_pixel_and_rgb_metadata_truthful() {
+        let f = frame(
+            256,
+            1,
+            (0..=255).flat_map(|v| [v, 255 - v, v / 2]).collect(),
+            "RGB8",
+        );
+        for monochrome in [false, true] {
+            let r = Recipe {
+                ev: 0.5,
+                gamma: 2.2,
+                wb: [0.7, 1.2, 2.],
+                monochrome,
+                ..Recipe::neutral()
+            };
+            let (_, _, pixels) = r.render(&f, None).unwrap();
+            for (raw, out) in f.raw.chunks_exact(3).zip(pixels.chunks_exact(3)) {
+                assert_eq!(out, r.pixel(raw.try_into().unwrap()));
+            }
+        }
+        let root = std::env::temp_dir().join(format!("rgb-v030-{}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let p = root.join("rgb.png");
+        crate::image_export::save_recipe(&f, &p, Recipe::neutral()).unwrap();
+        let m: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(format!("{}.json", p.display())).unwrap())
+                .unwrap();
+        assert_eq!(m["original_sensor_tiff"]["available"], false);
+        assert!(m["processing"].as_str().unwrap().starts_with("source-RGB8"));
+        assert!(!root.join("rgb.png.original-RAW.tiff").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn cached_v2_render_matches_public_rgb_reference_for_all_orientations_and_bounds() {
+        let rgb = frame(
+            3,
+            2,
+            vec![
+                1, 37, 201, 4, 90, 7, 255, 2, 13, 99, 128, 44, 3, 250, 190, 73, 11, 160,
+            ],
+            "RGB8",
+        );
+        let bayer_2x2 = frame(2, 2, vec![3, 61, 142, 250], "BayerGRBG8");
+        let bayer_4x4 = frame(
+            4,
+            4,
+            vec![
+                0, 13, 77, 255, 9, 101, 167, 201, 2, 66, 128, 220, 31, 93, 189, 241,
+            ],
+            "BayerGRBG8",
+        );
+        for frame in [&rgb, &bayer_2x2, &bayer_4x4] {
+            for quarter_turns in 0..4 {
+                for mirror in [false, true] {
+                    for flip in [false, true] {
+                        for monochrome in [false, true] {
+                            let recipe = Recipe {
+                                ev: 0.37,
+                                gamma: 1.73,
+                                wb: [0.63, 1.24, 1.81],
+                                quarter_turns,
+                                mirror,
+                                flip,
+                                monochrome,
+                                ..Recipe::neutral()
+                            };
+                            for bound in [None, Some(1), Some(2), Some(3)] {
+                                assert_eq!(
+                                    recipe.render(frame, bound).unwrap(),
+                                    reference_v2_render(recipe, frame, bound),
+                                    "format={}, size={}x{}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",
+                                    frame.metadata.format,
+                                    frame.metadata.width,
+                                    frame.metadata.height
+                                );
+                                assert_eq!(
+                                    recipe.compile().unwrap().render(frame, bound).unwrap(),
+                                    reference_v2_render(recipe, frame, bound),
+                                    "compiled format={}, size={}x{}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",
+                                    frame.metadata.format,
+                                    frame.metadata.width,
+                                    frame.metadata.height
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    /// Larger non-square Bayer frame with bounds whose stride leaves partial
+    /// terminal boxes on both axes, compared byte-for-byte against the
+    /// independent per-pixel `Recipe::source` + `Frame::rgb` reference.
+    #[test]
+    fn stepped_v2_render_matches_reference_for_large_non_square_bayer_and_partial_boxes() {
+        let (w, h) = (250_u32, 146_u32);
+        let mut state = 0x9E37_79B9_u32;
+        let raw = (0..w * h)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                (state >> 24) as u8
+            })
+            .collect();
+        let f = frame(w, h, raw, "BayerGRBG8");
+        let bounds = [None, Some(97), Some(64), Some(37)];
+        for bound in bounds.into_iter().flatten() {
+            let stride = w.max(h).div_ceil(bound);
+            assert!(
+                stride > 1 && !w.is_multiple_of(stride) && !h.is_multiple_of(stride),
+                "bound={bound}"
+            );
+        }
+        let mut index = 0_u32;
+        for quarter_turns in 0..4 {
+            for mirror in [false, true] {
+                for flip in [false, true] {
+                    index += 1;
+                    let recipe = Recipe {
+                        ev: 0.37,
+                        gamma: 1.73,
+                        wb: [0.63, 1.24, 1.81],
+                        quarter_turns,
+                        mirror,
+                        flip,
+                        monochrome: index.is_multiple_of(3),
+                        ..Recipe::neutral()
+                    };
+                    let compiled = recipe.compile().unwrap();
+                    for bound in bounds {
+                        let expected = reference_v2_render(recipe, &f, bound);
+                        let ctx = format!(
+                            "turn={quarter_turns} mirror={mirror} flip={flip} mono={} bound={bound:?}",
+                            recipe.monochrome
+                        );
+                        assert_eq!(compiled.render(&f, bound).unwrap(), expected, "{ctx}");
+                        assert_eq!(
+                            compiled.render_color_image(&f, bound).unwrap(),
+                            eframe::egui::ColorImage::from_rgb(
+                                [expected.0 as usize, expected.1 as usize],
+                                &expected.2
+                            ),
+                            "ColorImage {ctx}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn direct_preview_matches_render_then_colorimage_for_all_recipes_and_bounds() {
+        let rgb = frame(
+            3,
+            2,
+            vec![
+                1, 37, 201, 4, 90, 7, 255, 2, 13, 99, 128, 44, 3, 250, 190, 73, 11, 160,
+            ],
+            "RGB8",
+        );
+        let bayer = frame(
+            4,
+            4,
+            vec![
+                0, 13, 77, 255, 9, 101, 167, 201, 2, 66, 128, 220, 31, 93, 189, 241,
+            ],
+            "BayerGRBG8",
+        );
+        for frame in [&rgb, &bayer] {
+            for version in [1, 2] {
+                for quarter_turns in 0..4 {
+                    for mirror in [false, true] {
+                        for flip in [false, true] {
+                            for monochrome in [false, true] {
+                                let recipe = Recipe {
+                                    version,
+                                    ev: 0.37,
+                                    gamma: 1.73,
+                                    wb: [0.63, 1.24, 1.81],
+                                    quarter_turns,
+                                    mirror,
+                                    flip,
+                                    monochrome,
+                                };
+                                for bound in [None, Some(1), Some(2), Some(3)] {
+                                    let (w, h, rgb) = recipe.render(frame, bound).unwrap();
+                                    assert_eq!(
+                                        recipe.render_color_image(frame, bound).unwrap(),
+                                        eframe::egui::ColorImage::from_rgb(
+                                            [w as usize, h as usize],
+                                            &rgb
+                                        ),
+                                        "format={}, version={version}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",
+                                        frame.metadata.format
+                                    );
+                                    assert_eq!(
+                                        recipe
+                                            .compile()
+                                            .unwrap()
+                                            .render_color_image(frame, bound)
+                                            .unwrap(),
+                                        eframe::egui::ColorImage::from_rgb(
+                                            [w as usize, h as usize],
+                                            &rgb
+                                        ),
+                                        "compiled format={}, version={version}, turn={quarter_turns}, mirror={mirror}, flip={flip}, mono={monochrome}, bound={bound:?}",
+                                        frame.metadata.format
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn direct_preview_preserves_render_rejection_for_invalid_inputs() {
+        let valid = frame(2, 2, vec![0, 10, 20, 30], "BayerGRBG8");
+        let malformed = frame(2, 2, vec![0, 10, 20], "BayerGRBG8");
+        for (recipe, source, bound) in [
+            (
+                Recipe {
+                    version: 3,
+                    ..Recipe::neutral()
+                },
+                &valid,
+                None,
+            ),
+            (Recipe::neutral(), &valid, Some(0)),
+            (Recipe::neutral(), &malformed, None),
+        ] {
+            assert_eq!(
+                recipe.render(source, bound).unwrap_err(),
+                recipe.render_color_image(source, bound).unwrap_err()
+            );
+        }
+        for recipe in [
+            Recipe {
+                version: 3,
+                ..Recipe::neutral()
+            },
+            Recipe {
+                gamma: f32::NAN,
+                ..Recipe::neutral()
+            },
+            Recipe {
+                wb: [1., f32::INFINITY, 1.],
+                ..Recipe::neutral()
+            },
+        ] {
+            assert_eq!(
+                recipe.compile().unwrap_err(),
+                "Invalid software display recipe"
+            );
+        }
+    }
+    #[test]
+    fn export_full_literal_and_original_tiff() {
+        let f = frame(2, 2, vec![0, 10, 20, 30], "BayerGRBG8");
+        let r = Recipe::neutral();
+        let root = std::env::temp_dir().join(format!("quality-v030-{}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        for ext in ["png", "tiff"] {
+            let p = root.join(format!("literal.{ext}"));
+            crate::image_export::save_recipe(&f, &p, r).unwrap();
+            assert_eq!(
+                image::open(&p).unwrap().to_rgb8().into_raw(),
+                vec![10, 0, 20, 10, 15, 20, 10, 15, 20, 10, 30, 20]
+            );
+            let original = image::open(format!("{}.original-RAW.tiff", p.display()))
+                .unwrap()
+                .to_luma8();
+            assert_eq!(original.dimensions(), (2, 2));
+            assert_eq!(original.as_raw(), f.raw.as_ref());
+            let m: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(format!("{}.json", p.display())).unwrap())
+                    .unwrap();
+            assert_eq!(m["original_sensor_tiff"]["data_unchanged"], true);
+            assert!(m["processing"].as_str().unwrap().contains("bilinear"));
+            assert_eq!(m["display_recipe"], serde_json::to_value(r).unwrap());
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod correction_v031 {
+    use super::*;
+    #[test]
+    fn invalid_estimates_rejected_before_arithmetic() {
+        let f = Frame {
+            raw: std::sync::Arc::new(vec![64; 12]),
+            metadata: crate::Metadata {
+                acquisition: None,
+                source: "literal".into(),
+                simulated: true,
+                sequence: 1,
+                measurement: None,
+                unix_millis: 0,
+                width: 2,
+                height: 2,
+                format: "RGB8".into(),
+            },
+        };
+        for r in [
+            Recipe {
+                version: 3,
+                ..Recipe::neutral()
+            },
+            Recipe {
+                ev: f32::NAN,
+                ..Recipe::neutral()
+            },
+            Recipe {
+                gamma: f32::NAN,
+                ..Recipe::neutral()
+            },
+            Recipe {
+                wb: [1., f32::NAN, 1.],
+                ..Recipe::neutral()
+            },
+            Recipe {
+                quarter_turns: 4,
+                ..Recipe::neutral()
+            },
+            Recipe {
+                ev: 5.,
+                ..Recipe::legacy()
+            },
+            Recipe {
+                gamma: 0.,
+                ..Recipe::legacy()
+            },
+            Recipe {
+                wb: [0., 1., 1.],
+                ..Recipe::legacy()
+            },
+        ] {
+            for mode in [false, true] {
+                assert!(r.estimate(&f, mode).is_err(), "accepted {r:?}, mode={mode}");
+            }
+        }
+        assert_eq!(Recipe::legacy().estimate(&f, false).unwrap().ev, 1.);
+        assert_eq!(Recipe::legacy().estimate(&f, true).unwrap().wb, [1.; 3]);
+    }
+}
+
+#[cfg(test)]
+mod brightness_v033 {
+    use super::*;
+    #[test]
+    fn multiplier_default_range_and_stored_semantics() {
+        let mut r = Recipe::default();
+        assert_eq!(format!("{:.2}", r.brightness()), "1.20");
+        assert!((r.ev - 1.2_f32.log2()).abs() < 1e-7);
+        assert_eq!((r.gamma, r.wb, r.quarter_turns), (2.2, [1.; 3], 2));
+        for (m, ev) in [(0.0625, -4.), (0.5, -1.), (1., 0.), (2., 1.), (16., 4.)] {
+            r.set_brightness(m);
+            assert_eq!(r.ev, ev);
+            assert_eq!(r.brightness(), m);
+            r.validate().unwrap();
+        }
+        for bad in [0., -1., f32::INFINITY, f32::NAN, 17.] {
+            let old = r;
+            r.set_brightness(bad);
+            assert_eq!(r, old);
+        }
+        for version in [1, 2] {
+            let stored = Recipe {
+                version,
+                ev: -2.,
+                ..Recipe::neutral()
+            };
+            let round: Recipe =
+                serde_json::from_value(serde_json::to_value(stored).unwrap()).unwrap();
+            assert_eq!(round, stored);
+            assert_eq!(round.brightness(), 0.25);
+        }
+        assert_eq!(Recipe::reference().ev, 1.5);
+    }
+}

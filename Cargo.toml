@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "crates/camera-lab",
+    "crates/capability-platform",
+    "crates/continuous-helper-entry",
+    "crates/kohdalab-control-protocol",
+]
+default-members = ["crates/camera-lab"]
+resolver = "3"
+
+[workspace.package]
+rust-version = "1.92"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[profile.dev.package.camera-lab]
+opt-level = 2

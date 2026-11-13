@@ -1,0 +1,66 @@
+{
+  "version": "0.1.10",
+  "installation": "per-user",
+  "runtime_hashes_match": true,
+  "installed_version": "0.1.10",
+  "signatures": [
+    {
+      "name": "KohdaLab-Camera-0.1.10-Setup.exe",
+      "sha256": "29D6E512E599D40F4BD01622828A04AF7BEFD326667C3177732F7D79E5E54AE2",
+      "signature": "NotSigned"
+    },
+    {
+      "name": "KohdaLab Camera.exe",
+      "sha256": "B10B9767DB936852F77B466410F3BD8C875A3CBE442C6AD4048EB5915339EC55",
+      "signature": "NotSigned"
+    },
+    {
+      "name": "continuous-helper.exe",
+      "sha256": "7A7D333C2052698FE0CFF181BD2F38D0ABF8DEE223F9B2D8FB26E2037B06DAFF",
+      "signature": "NotSigned"
+    },
+    {
+      "name": "Uninstall KohdaLab Camera.exe",
+      "sha256": "87E53619059BE797E74326EE1DD81220E72AA4B64E6CAEBF62FF821C9C15FAB9",
+      "signature": "NotSigned"
+    }
+  ],
+  "startup": {
+    "cameras": [
+      {
+        "driver_connection_error": null,
+        "installed_driver": "WINUSB",
+        "product": "3.1M USB2.0 Camera",
+        "usb_id": "0547:4d33"
+      }
+    ],
+    "driver_changes": 0,
+    "driver_policy": "preserve-installed-driver/v1",
+    "helper_present": true,
+    "helper_starts": 0,
+    "platform": "windows",
+    "usb_opens": 0,
+    "vendor_sdk_backend_available": false,
+    "version": "0.1.10"
+  },
+  "owners": 0,
+  "driver_changes": 0,
+  "security_policy_changes": 0,
+  "shortcuts_target": "%LOCALAPPDATA%/Programs/KohdaLab Camera/KohdaLab Camera.exe",
+  "fresh_install": true,
+  "runtime_hashes": true,
+  "update": true,
+  "uninstall": true,
+  "unrelated_file_preserved": true,
+  "camera_starts": 0,
+  "scope": "Windows installation and enumeration only; no new physical capture validation.",
+  "runtime_source_commit": "2676e10e5998173e05ed6c5eb6b29773b3a62c39",
+  "compiler": {
+    "name": "NSIS",
+    "version": "3.12",
+    "archive_sha256": "56581f90db321581c5381193d796fffcf2d24b2f8fed2160a6c6a3baa67f2c4f",
+    "compression": "zlib",
+    "verified_build_inputs": 687
+  },
+  "signing_identity": "Laboratory/organization; enrollment pending"
+}

@@ -1,0 +1,372 @@
+# Changelog / 変更履歴
+
+## 1.0.1
+
+- Stabilize the Windows simulated preview regression test by checking the rate when a new frame is displayed. / 新規フレームの表示時にレートを確認し、Windows の模擬プレビュー回帰テストを安定化しました。
+- Add direct download links for Windows, macOS, and Linux. / Windows・macOS・Linux の直接ダウンロードリンクを追加しました。
+
+## 1.0.0
+
+- Publish Windows x64, macOS arm64, and Ubuntu x64 packages. Windows supports GR300 with existing WinUSB and Simulation. macOS and Linux support Simulation. / Windows x64、macOS arm64、Ubuntu x64 の配布を開始しました。Windows は既存 WinUSB の GR300 と Simulation に、macOS と Linux は Simulation に対応します。
+
+## 0.1.25
+
+- Speed up the v2 image renderer when no downsampling is needed by advancing source coordinates along each row and emitting each processed pixel directly. The measured synthetic 1024 × 768 preview output matched 0.1.24 byte for byte across eight orientations. / 縮小が不要な v2 描画では、行に沿って元画像の座標を進め、処理済み画素を直接出力します。1024 × 768 の合成画像では、8方向すべてで 0.1.24 と出力画素が一致しました。
+
+## 0.1.24 — 2026-11-12
+
+- Return GUI API transport errors (`timeout`, `busy`, `unavailable`) for common-protocol requests in the standard response envelope, including the original `request_id`. The two-second request deadline remains in effect. / 共通 GUI API リクエストの通信エラー（`timeout`、`busy`、`unavailable`）を、元の `request_id` を含む標準形式で返します。リクエスト期限は引き続き2秒です。
+- Add a loopback regression test for a queued status request that the GUI cannot process in time. Document the effect of the Windows save dialog on status requests. / GUI が期限内に処理できない状態照会のループバック回帰テストを追加し、Windows の保存ダイアログが状態照会に与える影響を文書化しました。
+
+## 0.1.23 — 2026-11-12
+
+- Preserve pending camera frames while handling authenticated `control.status` requests. The status response uses the same session snapshot as the GUI update. A loopback regression test checks that the GUI receives the pending frame and the client receives the status response. / 認証済みの `control.status` を処理する間も、GUI がまだ取り込んでいないフレームを保持します。状態応答と GUI 更新は同じセッションのスナップショットを使います。ループバック回帰テストで、GUI のフレーム取り込みとクライアントへの状態応答を確認します。
+
+## 0.1.22 — 2026-11-12
+
+- Fix premature responses from the read-only GUI API on macOS when a local request arrives in parts. Accepted connections now wait within the existing two-second request deadline. / macOS の読み取り専用 GUI API で、ローカルのリクエストが分割して届くと応答が早すぎる問題を修正しました。受け付けた接続は既存の2秒の期限内で受信を待ちます。
+- Stabilize the failure-panel geometry test and add a loopback regression test for delayed requests. / 障害パネルの表示テストを安定化し、分割受信のループバック回帰テストを追加しました。
+- Add a maintainer command for dependency license checks, notice table updates and source identity refresh. Complete the historical changelog and documentation index, and document vulnerability reporting. / 依存ライセンスの照合・通知一覧とソース ID の更新をまとめるコマンドを追加しました。過去の変更履歴と文書索引を補い、脆弱性の報告手順を整備しました。
+- Document the [GR300 physical validation performed on 0.1.21](docs/validation/physical-gr300-0.1.21.md). / [0.1.21 で実施した GR300 の実機検証](docs/validation/physical-gr300-0.1.21.md)を記録しました。
+
+## 0.1.21 — 2026-11-11
+
+- Align bundled third-party licenses and notices with Cargo.lock; distributions through 0.1.20 omitted notices and license texts for some crates. / 同梱の第三者ライセンスと通知を Cargo.lock に一致させました。0.1.20 までの配布物では、一部のcrateの通知とライセンス文が欠けていました。
+- The lockfile reverted nusb from 0.2.9 to 0.2.7 in [#9](https://github.com/woolen-yarn/kohdalab-camera/pull/9) (`cceaae3`) and retained 0.2.7 in #16. / nusb は #9（`cceaae3`）で 0.2.9 から 0.2.7 に戻り、#16 でも 0.2.7 が維持されました。
+- Run every Rust workspace test on Windows and macOS in CI, pin Rust 1.99.1, and check formatting, Clippy output and the Rust 1.92 minimum. Three Windows-only GUI tests that had never run in CI now match the current export and timing-label contracts; application code is unchanged. / WindowsとmacOSのCIで全workspaceテストを実行し、Rust 1.99.1を固定、整形・Clippy・最低版1.92を確認します。CIで未実行だったWindows専用GUIテスト3件を現行の保存・時刻表示の契約に合わせました。アプリ本体のコードは変更していません。
+
+## 0.1.20 — 2026-11-10
+
+- Add a frame-summary analysis CSV, raw-payload index CSV, lifecycle log and conditions manifest alongside the existing image and RAW exports. The bundle distinguishes sensor from encoded-image dimensions and host observation time from exposure timing; existing JSON/metadata and Bayer TIFF remain preserved. / 既存画像・RAW出力とともに、フレーム要約解析CSV・raw payload索引CSV・ライフサイクルlog・条件manifestを追加。センサー寸法と出力画像寸法、ホスト観測時刻と露光時刻を区別し、既存JSON／metadata・Bayer TIFFを維持します。
+
+## 0.1.19 — 2026-11-10
+
+- Align every Camera workspace member with the existing Rust 1.92 minimum, so ordinary Cargo and Dependabot updates are not constrained by the former lower member declarations. Acquisition behaviour, device policy, image/RAW exports, metadata, and the read-only GUI API are unchanged. / Cameraワークスペースの全クレートを既存のRust 1.92最小要件に揃え、通常のCargo／Dependabot更新が旧来の低いクレート宣言に制限されないよう修正。取得動作、機器方針、画像／RAW出力、メタデータ、読み取り専用GUI APIは変更なし。
+
+## 0.1.18 — 2026-11-10
+
+- Update eframe from 0.31.1 to 0.34.3 and remove the unmaintained font parser. Camera polling and the opt-in, read-only GUI observer continue independently of visible painting. / eframe を 0.31.1 から 0.34.3 に更新し、保守が終了したフォントパーサーを除去しました。カメラのポーリングと任意で有効化する読み取り専用 GUI observer は、画面描画と独立して動作します。
+- Verify the packaged Windows app with Simulation and device-free recording and API checks, and run Simulation on macOS CI. This release adds no physical-camera qualification. / Windows 配布版を Simulation と機器不要の記録・API テストで検証し、macOS CI でも Simulation を確認しました。この版で実機の適格性確認は追加していません。
+
+[Release / リリース](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.18) · Source / ソース `41e11b6`
+
+## 0.1.17 — 2026-11-06
+
+- Add versioned recording provenance to image sidecar JSON, including application and source identity, received payload size and format, stored bit depth, declared sensor and transport bit depths when available, and Simulation status. / 画像の付属 JSON に版付きの保存来歴を追加しました。アプリとソースの識別子、受信データのサイズと形式、保存ビット数、判明しているセンサーと通信経路のビット数、Simulation の区別を記録します。
+- Document that GR300 RAW preserves the 8 bits received from its 10-bit sensor. Unknown exposure timing and dropped-frame counts remain `null`. Add device-free recording checks on Windows and macOS and a native Simulation observer check on macOS. / GR300 の RAW は10ビットのセンサーから受信した8ビットを保持することを明記しました。不明な露光時刻や欠落フレーム数は `null` のままです。Windows と macOS に機器不要の保存テストを追加し、macOS ではネイティブ Simulation の observer も検証しました。
+
+[Release / リリース](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.17) · Source / ソース `f0f752a`
+
+## 0.1.16 — 2026-11-05
+
+- Ignore empty home-directory environment values and use the valid platform fallback consistently in the GUI and common Python client. / GUIと共通Pythonクライアントで、空のホーム環境変数を除外して有効な代替先を使います。
+- Search only newly received bytes for the common API response delimiter, preserving existing size limits and error handling. / 共通APIの受信済みデータを繰り返し走査せず、新しい断片だけで区切りを検出します。サイズ制限とエラー処理は維持します。
+- Format Rust sources consistently without changing acquisition or rendering algorithms. / 撮像・描画のアルゴリズムを変えず、Rustソースの書式を統一します。
+- Include common Python client changes in the Windows build trigger and refresh the derived source identity. / 共通Pythonクライアントの変更でもWindowsビルドを実行し、派生するソース識別子を更新します。
+
+## 0.1.15
+
+- Wake an idle GUI for authenticated read-only API requests without periodic polling.
+
+- Use the common app-owned directory layout: config/config.json, run, results and logs beneath ~/.kohdalab/camera.
+- Align normal startup, file selection, external API/Notebook discovery and documentation. Preserve operator-selected paths and all old files without automatic migration.
+- Common control SDK 1.0.1 discovers app-owned run directories; wire protocol and instrument safety are unchanged.
+
+
+## 0.1.14
+
+- Automatically create the missing application-specific default configuration on first normal GUI launch.
+- Preserve existing/corrupt profiles with atomic no-clobber creation and report initialization errors. Do not connect hardware or enable outputs.
+
+
+## 0.1.13 — 2026-10-29
+
+- Add the authenticated local Control Protocol 1 adapter and shared Python SDK. Camera exposes read-only status/configuration; other apps retain their native ownership and safety policies.
+- Align common discovery, receipts, structured errors, PR templates and release categories. Existing measurement data and native clients remain supported.
+- GUI共通API・独立したPython SDK・PR/Releaseの記載項目を統一。既存測定とデータ形式を維持します。
+
+- Update rfd and nusb with upstream license notices; refresh pinned GitHub Actions.
+- Organize Rust packages under `crates/` and provide the English/Japanese
+  documentation hub, compatibility information and contribution templates.
+- Store validated, application-specific settings at `~/.kohdalab/camera/config.json`
+  (Windows: `%USERPROFILE%\.kohdalab\camera\config.json`) and replace settings
+  atomically. Existing settings at earlier locations remain untouched. The first
+  start at the new location uses defaults; automatic import is not performed.
+- Install Windows Setup for all users in `%ProgramFiles%\Kohdalab\KohdaLab Camera`
+  with administrator approval. The application runs as the launching user.
+  Setup blocks an earlier per-user installation visible to the installing user;
+  uninstall that version normally before installing this release. On shared
+  machines, remove earlier per-user installations from each affected account.
+- Keep captures, settings and protective device interlocks outside installer
+  cleanup. Add Windows preference tests and legacy-installation guard validation.
+
+Windows CI validates synthetic GUI flows, settings, build metadata and installer
+lifecycle. Physical capture qualification remains the v0.1.9 record; this release
+has not repeated physical acquisition. Executables remain unsigned.
+
+## 0.1.12 — 2026-10-29
+
+- Update nusb to 0.2.9 and rfd to 0.17.2 for this release, retain upstream notices, and consolidate the Rust workspace under `crates/` with English/Japanese documentation. / この版では nusb を 0.2.9、rfd を 0.17.2 に更新し、上流の通知を保持しました。Rust ワークスペースを `crates/` 配下に整理し、英日併記の文書を整備しました。
+- Move settings to `~/.kohdalab/camera/config.json` with validated atomic writes. The application starts with defaults at the new path and leaves earlier preference files in place. / 設定を `~/.kohdalab/camera/config.json` に移し、内容を検証してからアトミックに保存します。新しい保存先での初回起動は既定値を使い、旧設定ファイルは保持します。
+- Change Windows Setup to an all-users install under `%ProgramFiles%\Kohdalab\KohdaLab Camera`. Remove earlier per-user installations before upgrading. Updates and uninstallation preserve captures, settings and device interlocks. Windows CI covered installer lifecycle and synthetic GUI checks. Physical capture qualification remained at 0.1.9. / Windows Setup を `%ProgramFiles%\Kohdalab\KohdaLab Camera` への全ユーザー向けインストールに変更しました。更新前に旧ユーザー別インストールを削除します。更新・アンインストール時も保存画像、設定、機器インターロックは保持します。Windows CI でインストーラーのライフサイクルと模擬 GUI を検証しました。実機撮影の検証記録は 0.1.9 のままです。
+
+[Release / リリース](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v0.1.12) · Source / ソース `6e82f3c`
+
+# KohdaLab Camera 0.1.11
+
+- Add public, read-only GitHub Actions Windows GNU builds with pinned Rust and
+  Actions, a hash-verified NSIS compiler, source identity checks and unsigned
+  distribution/signing-input artifacts.
+- Derive GUI/helper PE product/version resources from the root package version;
+  verify matching metadata on GUI, helper, uninstaller and Setup.
+- Export the exact unsigned NSIS uninstaller for future SignPath enrollment.
+- Qualify synthetic-frame GUI tests, fresh install, update, uninstall, unrelated
+  file preservation and no-acquisition startup diagnostics in Windows CI.
+- Install the exact CI runtime on the workstation and verify hashes, version,
+  shortcut target and startup report. Organize current source/output paths and
+  archive earlier validation/staging data without deleting it.
+
+[CI and installation validation](docs/validation/validation-0.1.11.json) is scoped to build,
+metadata and installation. Physical capture validation remains v0.1.9. This
+release remains unsigned; no SignPath application or account integration was
+submitted. See [application preparation](docs/development/signpath-application.md).
+
+# KohdaLab Camera 0.1.10
+
+- Preserve existing Windows driver bindings. Reuse WinUSB only when it is the
+  active binding; a different or missing driver receives an explanation instead
+  of a silent replacement or unsupported acquisition attempt.
+- Recheck the binding in the physical helper. Detect a missing helper before
+  creating a physical-session interlock.
+- Add `--startup-report new-file.json`, an enumeration-only support report that
+  does not open USB or launch the acquisition helper.
+- Add per-user Windows Setup tooling and a signature audit, with documented
+  organization-signing prerequisites and honest unsigned-release status.
+
+Official GR300 SDK integration is deferred at the owner's request. The existing
+WinUSB backend remains the only implemented physical acquisition backend.
+Version 0.1.9 retains the last five-minute physical validation; new 0.1.10 checks
+cover driver policy, UI regression and Windows startup/installation behavior.
+Fresh install, update, uninstall and unrelated-file preservation passed. The
+installed runtime hashes and shortcut were verified; all four executable types
+remain unsigned. See [installation validation](docs/validation/validation-0.1.10.json).
+
+# KohdaLab Camera 0.1.9
+
+- Distinguish the whole-image **Fit** view from magnification such as
+  **2.0× Fit**, with an explanation of how it differs from 100%.
+- Add a quick start with current Simulation screenshots and a responsiveness
+  report separating CPU timings from UI-tool observation overhead.
+
+The targeted GUI check, native Simulation image adjustment/export/normal close,
+and exact saved-image replay passed. Windows x64 built successfully. Subsequent
+physical validation of the exact published binaries completed 399.4 seconds of
+GR300 Live with 15,701 accepted frames, image adjustment and Fit controls,
+PNG/RAW/Bayer TIFF export, and normal Disconnect/Close. All saved pixels matched
+independent RAW reconstruction; both processes exited normally without a
+remaining protective lock. See [validation](docs/validation/validation-0.1.9.json) and
+[observed responsiveness](docs/validation/responsiveness.md).
+
+The initial zero-connection attempt was blocked by Windows App input delivery.
+The owner opened the picker, and held mouse clicks then allowed the finite run
+to proceed. Validation is supplemental to the original release archives; their
+bytes and original manifests remain unchanged.
+
+# KohdaLab Camera 0.1.8
+
+- Show the installed application version in the camera-selection window title,
+  Live window title, and Live toolbar.
+
+This release did not repeat physical-camera acquisition. It was built and
+published from the current Windows x64 source baseline.
+
+# KohdaLab Camera 0.1.7
+
+- Refine the dark interface: make the image the visual focus, use a restrained
+  accent for available primary actions, and allow a selected toolbar tab to
+  close its inspector.
+- Make Fit the minimum zoom, add visible Fit / minus / magnification / plus /
+  100% controls, and keep 100% unavailable when it would be below Fit or beyond
+  the supported zoom range.
+- Remove the reserved blank area before Cursor in the status bar and simplify
+  Advanced details and duplicated display controls.
+- Avoid idle repaint polling and reuse compiled display recipes until image
+  controls change. Image and export semantics remain unchanged.
+
+Validation included GUI, renderer, and preview-pipeline tests; native Simulation
+interaction checks; and replay against a saved GR300 endpoint image. This
+release did not repeat physical-camera acquisition, and its local CPU
+measurements do not establish a physical capture-FPS improvement.
+
+# KohdaLab Camera 0.1.6
+
+- Remember camera/image settings, Live window size, save folder and capture
+  numbering. Restore defaults from Advanced without automatically reconnecting
+  or applying camera controls.
+- Add pointer-centered wheel zoom, drag panning, double-click to fit, and Fit /
+  100% buttons in Image. View transforms do not change exported pixels.
+- Suggest numbered PNG names and skip occupied image/sidecar names.
+- Render preview pixels directly into ColorImage and remove the unused retained
+  image clone. This eliminates an intermediate RGB allocation and pixel copy;
+  measured CPU timings vary, so no additional capture-FPS increase is claimed.
+
+Validation includes exact direct/indirect pixel equivalence, bounded pipeline
+checks, saved physical-image replay, preferences overwrite/retry, view geometry,
+input isolation, no-auto-connect/reset tests, independent review and native Mac
+Simulation interaction/restart/reset checks. The last physical Live validation
+remains the scoped 0.1.4 run.
+
+# KohdaLab Camera 0.1.5
+
+- Set the default exposure to 120 sensor rows. Gamma remains 2.2 and brightness
+  remains 1.20×.
+- Record the owner's visual confirmation of acceptable color and field of view;
+  this does not imply optical/color calibration.
+
+The five-minute physical validation applies to 0.1.4. This default-setting update
+was checked with the UI/integration suite and a Windows release build.
+
+# KohdaLab Camera 0.1.4
+
+- Automatically select a single supported camera after enumeration; open it with
+  **Load camera**. Multiple cameras still require a choice, and a missing selected
+  camera is never silently replaced by a different device.
+- Shorten the opening screen instructions.
+
+Validation: 26 UI tests and independent review passed. The exact Windows build
+completed 336.2 seconds of real GR300 Live acquisition, a PNG/RAW/Bayer TIFF export
+with independent pixel agreement, and normal GUI/helper exit. No process or
+protective lock remained. The owner confirmed manual resizing and size retention.
+Color/optical qualification and picker round-trip resizing remain outside this
+run. See [the scoped validation record](docs/validation/validation-0.1.4.json).
+
+# KohdaLab Camera 0.1.3
+
+- Simplify the Live status bar and export panel. Move technical counters and
+  startup diagnostics into a collapsed Diagnostics section.
+- Keep capture FPS, simulation/retained-image labels and actionable errors visible.
+
+- Reconstruct only the color neighbors required at each Bayer site, with layout
+  validation once per render. RGB pixels, RAW bytes and recipe semantics remain
+  unchanged. The synthetic Mac CPU benchmark reduced rendering time by about
+  31–35%; this is not a Windows capture-FPS claim.
+- Verify all pixels against the preceding real-camera export and retain exact
+  orientation, scaling, color and malformed-input regression coverage.
+
+Validation: 26 UI tests passed; rendering tests passed; simulation Image/Export
+panels were visually checked with mouse clicks. The 0.1.3 Windows build has not
+had a new physical-camera run. See [performance verification](docs/validation/rendering-performance.md).
+
+## Additional 0.1.2 validation
+
+The published build subsequently completed 333.2 seconds of Live acquisition on
+SHODENSHA GR300, with a pixel-checked endpoint export and normal native shutdown.
+Manual mouse operation was confirmed by the owner. The planned start export was
+canceled, so the full two-endpoint export plan remains incomplete. See
+[the later validation record](docs/validation/validation-0.1.2-five-minute.json).
+
+The earlier observations below retain their original candidate scope.
+
+# KohdaLab Camera 0.1.2
+
+A focused stability update for the SHODENSHA GR300 backend.
+
+- Remember valid Live window sizes as they change, and preserve them when native
+  transition reports are missing or still describe the smaller camera picker.
+- Keep the SIMULATION label visible on retained images after disconnect.
+- Add a regression test for normal mouse press/release on all five Live tabs.
+- Add optional, simulation-only input diagnostics with bounded pointer/navigation
+  records, no typed/pasted text, and a normal-close deadline. This feature is
+  disabled in the distributed application.
+
+A short physical run observed Live acquisition, image and sidecar export,
+independent pixel agreement, and native GUI/helper exit code 0. Postflight found
+no remaining camera process or protective interlock and normal WinUSB status.
+The 60-second preflight-to-Connect window was not proven, so this is not an
+acceptance PASS. The final GUI binary additionally includes the retained-
+simulation label fix and has not been physically retested. See
+`docs/validation/validation-0.1.2.json` for the exact scope.
+
+---
+
+# 変更履歴 / Changelog（日本語）
+
+以下の英語の各 entry が canonical historical record です。日本語は同じ release scope を読みやすくする対訳で、記録済み validation、hash、release asset を変更しません。
+
+## 0.1.11
+
+公開・read-only の GitHub Actions Windows GNU build（pinned Rust/Actions、hash-verified NSIS、source identity、unsigned distribution/signing-input artifact）を追加しました。GUI/helper PE product/version resource を root package version から導出し、GUI、helper、uninstaller、Setup の metadata 一致を検証します。将来の SignPath enrollment 用に exact unsigned NSIS uninstaller を export し、synthetic-frame GUI、fresh install/update/uninstall、unrelated file preservation、no-acquisition startup diagnostic を Windows CI で qualify しました。workstation に exact CI runtime を install して hash/version/shortcut/startup report を確認し、source/output path と過去 validation/staging data を削除せず整理しました。[CI and installation validation](docs/validation/validation-0.1.11.json) は build/metadata/install の範囲で、physical capture validation は 0.1.9 のままです。release は unsigned で SignPath application/account integration は提出していません（[application preparation](docs/development/signpath-application.md)）。
+
+## 0.1.10
+
+既存 Windows driver binding を保持し、WinUSB は active binding のときのみ再利用します。異なる/missing driver は silent replacement/unsupported acquisition でなく説明を返します。physical helper でも binding を再確認し、physical-session interlock の前に missing helper を検出します。`--startup-report new-file.json` は USB を開かず helper も起動しない enumeration-only support report です。per-user Windows Setup/signature audit と organization-signing prerequisite/unsigned status を追加しました。owner request により official GR300 SDK integration は deferred で、existing WinUSB backend が唯一の physical backend です。0.1.9 が five-minute physical validation、0.1.10 は driver policy/UI regression/Windows startup-install behavior を対象とし、fresh install/update/uninstall/unrelated file preservation、runtime hash/shortcut を確認しました。4 executable type は unsigned です（[installation validation](docs/validation/validation-0.1.10.json)）。
+
+## 0.1.9
+
+whole-image **Fit** と **2.0× Fit** のような magnification を区別し、100% との差を説明しました。Simulation screenshot 付き quick start と CPU timing/UI-tool observation overhead を分けた responsiveness report を追加しました。targeted GUI/native Simulation image adjustment/export/normal close、exact saved-image replay、Windows x64 build を確認し、その後 published binary が GR300 Live **399.4 seconds**、**15,701 accepted frames**、image adjustment/Fit、PNG/RAW/Bayer TIFF export、normal Disconnect/Close を完了しました。saved pixel は independent RAW reconstruction と一致し、protective lock は残りませんでした。owner の input delivery 制約により held mouse click を用いた run であり、original release archive を補う validation ですが byte/original manifest は不変です（[validation](docs/validation/validation-0.1.9.json)、[responsiveness](docs/validation/responsiveness.md)）。
+
+## 0.1.8
+
+- camera-selection window title、Live window title、Live toolbar に installed application version を表示します。
+
+この release では physical-camera acquisition を再実施していません。current Windows x64 source baseline から build/publish しました。
+
+## 0.1.7
+
+- dark interface を改善し、image を visual focus に、available primary action に抑制した accent を使い、selected toolbar tab で inspector を閉じられるようにします。
+- Fit を minimum zoom とし、visible な Fit / minus / magnification / plus / 100% control を追加します。100% が Fit 未満または supported zoom range 外になるときは利用不可に保ちます。
+- status bar の Cursor 前に予約していた blank area を除き、Advanced detail と重複した display control を簡潔にします。
+- idle repaint polling を避け、image control が変わるまで compiled display recipe を再利用します。image/export semantics は変更しません。
+
+validation には GUI、renderer、preview-pipeline test、native Simulation interaction check、保存済み GR300 endpoint image の replay を含みます。この release は physical-camera acquisition を再実施しておらず、local CPU measurement は physical capture-FPS improvement の根拠ではありません。
+
+## 0.1.6
+
+- camera/image setting、Live window size、save folder、capture numbering を記憶します。Advanced から default を復元しても自動 reconnect や camera control の適用はしません。
+- pointer 中心の wheel zoom、drag pan、double-click Fit、Image の Fit / 100% button を追加します。view transform は exported pixel を変更しません。
+- 番号付き PNG name を提案し、使用済み image/sidecar name を避けます。
+- preview pixel を ColorImage に直接 render し、不要な retained image clone を除きます。intermediate RGB allocation/pixel copy をなくしますが、測定 CPU timing は変動するため追加 capture-FPS increase は主張しません。
+
+validation には exact direct/indirect pixel equivalence、bounded pipeline check、saved physical-image replay、preference overwrite/retry、view geometry、input isolation、no-auto-connect/reset test、independent review、native Mac Simulation interaction/restart/reset check を含みます。最後の physical Live validation は scope を限定した 0.1.4 run のままです。
+
+## 0.1.5
+
+- default exposure を **120 sensor rows** に設定します。gamma は **2.2**、brightness は **1.20×** のままです。
+- owner による acceptable color/field of view の visual confirmation を記録しますが、optical/color calibration を意味しません。
+
+five-minute physical validation は 0.1.4 に適用されます。この default-setting update は UI/integration suite と Windows release build で確認しました。
+
+## 0.1.4
+
+- enumeration 後、supported camera が一台なら自動選択し、**Load camera** で開きます。複数 camera では選択が必要で、missing selected camera を別 device に黙って置換しません。
+- opening screen instruction を短縮します。
+
+validation: **26 UI tests** と independent review が pass しました。exact Windows build は実 GR300 Live acquisition **336.2 seconds**、independent pixel agreement を伴う PNG/RAW/Bayer TIFF export、normal GUI/helper exit を完了しました。process/protective lock は残りませんでした。owner は manual resize と size retention を確認しました。color/optical qualification と picker round-trip resizing はこの run の範囲外です。[scoped validation record](docs/validation/validation-0.1.4.json) を参照してください。
+
+## 0.1.3
+
+- Live status bar/export panel を簡潔にし、technical counter/startup diagnostic を折り畳んだ Diagnostics section に移します。
+- capture FPS、simulation/retained-image label、actionable error を可視のままにします。
+- 各 Bayer site で必要な color neighbor だけを再構成し、layout validation は render ごとに一度にします。RGB pixel、RAW byte、recipe semantics は変更しません。synthetic Mac CPU benchmark は rendering time を約 **31–35%** 削減しましたが、Windows capture-FPS の主張ではありません。
+- preceding real-camera export に対して全 pixel を検証し、orientation、scaling、color、malformed-input の exact regression coverage を保ちます。
+
+validation: **26 UI tests** と rendering test が pass し、simulation Image/Export panel は mouse click で visual check しました。0.1.3 Windows build は新しい physical-camera run を受けていません。[performance verification](docs/validation/rendering-performance.md) を参照してください。
+
+## Additional 0.1.2 validation / 0.1.2 の追加検証
+
+公開 build はその後 SHODENSHA GR300 で **333.2 seconds** の Live acquisition、pixel-checked endpoint export、normal native shutdown を完了しました。owner は manual mouse operation を確認しました。planned start export は canceled されたため、full two-endpoint export plan は未完です。[later validation record](docs/validation/validation-0.1.2-five-minute.json) を参照してください。
+
+以下の earlier observation は original candidate scope を保ちます。
+
+## 0.1.2
+
+SHODENSHA GR300 backend 向けの focused stability update です。
+
+- valid Live window size を変化時に記憶し、native transition report がない場合や、より小さい camera picker を記述したままの場合にも保持します。
+- disconnect 後の retained image に **SIMULATION** label を表示し続けます。
+- 5 個すべての Live tab で通常の mouse press/release を行う regression test を追加します。
+- bounded pointer/navigation record、typed/pasted text を含まないこと、normal-close deadline を持つ optional simulation-only input diagnostic を追加します。この feature は distributed application では無効です。
+
+短い physical run では Live acquisition、image/sidecar export、independent pixel agreement、native GUI/helper exit code 0 を観測しました。postflight は camera process/protective interlock が残らず、WinUSB status が正常であることを確認しました。**60-second preflight-to-Connect window は証明されていないため、acceptance PASS ではありません**。final GUI binary には retained-simulation label fix も含まれますが、物理的に再試験していません。正確な scope は `docs/validation/validation-0.1.2.json` を参照してください。
+
+Windows App を通じた ordinary mouse input、physical arbitrary-resize persistence、color/field-of-view calibration は未解決です。long-duration testing は deferred です。acquisition/image-processing algorithm は変更していません。

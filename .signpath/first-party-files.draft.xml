@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Enrollment-review draft only; no signing configuration is deployed. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file-set product-name="KohdaLab Camera" product-version="${version}" file-version="${version}">
+      <include path="KohdaLab Camera.exe" />
+      <include path="continuous-helper.exe" />
+      <include path="Uninstall KohdaLab Camera.exe" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>

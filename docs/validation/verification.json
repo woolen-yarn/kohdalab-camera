@@ -1,0 +1,25 @@
+{
+  "baseline": "v042 independently implemented feature code",
+  "physical_live_dimensions": [
+    1024,
+    768
+  ],
+  "full_capture_dimensions": [
+    2048,
+    1536
+  ],
+  "full_return_live_observed": true,
+  "decoded_processed_pixels_match_independent_RAW_reconstruction": true,
+  "original_Bayer_TIFF_bytes_equal_RAW": true,
+  "normal_parent_and_three_helper_exits_verified": true,
+  "postflight_locks": 0,
+  "full_check_seconds": 183.3026213,
+  "full_check_limit_seconds": 300,
+  "earlier_live_export_run_exceeded_operator_time_limit": true,
+  "mouse_operation_qualification": "pending",
+  "optical_FOV_CFA_color_qualification": "pending",
+  "custom_resize_persistence": "pending",
+  "long_run": "deferred by user",
+  "publication_changes": "version label and bounded failure-record namespace only; new build has distinct hashes",
+  "current_release_physical_retest": "not performed"
+}
