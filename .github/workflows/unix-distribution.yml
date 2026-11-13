@@ -1,0 +1,46 @@
+name: macOS and Linux distribution
+on:
+  workflow_dispatch:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev libgl1-mesa-dev libxkbcommon-dev libwayland-dev xvfb xauth
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: python3 scripts/update_source_identity.py --check
+      - run: cargo +1.99.1 test --locked --workspace
+      - run: cargo +1.99.1 build --release --locked -p camera-lab --bin camera-lab
+      - run: packaging/unix/package.sh target/release/camera-lab dist
+      - name: Verify packaged Linux Simulation
+        if: runner.os == 'Linux'
+        run: |
+          mkdir portable extracted
+          tar -xzf dist/*-portable.tar.gz -C portable --strip-components=1
+          dpkg-deb -x dist/*.deb extracted
+          cmp portable/kohdalab-camera extracted/usr/bin/kohdalab-camera
+          xvfb-run -a python3 scripts/verify_common_control.py portable/kohdalab-camera --output dist/linux-control.json
+      - name: Verify packaged macOS Simulation
+        if: runner.os == 'macOS'
+        run: |
+          ditto -x -k dist/*-portable.zip extracted
+          codesign --verify --strict 'extracted/KohdaLab Camera.app'
+          hdiutil verify dist/*.dmg
+          python3 scripts/verify_common_control.py 'extracted/KohdaLab Camera.app/Contents/MacOS/camera-lab' --output dist/macos-control.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: camera-${{ runner.os }}-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
