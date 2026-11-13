@@ -23,13 +23,9 @@ not a legal clean-room certification.
 - [Public Micron MT9T001 datasheet reference](https://datasheet.octopart.com/MT9T001P12STC-Micron-datasheet-136597.pdf)
 - Rust registry dependencies: exact checksums are recorded in `Cargo.lock`.
   Preserve `THIRD_PARTY_NOTICES.md` and `third-party-licenses/`.
-- The local `platform` crate is project-authored MIT code.
+- The local `capability-platform` crate is project-authored MIT code.
 
-The distributed executable targets Windows x64. macOS distribution compliance,
-including the missing upstream license text for the Apple-only `dispatch`
-dependency, is outside this release's qualification scope. References and
-third-party license notices remain necessary even when old application versions
-are removed.
+Windows x64 supports the tested GR300. macOS and Linux packages provide Simulation. The dispatch manifest and a downstream notice with the standard MIT terms and author attribution accompany macOS packages.
 
 Future camera backends must use documented interfaces with a clear provenance
 and redistribution basis. Manufacturer binary reverse engineering, private
@@ -48,6 +44,6 @@ sensor dimension、public register specification、timing は public Micron MT9T
 - [Public ScopeTek research reference](https://github.com/JohnDMcMaster/uvscopetek)
 - [Public Micron MT9T001 datasheet reference](https://datasheet.octopart.com/MT9T001P12STC-Micron-datasheet-136597.pdf)
 - Rust registry dependencies: exact checksum は `Cargo.lock` に記録します。`THIRD_PARTY_NOTICES.md` と `third-party-licenses/` を保持してください。
-- local `platform` crate は project-authored MIT code です。
+- local `capability-platform` crate は project-authored MIT code です。
 
 macOS版はSimulation専用です。dispatch 0.2.0について、上流のMIT宣言と著者名を原本で保存し、標準MIT条文と著者表記を配布物に同梱します。メーカーSDKによる取得は実装していません。
