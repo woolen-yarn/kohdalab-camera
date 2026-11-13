@@ -41,8 +41,11 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | android-properties | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | arboard | 3.6.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | arrayvec | 0.7.8 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| as-raw-xcb-connection | 1.0.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | atomic-waker | 1.1.2 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | autocfg | 1.5.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| bit-set | 0.9.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| bit-vec | 0.9.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | bitflags | 1.3.2 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | bitflags | 2.13.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | block-buffer | 0.10.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -61,6 +64,7 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | cfg_aliases | 0.2.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | cgl | 0.3.2 | MIT / Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | clipboard-win | 5.4.1 | BSL-1.0 | registry+https://github.com/rust-lang/crates.io-index |
+| codespan-reporting | 0.13.1 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | color | 0.3.3 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | combine | 4.6.8 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | concurrent-queue | 2.5.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
@@ -88,6 +92,7 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | ecolor | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | eframe | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | egui | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| egui-wgpu | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | egui-winit | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | egui_glow | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | emath | 0.34.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -120,11 +125,13 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | glutin | 0.32.3 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | glutin-winit | 0.5.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | glutin_egl_sys | 0.7.1 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| glutin_glx_sys | 0.6.1 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | glutin_wgl_sys | 0.6.1 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | half | 2.7.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | hashbrown | 0.16.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | hermit-abi | 0.5.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| hexf-parse | 0.2.1 | CC0-1.0 | registry+https://github.com/rust-lang/crates.io-index |
 | icu_collections | 2.3.0 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | icu_locale_core | 2.3.0 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | icu_normalizer | 2.3.0 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -149,6 +156,7 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | kurbo | 0.13.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | libc | 0.2.190 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | libloading | 0.8.9 | ISC | registry+https://github.com/rust-lang/crates.io-index |
+| libm | 0.2.16 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | libredox | 0.1.25 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | linebender_resource_handle | 0.1.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | linux-raw-sys | 0.12.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
@@ -164,6 +172,7 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | moxcms | 0.8.1 | BSD-3-Clause OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| naga | 29.0.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | ndk | 0.9.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | ndk-context | 0.1.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | ndk-sys | 0.6.0+11769913 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -211,6 +220,8 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | polling | 3.11.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | pollster | 0.4.0 | Apache-2.0/MIT | registry+https://github.com/rust-lang/crates.io-index |
 | polycool | 0.4.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| portable-atomic | 1.15.0 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
+| portable-atomic-util | 0.2.8 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | potential_utf | 0.1.6 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | proc-macro-crate | 3.5.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -225,7 +236,10 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | redox_syscall | 0.4.1 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | redox_syscall | 0.5.18 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | redox_syscall | 0.9.4 | MIT | registry+https://github.com/rust-lang/crates.io-index |
+| renderdoc-sys | 1.1.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | rfd | 0.17.2 | MIT | registry+https://github.com/rust-lang/crates.io-index |
+| rustc-hash | 1.1.0 | Apache-2.0/MIT | registry+https://github.com/rust-lang/crates.io-index |
+| rustc-hash | 2.1.3 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | rustix | 0.38.44 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | rustix | 1.1.5 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
@@ -270,9 +284,11 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | toml_parser | 1.1.5+spec-1.1.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | tracing | 0.1.44 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | tracing-core | 0.1.36 | MIT | registry+https://github.com/rust-lang/crates.io-index |
+| type-map | 0.5.1 | MIT/Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | typenum | 1.20.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| unicode-width | 0.2.3 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | url | 2.5.8 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | uuid | 1.26.1 | Apache-2.0 OR MIT | registry+https://github.com/rust-lang/crates.io-index |
@@ -299,6 +315,12 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | web-time | 1.1.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | webbrowser | 1.2.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | weezl | 0.1.12 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| wgpu | 29.0.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| wgpu-core | 29.0.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| wgpu-core-deps-windows-linux-android | 29.0.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| wgpu-hal | 29.0.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| wgpu-naga-bridge | 29.0.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
+| wgpu-types | 29.0.4 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | winapi-util | 0.1.11 | Unlicense OR MIT | registry+https://github.com/rust-lang/crates.io-index |
 | windows-link | 0.2.1 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | windows-sys | 0.52.0 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
@@ -326,6 +348,7 @@ target-specific dependency を含む解決済み public crate を以下に示し
 | winit | 0.30.13 | Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | winnow | 1.0.4 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | writeable | 0.6.4 | Unicode-3.0 | registry+https://github.com/rust-lang/crates.io-index |
+| x11-dl | 2.21.0 | MIT | registry+https://github.com/rust-lang/crates.io-index |
 | x11rb | 0.13.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | x11rb-protocol | 0.13.2 | MIT OR Apache-2.0 | registry+https://github.com/rust-lang/crates.io-index |
 | xcursor | 0.3.11 | MIT | registry+https://github.com/rust-lang/crates.io-index |
