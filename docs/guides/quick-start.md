@@ -1,7 +1,6 @@
 # KohdaLab Camera quick start
 
-KohdaLab Camera is currently distributed for Windows x64. Its supported physical
-configuration is the owner-confirmed **SHODENSHA GR300**, using the tested
+Use the [OS download table](../../README.md#downloads--ダウンロード) for Windows x64, macOS Apple Silicon and Linux x64. The verified physical setup uses Windows x64 and the owner-confirmed **SHODENSHA GR300**, using the tested
 Micron MT9T001 / USB `0547:4d33` configuration with an existing WinUSB binding.
 Other GR300 units, cameras with the same USB ID, and other camera models are not
 automatically supported. See [camera support](../reference/hardware.md) for the exact
@@ -12,10 +11,9 @@ scope.
 ![Camera selection with Simulation selected](../images/camera-selection.png)
 
 The screenshots show the native development preview in Simulation on macOS.
-The distributed executable is Windows x64; window decorations differ.
+Window decorations vary by platform.
 
-1. Extract the complete Windows portable ZIP. Keep `KohdaLab Camera.exe`,
-   `continuous-helper.exe`, and the included license files in the same folder.
+1. Install the package for your OS or extract the entire portable archive. On Windows, keep the executable, acquisition helper and licenses together.
 2. Start **KohdaLab Camera**. The title bar shows the installed application
    version.
 3. If one supported USB camera is found, it is selected automatically. Select
