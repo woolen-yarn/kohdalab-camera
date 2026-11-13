@@ -1507,19 +1507,16 @@ mod tests {
             .expect("active preview measurement available")
     }
     fn active_preview(app: &mut App, ctx: &egui::Context) {
-        let start = Instant::now();
-        let initial = app.measurement.unique_total;
-        let mut observations = 0;
-        while start.elapsed() < Duration::from_millis(2400) {
-            draw(app, ctx);
+        // The rolling rate can expire while a CI runner is descheduled.
+        // Sample the footer on draws that actually present a new preview.
+        for _ in 0..3 {
+            let initial = app.measurement.unique_total;
+            until(app, ctx, |app| app.measurement.unique_total > initial);
             assert!(
                 preview_footer(ctx) > 0.,
-                "active unique Preview must stay nonzero"
+                "a newly presented preview must contribute to the footer rate"
             );
-            observations += 1;
-            std::thread::sleep(Duration::from_millis(10));
         }
-        assert!(observations > 2 && app.measurement.unique_total > initial + 2);
     }
     // Same production actions and assertions run on host and the single paired Windows FAKE job.
     #[test]

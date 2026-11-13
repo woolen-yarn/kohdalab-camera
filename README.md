@@ -10,7 +10,7 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
 実験室用カメラの取得、ライブ表示、再現可能な画像出力を行う Rust デスクトップアプリケーションです。
 
-[Download / ダウンロード](https://github.com/woolen-yarn/kohdalab-camera/releases) · [Documentation / ドキュメント](docs/README.md) · [Report an issue / Issue を報告](https://github.com/woolen-yarn/kohdalab-camera/issues)
+[Download / ダウンロード](#downloads--ダウンロード) · [Documentation / ドキュメント](docs/README.md) · [Report an issue / Issue を報告](https://github.com/woolen-yarn/kohdalab-camera/issues)
 
 - Live preview with exposure/gain controls and image adjustments.
 
@@ -22,6 +22,22 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
   物理セッションは分離された取得ヘルパーが所有し、ハードウェアなしの Simulation も利用可能です。
 
+## Downloads / ダウンロード
+
+**KohdaLab Camera 1.0.0**
+
+| Platform / OS | Install / インストール版 | Portable / ポータブル版 | Hardware validation / 実機検証 |
+| --- | --- | --- | --- |
+| Windows x64 | [Setup (.exe)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.0/KohdaLab-Camera-1.0.0-Setup.exe) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.0/kohdalab-camera-1.0.0-windows-x64.zip) | GR300 with existing WinUSB, verified on Needlefish / needlefish の GR300（既存 WinUSB）で確認済み |
+| macOS arm64 | [DMG](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.0/kohdalab-camera-1.0.0-macos-arm64.dmg) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.0/kohdalab-camera-1.0.0-macos-arm64-portable.zip) | Simulation only / Simulation 専用 |
+| Ubuntu 22.04+ x64 (X11 or XWayland) | [DEB](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.0/kohdalab-camera-1.0.0-linux-x64.deb) | [tar.gz](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.0/kohdalab-camera-1.0.0-linux-x64-portable.tar.gz) | Simulation only / Simulation 専用 |
+
+Windows packages are unsigned. The macOS application is ad hoc signed and is not notarized. Windows Setup installs in `C:\Program Files\Kohdalab\KohdaLab Camera`. Extract the entire portable archive before launching.
+
+Windows 版は未署名、macOS 版はアドホック署名で未公証です。Windows Setup のインストール先は `C:\Program Files\Kohdalab\KohdaLab Camera` です。ポータブル版はアーカイブ全体を展開してから起動してください。
+
+[Release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.0) · [SHA-256](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.0/SHA256SUMS.txt) · [Source ZIP / ソース](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.0/kohdalab-camera-1.0.0-source.zip)
+
 ## Interface / 画面
 
 ![KohdaLab Camera interface](docs/images/image-controls.png)
@@ -29,20 +45,6 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 Native interface in Simulation on macOS. Window decorations differ by platform.
 
 macOS の Simulation で撮影した画面です。ウィンドウ装飾は OS により異なります。
-
-## Downloads / ダウンロード
-
-| Platform | Installer | Portable | Acquisition |
-| --- | --- | --- | --- |
-| Windows x64 | Setup.exe | ZIP | GR300 with existing WinUSB, or Simulation |
-| macOS arm64 | DMG | ZIP | Simulation |
-| Ubuntu 22.04+ x64 (X11 or XWayland) | DEB | TAR.GZ | Simulation |
-
-v1.0.0 packages and SHA-256 checksums are listed on the release page when available.
-Windows packages are unsigned. The macOS application is ad hoc signed and is not notarized.
-Windows Setup installs in `C:\Program Files\Kohdalab\KohdaLab Camera`.
-
-v1.0.0 の配布物とSHA-256はリリースページを参照してください。Windows x64は既存WinUSBを使用するGR300実機とSimulationに対応します。macOS arm64とUbuntu x64はSimulation専用です。Windowsは未署名、macOSはアドホック署名で公証なしです。
 
 ### Optional GUI control API
 
