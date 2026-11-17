@@ -26,15 +26,15 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
 ## Downloads / ダウンロード
 
-[Latest stable release / 最新安定版](https://github.com/woolen-yarn/kohdalab-camera/releases/latest) · [v1.0.3 release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.3)
+[Latest stable release / 最新安定版](https://github.com/woolen-yarn/kohdalab-camera/releases/latest) · [v1.0.4 release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.4)
 
 | OS / 対応環境 | Installer / インストーラー | Portable / ポータブル |
 | --- | --- | --- |
-| Windows x64 | [Setup (.exe)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.3/KohdaLab-Camera-1.0.3-Setup.exe) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.3/kohdalab-camera-1.0.3-windows-x64.zip) |
-| macOS Apple Silicon · Simulation only / シミュレーション専用 | [DMG](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.3/kohdalab-camera-1.0.3-macos-arm64.dmg) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.3/kohdalab-camera-1.0.3-macos-arm64-portable.zip) |
-| Ubuntu 22.04+ x64 (X11/XWayland) · Simulation only / シミュレーション専用 | [DEB](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.3/kohdalab-camera-1.0.3-linux-x64.deb) | [tar.gz](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.3/kohdalab-camera-1.0.3-linux-x64-portable.tar.gz) |
+| Windows x64 | [Setup (.exe)](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.4/KohdaLab-Camera-1.0.4-Setup.exe) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.4/kohdalab-camera-1.0.4-windows-x64.zip) |
+| macOS Apple Silicon · Simulation only / シミュレーション専用 | [DMG](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.4/kohdalab-camera-1.0.4-macos-arm64.dmg) | [ZIP](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.4/kohdalab-camera-1.0.4-macos-arm64-portable.zip) |
+| Ubuntu 22.04+ x64 (X11/XWayland) · Simulation only / シミュレーション専用 | [DEB](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.4/kohdalab-camera-1.0.4-linux-x64.deb) | [tar.gz](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.4/kohdalab-camera-1.0.4-linux-x64-portable.tar.gz) |
 
-[SHA-256](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.3/SHA256SUMS.txt) · [Source ZIP / ソース](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.3/kohdalab-camera-1.0.3-source.zip)
+[SHA-256](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.4/SHA256SUMS.txt) · [Source ZIP / ソース](https://github.com/woolen-yarn/kohdalab-camera/releases/download/v1.0.4/kohdalab-camera-1.0.4-source.zip)
 
 Windows packages are unsigned. The macOS application is ad hoc signed and is not notarized. Windows Setup installs in `C:\Program Files\Kohdalab\KohdaLab Camera`. Extract the entire portable archive before launching.
 
