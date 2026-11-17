@@ -3,7 +3,7 @@
 # KohdaLab Camera
 
 [![CI](https://github.com/woolen-yarn/kohdalab-camera/actions/workflows/windows-unsigned.yml/badge.svg)](https://github.com/woolen-yarn/kohdalab-camera/actions/workflows/windows-unsigned.yml)
-[![Release](https://img.shields.io/github/v/release/woolen-yarn/kohdalab-camera)](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
+[![Release](https://img.shields.io/github/v/release/woolen-yarn/kohdalab-camera)](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.5)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Rust desktop application for laboratory camera acquisition, live imaging, and reproducible image export.
@@ -26,7 +26,7 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
 ## Downloads / ダウンロード
 
-[Latest stable release / 最新安定版](https://github.com/woolen-yarn/kohdalab-camera/releases/latest) · [v1.0.5 release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.5)
+[Stable release / 安定版](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.5) · [v1.0.5 release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.5)
 
 | OS / 対応環境 | Installer / インストーラー | Portable / ポータブル |
 | --- | --- | --- |
@@ -181,3 +181,5 @@ Project code is [MIT licensed](LICENSE). Native helpers and redistributed depend
 [Control Protocol 1 and Python/Notebook examples / 共通APIとPython・Notebook](docs/reference/common-control-api.md). The existing application API remains supported; operation payloads and safety policy are app-specific. Camera is read-only. / 既存APIは維持し、操作引数と安全方針は各アプリに従います。Cameraは読み取り専用です。
 
 See [Measurement output bundles / 測定データの保存セット](docs/reference/measurement-output.md) for common file roles and unit conventions.
+
+[One-click distribution / ワンクリック配布](DISTRIBUTION.md)

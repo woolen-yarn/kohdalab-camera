@@ -1,0 +1,138 @@
+name: Distribute
+'on':
+  workflow_dispatch:
+    inputs:
+      verify_only:
+        description: Build and test without creating a release
+        type: boolean
+        default: false
+        required: false
+  pull_request:
+    paths:
+    - .github/workflows/distribute.yml
+    - .github/distribution/**
+permissions:
+  contents: read
+concurrency:
+  group: distribution-${{ github.event_name }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.13'
+    - run: python -m unittest discover -s .github/distribution -p "test_*.py" -v
+  distribute:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: target
+      RUST_VERSION: 1.99.1
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+    - name: Verify selected branch
+      shell: bash
+      env:
+        EXPECTED_BRANCH: ${{ github.event.repository.default_branch }}
+      run: test "$GITHUB_REF" = "refs/heads/$EXPECTED_BRANCH" || test "${{ inputs.verify_only }}" = true
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Configure pinned Rust and GNU tools
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        rustup toolchain install $env:RUST_VERSION --profile minimal --target x86_64-pc-windows-gnu
+        if ($LASTEXITCODE) { throw 'Rust installation failed' }
+        rustup override set $env:RUST_VERSION
+        $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+        $tools = Split-Path $gcc
+        if (!(Test-Path (Join-Path $tools 'windres.exe'))) { throw 'GNU resource compiler missing' }
+        "CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=$gcc" >> $env:GITHUB_ENV
+        "WINDRES=$(Join-Path $tools 'windres.exe')" >> $env:GITHUB_ENV
+        $tools >> $env:GITHUB_PATH
+        rustc -Vv
+        cargo -V
+        & $gcc --version
+    - name: Check third-party license inventory
+      run: python scripts/check_third_party_licenses.py
+    - name: Common GUI control SDK (device-free)
+      run: python -m unittest discover -s bindings/control -p "test_*.py" -v
+    - name: Common control Rust contract
+      run: cargo test --locked --target x86_64-pc-windows-gnu --package kohdalab-control-protocol
+    - name: Verify committed source identity and packaging checks
+      shell: pwsh
+      run: |
+        python scripts/update_source_identity.py --check
+        if ($LASTEXITCODE) { throw 'Source identity mismatch' }
+        python scripts/test_build_windows_installer.py
+        if ($LASTEXITCODE) { throw 'Packaging tests failed' }
+    - name: Test camera policy and GUI without hardware
+      shell: pwsh
+      run: |
+        # Windows fixture tests use the real bounded helper with synthetic frames.
+        cargo build --locked --target x86_64-pc-windows-gnu --package continuous-helper-entry --bin continuous-helper
+        if ($LASTEXITCODE) { throw 'Fixture helper build failed' }
+        New-Item -ItemType Directory -Force target/x86_64-pc-windows-gnu/debug/deps | Out-Null
+        Copy-Item target/x86_64-pc-windows-gnu/debug/continuous-helper.exe target/x86_64-pc-windows-gnu/debug/deps/continuous-helper.exe
+        $env:INTEGRATED_UX_FAKE_ROOT = Join-Path $env:RUNNER_TEMP ('camera-fixture-' + [Guid]::NewGuid().ToString('N'))
+        cargo test --locked --target x86_64-pc-windows-gnu --lib control_api
+        if ($LASTEXITCODE) { throw 'Common API authentication tests failed' }
+        cargo test --locked --target x86_64-pc-windows-gnu --lib driver_policy
+        if ($LASTEXITCODE) { throw 'Driver policy tests failed' }
+        cargo test --locked --target x86_64-pc-windows-gnu --lib image_export::
+        if ($LASTEXITCODE) { throw 'Image/raw recording contract tests failed' }
+        cargo test --locked --target x86_64-pc-windows-gnu --lib measurement::
+        if ($LASTEXITCODE) { throw 'Frame provenance tests failed' }
+        cargo test --locked --target x86_64-pc-windows-gnu --lib interlock_recovery
+        if ($LASTEXITCODE) { throw 'Interlock recovery tests failed' }
+        cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab preferences
+        if ($LASTEXITCODE) { throw 'Preferences tests failed' }
+        cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab natural_ui -- --test-threads=1
+        if ($LASTEXITCODE) { throw 'GUI tests failed' }
+    - name: Build Windows application and helper
+      shell: pwsh
+      run: |
+        cargo build --locked --release --target x86_64-pc-windows-gnu --package camera-lab --bin camera-lab --package continuous-helper-entry --bin continuous-helper
+        if ($LASTEXITCODE) { throw 'Release build failed' }
+    - name: Package and compile Setup
+      shell: pwsh
+      run: |
+        python scripts/package_windows.py --target-dir target --output dist
+        if ($LASTEXITCODE) { throw 'Packaging failed' }
+        python scripts/fetch_nsis.py --output "$env:RUNNER_TEMP/nsis"
+        if ($LASTEXITCODE) { throw 'NSIS verification failed' }
+        $version = (Get-Content dist/windows/RELEASE-MANIFEST.json -Raw | ConvertFrom-Json).version
+        python scripts/build_windows_installer.py --payload dist/windows --output "dist/KohdaLab-Camera-$version-Setup.exe" --makensis "$env:RUNNER_TEMP/nsis/nsis-3.12/Bin/makensis.exe" --export-uninstaller "signing-inputs/Uninstall KohdaLab Camera.exe"
+        if ($LASTEXITCODE) { throw 'Installer build failed' }
+        Copy-Item 'dist/windows/KohdaLab Camera.exe','dist/windows/continuous-helper.exe' signing-inputs
+    - name: Validate installation and executable metadata
+      shell: pwsh
+      run: |
+        ./scripts/validate_windows_release.ps1 -DistributionDirectory dist -SigningInputsDirectory signing-inputs
+    - name: Record build origin and final checksums
+      shell: pwsh
+      run: |
+        python scripts/finalize_ci_artifacts.py --distribution dist --signing-inputs signing-inputs
+        if ($LASTEXITCODE) { throw 'Artifact checks failed' }
+        git diff --exit-code
+        if ($LASTEXITCODE) { throw 'Build modified committed source' }
+    - name: Validate publisher
+      run: python -m unittest discover -s .github/distribution -p "test_*.py" -v
+    - name: Publish verified distribution directly to Releases
+      if: ${{ !inputs.verify_only }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        DISTRIBUTION_BRANCH: ${{ github.event.repository.default_branch }}
+        DISTRIBUTION_QUALIFICATION: Windows CI tests and package validation. Physical-device acceptance follows the separately documented model and connection matrix.
+      run: python .github/distribution/publish_distribution.py --directory dist --portable-glob "*windows-x64.zip" --alias kohdalab-camera-windows.zip
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    needs: validate

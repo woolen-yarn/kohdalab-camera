@@ -39,8 +39,10 @@ jobs:
           codesign --verify --strict 'extracted/KohdaLab Camera.app'
           hdiutil verify dist/*.dmg
           python3 scripts/verify_common_control.py 'extracted/KohdaLab Camera.app/Contents/MacOS/camera-lab' --output dist/macos-control.json
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
+          retention-days: 7
           name: camera-${{ runner.os }}-${{ github.sha }}
           path: dist/*
           if-no-files-found: error
