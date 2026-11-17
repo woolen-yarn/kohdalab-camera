@@ -35,6 +35,47 @@ Windows の保存ダイアログを開いている間は、GUI が2秒の期限�
 `control.status` を処理できない場合があります。ダイアログを閉じてから
 状態を再取得してください。
 
+### Camera `control.config`
+
+The top-level `mode`, `exposure_rows` and `gain_eighths` keep their earlier
+meaning: the GUI draft, which may not be applied yet. Additional fields come
+only from the Worker snapshot the GUI holds for that update:
+
+| Field | Meaning |
+| --- | --- |
+| `draft` | The same GUI draft as the top-level fields |
+| `requested` | Settings and `generation` last sent to the Worker, or `null` |
+| `applied` | Settings and `generation` that the Worker has checked as live for the current request, or `null` if this is not confirmed |
+| `applied_generation` | `applied.generation`, or `null` |
+| `apply_state` | `none`, `pending`, `applied`, `unconfirmed` (streaming, but settings not checked, e.g. Simulation), `stopping` or `failed` |
+
+While a new Apply is pending, and after Stop, disconnection, an error or a
+disabled restart, `applied` is `null`. Earlier settings are never reported as
+the current ones. During Full capture, `applied.mode` is the Full profile
+while the draft keeps the Live profile.
+
+`control.config` の最上位 `mode/exposure_rows/gain_eighths` は従来どおり GUI の下書き
+（未適用の場合あり）です。`draft` は同じ下書きです。`applied` には、Worker が現在の要求を
+確認して適用した値と世代が入ります。確認できない場合は `null` です。Apply の処理中、停止後、
+切断時、異常時には、以前の適用値を現在の値として返しません。
+
+### Framing and refusals / 応答形式と拒否
+
+Every response is exactly one newline-terminated JSON record. This includes
+early refusals made before the GUI is involved: malformed JSON, a non-object
+request, an incomplete request and a wrong token. Malformed, non-object and
+incomplete requests keep the legacy `{ok:false,error_code,error}` shape.
+A wrong token on a `control.*` request returns the common error with
+`error.code: "authentication"`, and the request never reaches the GUI. The
+SDK therefore reports `authentication`, not `transport`. Authenticated
+operations that Camera does not implement reach the GUI and return
+`error.code: "unsupported"` from the running application. The SDK's local
+refusal for operations missing from `describe()` is a separate check.
+
+すべての応答は改行で終わる1行のJSONです。GUIに渡す前の拒否も同じです。誤ったトークンを
+送ると、SDK は `transport` ではなく `authentication` として報告します。認証後の未対応の
+操作には、実行中のアプリが `unsupported` を返します。
+
 ## Contract / 通信仕様
 
 | Area | Common behavior |

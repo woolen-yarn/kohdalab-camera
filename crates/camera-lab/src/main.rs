@@ -304,7 +304,8 @@ impl App {
                                 serde_json::json!({"ok":true,"result":{"phase":phase,"busy":s.active,"ownership":{"owned":false},"cleanup":if cleanup_unproved || phase=="error" {"unknown"}else if phase=="stopping" {"pending"}else{"not_required"},"native":{"active":s.active,"message":s.message,"source_selected":self.source.is_some()}}})
                             }
                             "config" => {
-                                serde_json::json!({"ok":true,"result":{"mode":self.settings.mode.profile().id,"exposure_rows":self.settings.exposure_rows,"gain_eighths":self.settings.gain_eighths}})
+                                // Draft plus applied state from this tick's Worker snapshot only.
+                                serde_json::json!({"ok":true,"result":camera_lab::control_api::config(self.settings, &self.session)})
                             }
                             _ => {
                                 serde_json::json!({"ok":false,"error_code":"unsupported","error":"This Camera adapter exposes read-only control.* methods; use the GUI for device operations"})

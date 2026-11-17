@@ -502,3 +502,76 @@ fn control_status_preserves_pending_gui_frame() {
     app.worker.close();
     guardian.wait();
 }
+
+#[test]
+fn authenticated_unsupported_operation_and_config_are_answered_by_the_gui() {
+    use super::*;
+    use std::{
+        io::{BufRead, BufReader, Write},
+        net::{Ipv4Addr, TcpStream},
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = egui::Context::default();
+    let mut app = App::with_exporter(&ctx, |_, _| Ok(()));
+    app.settings.exposure_rows = 321; // An unapplied GUI draft.
+    let (request_ready, request_pending) = mpsc::sync_channel(2);
+    let server = camera_lab::control_api::Server::start_with_wake(
+        Some(dir.path().join("control")),
+        move || {
+            let _ = request_ready.try_send(());
+        },
+    )
+    .unwrap();
+    let descriptor: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&server.descriptor).unwrap()).unwrap();
+    let port = descriptor["port"].as_u64().unwrap() as u16;
+    let send = |body: serde_json::Value| {
+        let mut peer = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
+        peer.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+        writeln!(peer, "{body}").unwrap();
+        peer
+    };
+    let capture = send(serde_json::json!({
+        "control_protocol": 1,
+        "method": "control.capture",
+        "token": descriptor["token"],
+        "request_id": "capture-request",
+    }));
+    request_pending
+        .recv_timeout(Duration::from_secs(3))
+        .unwrap();
+    let config = send(serde_json::json!({
+        "control_protocol": 1,
+        "method": "control.config",
+        "token": descriptor["token"],
+    }));
+    request_pending
+        .recv_timeout(Duration::from_secs(3))
+        .unwrap();
+
+    app.control_api = Some(server);
+    app.process_control_api();
+    let read = |peer: TcpStream| {
+        let mut line = String::new();
+        BufReader::new(peer).read_line(&mut line).unwrap();
+        assert!(line.ends_with('\n'));
+        serde_json::from_str::<serde_json::Value>(&line).unwrap()
+    };
+    let capture = read(capture);
+    assert_eq!(capture["control_protocol"], 1);
+    assert_eq!(capture["ok"], false);
+    assert_eq!(capture["request_id"], "capture-request");
+    assert_eq!(capture["error"]["code"], "unsupported");
+    assert_eq!(capture["error"]["application_code"], "unsupported");
+
+    let config = read(config);
+    assert_eq!(config["ok"], true);
+    let result = &config["result"];
+    assert_eq!(result["exposure_rows"], 321);
+    assert_eq!(result["draft"]["exposure_rows"], 321);
+    assert_eq!(result["mode"], app.settings.mode.profile().id);
+    assert_eq!(result["gain_eighths"], app.settings.gain_eighths);
+    assert_eq!(result["applied"], serde_json::Value::Null);
+    assert_eq!(result["applied_generation"], serde_json::Value::Null);
+    assert_eq!(result["apply_state"], "none");
+}

@@ -8,6 +8,7 @@ shared ``bindings/control`` SDK, and never opens a physical camera.
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import json
 import os
 from pathlib import Path
@@ -15,9 +16,59 @@ import subprocess
 import tempfile
 import time
 import sys
+import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bindings" / "control"))
-from kohdalab_control import ControlClient, ControlError  # noqa: E402
+from kohdalab_control import ControlClient, ControlError, Endpoint  # noqa: E402
+
+
+def check_config(config: dict) -> None:
+    """Legacy top-level fields stay the GUI draft; applied is null until proved."""
+    draft = config.get("draft")
+    if not isinstance(draft, dict):
+        raise RuntimeError("control.config lacks an explicit draft")
+    for key in ("mode", "exposure_rows", "gain_eighths"):
+        if key not in config or config[key] != draft.get(key):
+            raise RuntimeError(f"control.config top-level {key} is not the draft")
+    if "applied" not in config or "applied_generation" not in config:
+        raise RuntimeError("control.config lacks applied/applied_generation")
+    # The fake GUI never streams hardware-checked settings.
+    if config["applied"] is not None or config["applied_generation"] is not None:
+        raise RuntimeError("Simulation must not report applied camera settings")
+
+
+def check_wrong_token(endpoint: Endpoint) -> None:
+    """A real server refusal must be a terminated record classified as authentication."""
+    wrong = replace(endpoint, token=str(uuid.uuid4()))
+    try:
+        ControlClient(endpoint=wrong).status()
+    except ControlError as error:
+        if error.code != "authentication" or error.outcome_unknown:
+            raise RuntimeError(
+                f"Wrong token was classified as {error.code!r}, not authentication"
+            ) from error
+    else:
+        raise RuntimeError("Camera accepted a wrong token")
+
+
+def check_server_unsupported(client: ControlClient) -> None:
+    """Bypass the SDK's describe() pre-check so the running GUI must refuse."""
+    request_id = str(uuid.uuid4())
+    try:
+        # _call sends directly; invoke() would refuse locally before any I/O.
+        client._call("capture", request_id=request_id)
+    except ControlError as error:
+        if (
+            error.code != "unsupported"
+            or error.application_code != "unsupported"
+            or error.request_id != request_id
+            or error.outcome_unknown
+        ):
+            raise RuntimeError(
+                f"Server refusal was {error.code!r}/{error.application_code!r}"
+            ) from error
+    else:
+        raise RuntimeError("Camera server unexpectedly accepted capture")
 
 
 def main() -> int:
@@ -63,6 +114,10 @@ def main() -> int:
                 raise RuntimeError("Read-only inspection must not assert cleanup proof")
             if not status or not isinstance(config, dict):
                 raise RuntimeError("Invalid status/config response")
+            check_config(config)
+            check_wrong_token(client.endpoint)
+            check_server_unsupported(client)
+            # The SDK's own pre-dispatch refusal is a separate, local guard.
             try:
                 client.invoke("capture")
             except ControlError as error:
@@ -75,6 +130,9 @@ def main() -> int:
                 "application": description["application"],
                 "methods": description["methods"],
                 "unsupported_mutation": "capture",
+                "server_unsupported_mutation": "capture",
+                "wrong_token": "authentication",
+                "config_apply_state": config["apply_state"],
                 "hardware_connected": False,
                 "simulation": True,
                 "descriptor": str(endpoint),
