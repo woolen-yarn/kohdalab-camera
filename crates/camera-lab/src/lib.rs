@@ -33,6 +33,9 @@ pub struct Metadata {
     pub sequence: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub measurement: Option<measurement::Observation>,
+    /// `0` means not observed. Saved files write it as `null`; reading accepts
+    /// either a number or `null` (see `measurement::saved_timestamp_ms`).
+    #[serde(deserialize_with = "measurement::unix_millis_or_unknown")]
     pub unix_millis: u128,
     pub width: u32,
     pub height: u32,
@@ -381,7 +384,8 @@ pub fn export(f: &Frame, path: &Path) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         image_export::write_new(
             &metadata,
-            &serde_json::to_vec_pretty(&f.metadata).map_err(|e| e.to_string())?,
+            &serde_json::to_vec_pretty(&measurement::saved_metadata(&f.metadata)?)
+                .map_err(|e| e.to_string())?,
         )?;
         image_export::write_standard_sidecars(
             f,

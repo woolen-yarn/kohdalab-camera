@@ -277,8 +277,11 @@ fn frozen_recipe_primary_png_tiff_literal_pixels_and_raw_unchanged() {
                 .unwrap();
         assert_eq!(
             metadata["frame"],
-            serde_json::to_value(&f.metadata).unwrap()
+            camera_lab::measurement::saved_metadata(&f.metadata).unwrap()
         );
+        // The fixture has no observed time: saved as null, never epoch zero.
+        assert!(metadata["frame"]["unix_millis"].is_null());
+        assert!(metadata["host_timestamp"]["timestamp_ms"].is_null());
         assert_eq!(
             metadata["display_recipe"],
             serde_json::to_value(recipe).unwrap()

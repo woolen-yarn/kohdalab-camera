@@ -227,6 +227,75 @@ pub fn timestamp_semantics(m: &crate::Metadata) -> &'static str {
         "Host accepted-frame completion UTC unavailable; legacy unix_millis has unspecified semantics; sensor exposure time unavailable"
     }
 }
+
+/// True only when a valid observation for this exact frame carries the same
+/// non-zero host acceptance UTC that `unix_millis` reports.
+fn verified_observation(m: &crate::Metadata) -> bool {
+    m.unix_millis != 0
+        && m.measurement.as_ref().is_some_and(|o| {
+            o.valid_for(m)
+                && o.host_accepted_completion_unix_ms
+                    .is_some_and(|t| u128::from(t) == m.unix_millis)
+        })
+}
+
+/// Saved frame time. `0` is the in-memory "not observed" sentinel (it is never
+/// a real capture instant), so it is reported as `None` and written as JSON
+/// `null` / an empty CSV cell, never as epoch zero.
+///
+/// Verified observations and non-zero values without observation (Simulation
+/// wall-clock values, legacy inputs) are kept; `timestamp_status` states which.
+pub fn saved_timestamp_ms(m: &crate::Metadata) -> Option<u128> {
+    (m.unix_millis != 0).then_some(m.unix_millis)
+}
+
+/// Machine-readable provenance of [`saved_timestamp_ms`]. Fixed vocabulary.
+pub fn timestamp_status(m: &crate::Metadata) -> &'static str {
+    if saved_timestamp_ms(m).is_none() {
+        "unknown"
+    } else if verified_observation(m) {
+        "observed_host_accepted_completion"
+    } else if m.simulated && m.measurement.is_none() {
+        "simulation_host_clock_not_observed"
+    } else {
+        "legacy_unverified"
+    }
+}
+
+/// Human-readable meaning for every [`timestamp_status`] value.
+pub fn timestamp_status_meaning(status: &str) -> &'static str {
+    match status {
+        "observed_host_accepted_completion" => {
+            "Verified host UTC at acceptance of the complete frame; not sensor exposure time"
+        }
+        "simulation_host_clock_not_observed" => {
+            "Software simulation host clock at frame generation; no acquisition observation; not sensor exposure time"
+        }
+        "legacy_unverified" => {
+            "Value carried from legacy or unobserved input without acquisition observation; semantics unspecified; not sensor exposure time"
+        }
+        _ => "Not observed; null/empty means unknown, never epoch zero",
+    }
+}
+
+/// Saved representation of frame metadata: identical to the public serde form
+/// except that an unknown `unix_millis` is JSON `null`.
+pub fn saved_metadata(m: &crate::Metadata) -> Result<serde_json::Value, String> {
+    let mut value = serde_json::to_value(m).map_err(|e| e.to_string())?;
+    if saved_timestamp_ms(m).is_none() {
+        value["unix_millis"] = serde_json::Value::Null;
+    }
+    Ok(value)
+}
+
+/// Reads saved `unix_millis`: numbers unchanged, `null` as the in-memory
+/// unknown sentinel. Keeps existing numeric inputs and new saved files loadable.
+pub(crate) fn unix_millis_or_unknown<'de, D>(deserializer: D) -> Result<u128, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<u128>::deserialize(deserializer).map(Option::unwrap_or_default)
+}
 #[cfg(test)]
 mod tests {
     use super::*;

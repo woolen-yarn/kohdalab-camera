@@ -44,6 +44,33 @@ helper is rejected before creating a physical-session interlock. Protective
 locks and uncertain cleanup continue to block reconnection; the installer does
 not remove them. Keep the complete application folder together.
 
+### Recovery after an abnormal end
+
+A crash, forced termination, power loss or unproved cleanup can leave a
+protective interlock. It is kept on purpose: the application refuses every
+reconnection to that camera and shows the steps below in **Error details**. Per-session
+interlocks are `%LOCALAPPDATA%\CameraLab\device-interlocks-v1\<device-key>.lock`;
+an older `physical-camera.lock` beside the executable blocks startup the same way.
+
+Three different things must not be confused:
+
+1. **Normal end.** A Disconnect or Close that reports verified cleanup removes
+   the interlock itself. Nothing else is needed, and only that report counts as
+   a normal end.
+2. **Diagnostic evidence.** Keep the application closed. Do not delete, rename
+   or edit the interlock file. Preserve it, the Error details text and the
+   failure records unchanged. Note in Task Manager whether any `KohdaLab Camera`
+   or `continuous-helper.exe` process remains. A startup report
+   (`--startup-report`) can be added; it does not open the camera.
+3. **Confirmation by the responsible person.** Give that evidence to the person
+   responsible for the camera and this PC. Only after they have reviewed it and
+   confirmed that no process still uses the camera may they move the interlock
+   file out of the folder and keep it with the evidence.
+
+The application never removes an interlock automatically. Do not delete it
+without that confirmation. Unplugging or power-cycling the camera, restarting
+the application or reinstalling it is not proof of cleanup by itself.
+
 For a support report without opening a camera or launching the helper:
 
 ```powershell
@@ -171,6 +198,18 @@ official SDK integration は owner の要請により deferred です。official
 ## Startup
 
 startup は bounded saved preference を load して camera を asynchronous に enumerate します。一致 device が一台なら自動選択しますが、acquisition は **Load** が押されて初めて開始します。startup で elevation、installer、driver replacement、network fetch、certificate-store update、security bypass は実行しません。helper は PATH を検索せず executable の隣から解決し、missing helper は physical-session interlock 作成前に拒否します。protective lock と不確かな cleanup は reconnection を block し続け、installer はそれを消しません。application folder は完全なまま保ってください。
+
+### 異常終了後の復旧
+
+クラッシュ、強制終了、停電、cleanup の未証明により protective interlock が残ることがあります。これは意図的に保持され、application はその camera への再接続をすべて拒否し、**Error details** に次の手順を表示します。session ごとの interlock は `%LOCALAPPDATA%\CameraLab\device-interlocks-v1\<device-key>.lock` です。executable の隣にある旧 `physical-camera.lock` も同様に startup を止めます。
+
+次の三つを混同しないでください。
+
+1. **通常の終了状態。** verified cleanup を報告した Disconnect または Close は interlock を自ら削除します。追加作業は不要で、この報告だけが通常の終了です。
+2. **診断証跡。** application を閉じたままにし、interlock file を削除・rename・編集しないでください。file、Error details の文面、failure record を変更せず保存し、Task Manager に `KohdaLab Camera` または `continuous-helper.exe` の process が残っているかを記録します。camera を開かない startup report（`--startup-report`）を添えても構いません。
+3. **担当者の確認。** その証跡を camera とこの PC の担当者に渡します。担当者が証跡を確認し、camera を使用中の process がないと確認した後に限り、担当者が interlock file をフォルダの外へ移動し、証跡と一緒に保管できます。
+
+application は interlock を自動削除しません。この確認なしに削除しないでください。camera の抜き差しや電源の入れ直し、application の再起動・再インストールだけでは cleanup の証明になりません。
 
 camera を開かず helper を起動しない support report は次です。
 

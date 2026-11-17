@@ -77,7 +77,8 @@ design influences and interaction decisions.
   rather than sensor exposure time.
 - A separate acquisition helper owns the physical session. When cleanup cannot
   be established, the application retains its protective interlock rather than
-  automatically clearing locks or resetting USB.
+  automatically clearing locks or resetting USB. See
+  [recovery after an abnormal end](windows-installation.md#recovery-after-an-abnormal-end).
 
 When one supported camera is found, it is selected automatically. Press **Load
 camera** to open Live. With multiple cameras, choose one first.
@@ -215,7 +216,7 @@ Windows download は **unsigned** です。free SignPath Foundation signing を�
 4. **Capture image…** は displayed image を export し、**Capture full sensor image…** は新しい full-resolution frame を取得して previously applied Live setting に戻します。
 5. **Disconnect** または window close で normal session end を要求します。
 
-[interface design and references](../development/interface-design.md) に UI principle を記録します。per-pixel GRBG demosaicing、linear display sampling、white balance、gamma、rotation、flip、monochrome display を備えます。brightness は正の multiplier（default **1.20×**）です。processed PNG/TIFF、original Bayer TIFF、RAW、metadata を export し既存 output name を上書きしません。status bar は capture FPS、hover は preview timing を示します。timestamp は sensor exposure time でなく complete frame を accepted した host UTC です。separate acquisition helper が physical session を所有し、cleanup を確立できない時は lock を自動解除/reset USB せず protective interlock を維持します。
+[interface design and references](../development/interface-design.md) に UI principle を記録します。per-pixel GRBG demosaicing、linear display sampling、white balance、gamma、rotation、flip、monochrome display を備えます。brightness は正の multiplier（default **1.20×**）です。processed PNG/TIFF、original Bayer TIFF、RAW、metadata を export し既存 output name を上書きしません。status bar は capture FPS、hover は preview timing を示します。timestamp は sensor exposure time でなく complete frame を accepted した host UTC です。separate acquisition helper が physical session を所有し、cleanup を確立できない時は lock を自動解除/reset USB せず protective interlock を維持します（[異常終了後の復旧](windows-installation.md#異常終了後の復旧)）。
 
 supported camera が一台なら自動選択されますが Live を開くには **Load camera** が必要です。複数なら先に選択します。image は wheel zoom、drag pan、double-click/**Image → Fit** で window に fit、**Image → 100%** は source pixel 一つを UI point 一つで示します。zoom out は initial **Fit** で止まり、selected tab 再クリックで inspector を閉じます。**100%** は Fit と maximum zoom の間にある場合だけ有効です。preview は 1024 pixels に bounded ですが export は full source dimension を保持します。camera/image setting、window size、save folder、capture numbering は記憶し、**Advanced → Reset all settings** は default に戻します。active camera では **Apply** で acquisition を更新します。save dialog は `capture_0001.png` のような name を提案し existing file/sidecar は上書きしません。default は exposure **120 sensor rows**、brightness **1.20×**、gamma **2.2**、analog gain **1×** です。
 

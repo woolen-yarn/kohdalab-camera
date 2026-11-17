@@ -23,31 +23,44 @@ fn check(ok: i32) -> io::Result<()> {
     }
 }
 
-/// Replace a completed sibling file without deleting the destination first.
-/// The caller must finish writing and close its handle before replacement.
-pub fn replace_file(source: &std::path::Path, destination: &std::path::Path) -> io::Result<()> {
+fn wide(path: &std::path::Path) -> io::Result<Vec<u16>> {
     use std::os::windows::ffi::OsStrExt;
-    fn wide(path: &std::path::Path) -> io::Result<Vec<u16>> {
-        let mut value: Vec<u16> = path.as_os_str().encode_wide().collect();
-        if value.contains(&0) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "File path contains a null character",
-            ));
-        }
-        value.push(0);
-        Ok(value)
+    let mut value: Vec<u16> = path.as_os_str().encode_wide().collect();
+    if value.contains(&0) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "File path contains a null character",
+        ));
     }
+    value.push(0);
+    Ok(value)
+}
+fn move_file(
+    source: &std::path::Path,
+    destination: &std::path::Path,
+    flags: MOVE_FILE_FLAGS,
+) -> io::Result<()> {
     let source = wide(source)?;
     let destination = wide(destination)?;
     // Both NUL-terminated buffers remain alive for this synchronous call.
-    check(unsafe {
-        MoveFileExW(
-            source.as_ptr(),
-            destination.as_ptr(),
-            MOVEFILE_REPLACE_EXISTING,
-        )
-    })
+    check(unsafe { MoveFileExW(source.as_ptr(), destination.as_ptr(), flags) })
+}
+
+/// Replace a completed sibling file without deleting the destination first.
+/// The caller must finish writing and close its handle before replacement.
+pub fn replace_file(source: &std::path::Path, destination: &std::path::Path) -> io::Result<()> {
+    move_file(source, destination, MOVEFILE_REPLACE_EXISTING)
+}
+
+/// Publish a completed, closed sibling file under a name that must not exist.
+///
+/// Flags 0: neither `MOVEFILE_REPLACE_EXISTING` nor `MOVEFILE_COPY_ALLOWED`.
+/// An existing destination fails with `ErrorKind::AlreadyExists` and is left
+/// untouched; a different volume fails instead of copying, so a partially
+/// copied destination can never become visible. On failure the source stays
+/// in place for the caller to remove. Needs no hard-link support.
+pub fn publish_new_file(source: &std::path::Path, destination: &std::path::Path) -> io::Result<()> {
+    move_file(source, destination, 0)
 }
 fn raw(h: &OwnedHandle) -> HANDLE {
     h.as_raw_handle()
@@ -1164,6 +1177,23 @@ pub fn platform_tests(exe: &std::path::Path) -> io::Result<()> {
     assert!(next.release_after_proof().is_err());
     assert_eq!(std::fs::read(&path)?, b"fake-session-one");
     println!("PASS fake-interlock retains-on-drop excludes-replacement exact-handle-delete");
+    // No-replace publication: success consumes the closed source, a collision
+    // keeps both the existing destination and the unpublished source.
+    let published = root.join("published.bin");
+    let pending = root.join("published.pending");
+    std::fs::write(&pending, b"first-complete")?;
+    publish_new_file(&pending, &published)?;
+    assert!(!pending.exists());
+    std::fs::write(&pending, b"second-complete")?;
+    assert_eq!(
+        publish_new_file(&pending, &published).unwrap_err().kind(),
+        io::ErrorKind::AlreadyExists
+    );
+    assert_eq!(std::fs::read(&published)?, b"first-complete");
+    assert_eq!(std::fs::read(&pending)?, b"second-complete");
+    std::fs::remove_file(&pending)?;
+    std::fs::remove_file(&published)?;
+    println!("PASS publish-new-file no-replace collision-preserves-both");
     // Exercise the actual retained workers, not a transport model. Two workers
     // serve 1,024 successive fixed records and are both joined on endpoint drop.
     let started = WORKERS_STARTED.load(std::sync::atomic::Ordering::Acquire);
