@@ -1,5 +1,9 @@
 //! Opt-in, loopback-only GUI control transport for Camera.
 //! The server only queues requests; the eframe App owns every Worker operation.
+use crate::{
+    controls::Settings,
+    session::{Snapshot, State},
+};
 use kohdalab_control_protocol::{descriptor, paths::AppPaths, response as common_response};
 use serde_json::{Value, json};
 use std::{
@@ -125,6 +129,15 @@ impl Drop for Permit {
 fn error(code: &str, msg: &str) -> Value {
     json!({"ok":false,"error_code":code,"error":msg})
 }
+/// The only response writer: every reply, including early refusals, is one
+/// complete JSON Lines record. Serialization happens before any byte is sent,
+/// so a peer never observes a partial or unterminated record.
+fn write_line(stream: &mut impl Write, value: &Value) -> Result<(), String> {
+    let mut line = serde_json::to_vec(value).map_err(|e| e.to_string())?;
+    line.push(b'\n');
+    stream.write_all(&line).map_err(|e| e.to_string())?;
+    stream.flush().map_err(|e| e.to_string())
+}
 fn serve(
     mut stream: TcpStream,
     token: &str,
@@ -134,32 +147,35 @@ fn serve(
     // On macOS an accepted stream can inherit the listener's nonblocking mode.
     stream.set_nonblocking(false).map_err(|e| e.to_string())?;
     let deadline = Instant::now() + TIMEOUT;
-    let body = match read(&mut stream, deadline).and_then(|b| {
+    let value = answer(&mut stream, token, sender, wake, deadline);
+    write_line(&mut stream, &value)
+}
+/// Envelope policy is unchanged: unparsable or non-object requests keep the
+/// legacy error shape; everything else uses `common_response`, which leaves
+/// native (non-`control.*`) envelopes untouched.
+fn answer(
+    stream: &mut TcpStream,
+    token: &str,
+    sender: &mpsc::SyncSender<Request>,
+    wake: &(dyn Fn() + Send + Sync),
+    deadline: Instant,
+) -> Value {
+    let body = match read(stream, deadline).and_then(|b| {
         serde_json::from_slice::<Value>(&b).map_err(|_| "Request must be JSON".into())
     }) {
         Ok(v) => v,
-        Err(e) => {
-            serde_json::to_writer(&mut stream, &error("invalid_request", &e))
-                .map_err(|x| x.to_string())?;
-            return Ok(());
-        }
+        Err(e) => return error("invalid_request", &e),
     };
     if !body.is_object() {
-        serde_json::to_writer(
-            &mut stream,
-            &error("invalid_request", "Request must be a JSON object"),
-        )
-        .map_err(|e| e.to_string())?;
-        return Ok(());
+        return error("invalid_request", "Request must be a JSON object");
     }
     let transport_error = |code, message| common_response(&body, error(code, message));
+    // Authentication precedes queueing: an unauthenticated body never reaches the GUI.
     if body.get("token").and_then(Value::as_str) != Some(token) {
-        let value = transport_error("authentication", "GUI API authentication failed");
-        serde_json::to_writer(&mut stream, &value).map_err(|e| e.to_string())?;
-        return Ok(());
+        return transport_error("authentication", "GUI API authentication failed");
     }
     let (reply, rx) = mpsc::sync_channel(1);
-    let value = match sender.try_send(Request {
+    match sender.try_send(Request {
         body: body.clone(),
         deadline,
         reply,
@@ -173,9 +189,59 @@ fn serve(
         Err(mpsc::TrySendError::Disconnected(_)) => {
             transport_error("unavailable", "GUI API is stopping")
         }
+    }
+}
+
+fn settings_json(settings: Settings) -> Value {
+    json!({
+        "mode": settings.mode.profile().id,
+        "exposure_rows": settings.exposure_rows,
+        "gain_eighths": settings.gain_eighths,
+    })
+}
+/// `control.config` result built only from the GUI draft and the Worker
+/// snapshot the GUI already holds for this tick.
+///
+/// Top-level `mode/exposure_rows/gain_eighths` remain the GUI draft for
+/// compatibility. `applied` is non-null only while the snapshot proves that the
+/// currently requested generation is streaming with checked settings; stale
+/// applied values retained across a pending request, stop, disconnect, error or
+/// disabled restart are never reported as current.
+pub fn config(draft: Settings, snapshot: &Snapshot) -> Value {
+    let failed = snapshot.restart_disabled || snapshot.state == State::Error;
+    let confirmed = !failed
+        && snapshot.state == State::Streaming
+        && snapshot.applied_revision.is_some()
+        && snapshot.applied_revision == snapshot.requested_revision;
+    let applied = snapshot
+        .applied
+        .zip(snapshot.applied_revision)
+        .filter(|_| confirmed);
+    let requested = snapshot.requested.zip(snapshot.requested_revision);
+    let apply_state = if failed {
+        "failed"
+    } else if applied.is_some() {
+        "applied"
+    } else {
+        match snapshot.state {
+            State::Connecting | State::SettingsPending => "pending",
+            State::Streaming if requested.is_some() => "unconfirmed",
+            State::Stopping => "stopping",
+            _ => "none",
+        }
     };
-    serde_json::to_writer(&mut stream, &value).map_err(|e| e.to_string())?;
-    stream.write_all(b"\n").map_err(|e| e.to_string())
+    let with_generation = |(settings, generation): (Settings, u64)| {
+        let mut value = settings_json(settings);
+        value["generation"] = json!(generation);
+        value
+    };
+    let mut result = settings_json(draft);
+    result["draft"] = settings_json(draft);
+    result["requested"] = requested.map_or(Value::Null, with_generation);
+    result["applied"] = applied.map_or(Value::Null, with_generation);
+    result["applied_generation"] = json!(applied.map(|(_, generation)| generation));
+    result["apply_state"] = json!(apply_state);
+    result
 }
 fn read(stream: &mut TcpStream, deadline: Instant) -> Result<Vec<u8>, String> {
     let mut out = Vec::new();
@@ -331,5 +397,237 @@ mod tests {
         let result: Value = serde_json::from_str(&line).unwrap();
         assert_eq!(result["error"]["application_code"], "authentication");
         assert!(server.requests.try_recv().is_err());
+    }
+
+    /// Sends raw bytes and returns everything the server writes before closing.
+    fn exchange_raw(port: u16, request: &[u8], half_close: bool) -> Vec<u8> {
+        let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        stream.write_all(request).unwrap();
+        if half_close {
+            stream.shutdown(std::net::Shutdown::Write).unwrap();
+        }
+        let mut out = Vec::new();
+        stream.read_to_end(&mut out).unwrap();
+        out
+    }
+    #[test]
+    fn every_early_refusal_is_one_newline_terminated_record_in_its_existing_shape() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = Server::start(Some(dir.path().into())).unwrap();
+        let descriptor: Value =
+            serde_json::from_slice(&std::fs::read(&server.descriptor).unwrap()).unwrap();
+        let port = descriptor["port"].as_u64().unwrap() as u16;
+        let common_bad_token = json!({
+            "control_protocol": 1,
+            "method": "control.status",
+            "token": "wrong",
+            "request_id": "bad-token",
+        });
+        let native_bad_token = json!({"method": "status", "token": "wrong"});
+        let cases: [(Vec<u8>, bool, &str); 5] = [
+            (b"not json\n".to_vec(), false, "legacy"),
+            (b"[1,2]\n".to_vec(), false, "legacy"),
+            (b"{\"method\":\"control.status\"}".to_vec(), true, "legacy"),
+            (
+                format!("{common_bad_token}\n").into_bytes(),
+                false,
+                "common",
+            ),
+            (
+                format!("{native_bad_token}\n").into_bytes(),
+                false,
+                "native",
+            ),
+        ];
+        for (request, half_close, shape) in cases {
+            let reply = exchange_raw(port, &request, half_close);
+            assert_eq!(reply.last(), Some(&b'\n'), "unterminated reply for {shape}");
+            assert_eq!(reply.iter().filter(|b| **b == b'\n').count(), 1);
+            let value: Value = serde_json::from_slice(&reply[..reply.len() - 1]).unwrap();
+            assert_eq!(value["ok"], false);
+            match shape {
+                "legacy" => {
+                    assert_eq!(value["error_code"], "invalid_request");
+                    assert!(value.get("control_protocol").is_none());
+                }
+                "common" => {
+                    assert_eq!(value["control_protocol"], 1);
+                    assert_eq!(value["request_id"], "bad-token");
+                    assert_eq!(value["error"]["code"], "authentication");
+                    assert_eq!(value["error"]["application_code"], "authentication");
+                }
+                _ => {
+                    assert_eq!(value["error_code"], "authentication");
+                    assert!(value.get("control_protocol").is_none());
+                }
+            }
+        }
+        assert!(server.requests.try_recv().is_err());
+    }
+
+    fn settings(mode: crate::controls::Mode, exposure_rows: u16, gain_eighths: u16) -> Settings {
+        Settings {
+            mode,
+            exposure_rows,
+            gain_eighths,
+        }
+    }
+    fn assert_draft(value: &Value, draft: Settings) {
+        let expected = settings_json(draft);
+        assert_eq!(value["draft"], expected);
+        for key in ["mode", "exposure_rows", "gain_eighths"] {
+            assert_eq!(value[key], expected[key], "legacy top-level {key}");
+        }
+    }
+    #[test]
+    fn config_distinguishes_draft_pending_and_applied_generations() {
+        use crate::controls::Mode;
+        let live = settings(Mode::FullFieldSkip, 120, 8);
+        let edited = settings(Mode::FullFieldSkip, 200, 16);
+
+        // Before Apply: only the GUI draft exists.
+        let idle = Snapshot::default();
+        let value = config(edited, &idle);
+        assert_draft(&value, edited);
+        assert_eq!(value["applied"], Value::Null);
+        assert_eq!(value["applied_generation"], Value::Null);
+        assert_eq!(value["requested"], Value::Null);
+        assert_eq!(value["apply_state"], "none");
+
+        // Applied generation 1 streams; an unapplied draft edit stays a draft.
+        let mut snapshot = Snapshot {
+            state: State::Streaming,
+            active: true,
+            requested: Some(live),
+            requested_revision: Some(1),
+            applied: Some(live),
+            applied_revision: Some(1),
+            ..Snapshot::default()
+        };
+        let value = config(edited, &snapshot);
+        assert_draft(&value, edited);
+        assert_eq!(value["applied"]["exposure_rows"], 120);
+        assert_eq!(value["applied"]["generation"], 1);
+        assert_eq!(value["applied_generation"], 1);
+        assert_eq!(value["apply_state"], "applied");
+
+        // Apply pressed: generation 2 pending; old generation 1 is not current.
+        snapshot.state = State::SettingsPending;
+        snapshot.requested = Some(edited);
+        snapshot.requested_revision = Some(2);
+        let value = config(edited, &snapshot);
+        assert_eq!(value["applied"], Value::Null);
+        assert_eq!(value["applied_generation"], Value::Null);
+        assert_eq!(value["requested"]["exposure_rows"], 200);
+        assert_eq!(value["requested"]["generation"], 2);
+        assert_eq!(value["apply_state"], "pending");
+
+        // Streaming state alone does not prove the new generation was applied.
+        snapshot.state = State::Streaming;
+        let value = config(edited, &snapshot);
+        assert_eq!(value["applied"], Value::Null);
+        assert_eq!(value["apply_state"], "unconfirmed");
+
+        // Generation 2 checked and applied.
+        snapshot.applied = Some(edited);
+        snapshot.applied_revision = Some(2);
+        let value = config(edited, &snapshot);
+        assert_eq!(value["applied"], {
+            let mut v = settings_json(edited);
+            v["generation"] = json!(2);
+            v
+        });
+        assert_eq!(value["applied_generation"], 2);
+    }
+    #[test]
+    fn config_reports_full_capture_as_applied_without_rewriting_the_draft() {
+        use crate::controls::Mode;
+        let live = settings(Mode::FullFieldSkip, 120, 8);
+        let full = Settings {
+            mode: Mode::Full,
+            ..live
+        };
+        let snapshot = Snapshot {
+            state: State::Streaming,
+            active: true,
+            requested: Some(full),
+            requested_revision: Some(3),
+            applied: Some(full),
+            applied_revision: Some(3),
+            ..Snapshot::default()
+        };
+        let value = config(live, &snapshot);
+        assert_draft(&value, live);
+        assert_eq!(value["mode"], Mode::FullFieldSkip.profile().id);
+        assert_eq!(value["applied"]["mode"], Mode::Full.profile().id);
+        assert_eq!(value["applied_generation"], 3);
+        assert_eq!(value["apply_state"], "applied");
+    }
+    #[test]
+    fn config_never_reports_stale_applied_settings_after_stop_disconnect_or_failure() {
+        use crate::controls::Mode;
+        let live = settings(Mode::FullFieldSkip, 120, 8);
+        let stale = Snapshot {
+            active: true,
+            requested: Some(live),
+            requested_revision: Some(4),
+            applied: Some(live),
+            applied_revision: Some(4),
+            ..Snapshot::default()
+        };
+        let cases = [
+            (
+                Snapshot {
+                    state: State::Stopping,
+                    requested: None,
+                    requested_revision: None,
+                    ..stale.clone()
+                },
+                "stopping",
+            ),
+            (
+                Snapshot {
+                    state: State::Disconnected,
+                    active: false,
+                    ..stale.clone()
+                },
+                "none",
+            ),
+            (
+                Snapshot {
+                    state: State::Error,
+                    ..stale.clone()
+                },
+                "failed",
+            ),
+            (
+                Snapshot {
+                    state: State::Streaming,
+                    restart_disabled: true,
+                    ..stale.clone()
+                },
+                "failed",
+            ),
+        ];
+        for (snapshot, state) in cases {
+            let value = config(live, &snapshot);
+            assert_draft(&value, live);
+            assert_eq!(value["applied"], Value::Null, "{state}");
+            assert_eq!(value["applied_generation"], Value::Null, "{state}");
+            assert_eq!(value["apply_state"], state);
+        }
+        // Explicit simulation streams without hardware-checked applied settings.
+        let simulation = Snapshot {
+            state: State::Streaming,
+            applied: None,
+            applied_revision: None,
+            ..stale
+        };
+        let value = config(live, &simulation);
+        assert_eq!(value["applied"], Value::Null);
+        assert_eq!(value["apply_state"], "unconfirmed");
     }
 }
