@@ -3,6 +3,40 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+/// Safe recovery whenever reconnection is disabled. Reconnection can be
+/// disabled before any interlock was created (for example a missing helper),
+/// so this text never asserts that an interlock exists; it only governs one
+/// that may remain. A confirmed existing marker is reported separately by
+/// [`retained_interlock_message`] with its path.
+///
+/// It separates three different facts: the normal end state (needs nothing),
+/// diagnostic evidence (observations to preserve), and confirmation by the
+/// responsible person (the only authority for manual removal). It never
+/// authorizes automatic deletion, unproved manual deletion, or treating a
+/// camera power cycle alone as proof.
+pub const RECOVERY_GUIDANCE: &str = "Safe recovery: reconnection stays disabled for this application session. \
+This failure may or may not have left a protective device interlock; this message alone does not show that one exists. \
+[Normal end] A Disconnect or Close that reports verified cleanup removes any interlock it created; then no action is needed. Only that report is a normal end. \
+[Diagnostic evidence] Keep the application closed. If an interlock file remains, do not delete, rename or edit it. Preserve any remaining interlock file, the Error details text and the failure records unchanged, and note in Task Manager whether any KohdaLab Camera or continuous-helper.exe process remains. \
+[Responsible-person confirmation] Give that evidence to the person responsible for the camera and this PC. Only after they have reviewed it and confirmed that no process still uses the camera may they move a remaining interlock file out of the folder and keep it with the evidence. \
+Never delete a remaining interlock automatically or without that confirmation. Unplugging or power-cycling the camera, restarting the application or reinstalling it is not proof of cleanup.";
+
+/// Startup refusal for an interlock that already exists. The file is not
+/// opened for writing, renamed or deleted; the caller keeps refusing startup.
+pub fn retained_interlock_message(path: &Path, cause: &dyn std::fmt::Display) -> String {
+    format!(
+        "Device interlock retained at {}: {cause}. {RECOVERY_GUIDANCE}",
+        path.display()
+    )
+}
+
+/// Errors from a create-new interlock attempt that mean "a marker is present".
+pub fn is_retained_interlock(error: &std::io::Error) -> bool {
+    // Windows sharing/lock violation: another live owner holds the marker.
+    let held = cfg!(windows) && matches!(error.raw_os_error(), Some(32 | 33));
+    error.kind() == std::io::ErrorKind::AlreadyExists || held
+}
+
 pub fn user_root() -> Result<PathBuf, String> {
     let base = std::env::var_os(if cfg!(windows) {
         "LOCALAPPDATA"
@@ -33,9 +67,16 @@ pub fn acquire(root: &Path, identity: &str) -> Result<PathBuf, String> {
         .create_new(true)
         .open(&path)
         .map_err(|e| {
-            format!(
-                "Device interlock retained: {e}; inspect evidence, no automatic stale-lock clearing"
-            )
+            if is_retained_interlock(&e) {
+                retained_interlock_message(
+                    &path,
+                    &format_args!("{e}; inspect evidence, no automatic stale-lock clearing"),
+                )
+            } else {
+                format!(
+                    "Device interlock retained: {e}; inspect evidence, no automatic stale-lock clearing"
+                )
+            }
         })?;
     writeln!(file, "pid={} identity={identity}; remove only after proved cleanup or separately authorized recovery", std::process::id()).map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())?;
@@ -43,7 +84,7 @@ pub fn acquire(root: &Path, identity: &str) -> Result<PathBuf, String> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     #[test]
     fn child() {
@@ -62,6 +103,60 @@ mod tests {
             }
             std::process::exit(if path.is_ok() { 0 } else { 3 });
         }
+    }
+    /// Mandatory guidance content, shared by the GUI and Windows startup tests.
+    pub(crate) fn assert_safe_recovery_guidance(text: &str) {
+        for required in [
+            "reconnection stays disabled",
+            "may or may not have left a protective device interlock",
+            "does not show that one exists",
+            "[Normal end]",
+            "verified cleanup",
+            "[Diagnostic evidence]",
+            "If an interlock file remains, do not delete, rename or edit it",
+            "continuous-helper.exe",
+            "[Responsible-person confirmation]",
+            "Only after they have reviewed it",
+            "Never delete a remaining interlock automatically or without that confirmation",
+            "power-cycling the camera",
+            "is not proof of cleanup",
+        ] {
+            assert!(text.contains(required), "missing {required:?}");
+        }
+        // Ordering: evidence precedes confirmation, which precedes any removal.
+        let evidence = text.find("[Diagnostic evidence]").unwrap();
+        let confirm = text.find("[Responsible-person confirmation]").unwrap();
+        let removal = text.find("move a remaining interlock file").unwrap();
+        assert!(evidence < confirm && confirm < removal);
+        for forbidden in [
+            "delete the interlock file",
+            "power cycle to clear",
+            "remove it to retry",
+        ] {
+            assert!(!text.contains(forbidden), "unsafe {forbidden:?}");
+        }
+    }
+    #[test]
+    fn interlock_recovery_existing_marker_refused_unchanged_with_guidance() {
+        let root = std::env::temp_dir().join(format!("interlock-recovery-{}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        // Abnormal end model: the owner exits without proved cleanup; marker persists.
+        let marker = acquire(&root, "device-one").unwrap();
+        let before = std::fs::read(&marker).unwrap();
+        for _ in 0..2 {
+            let error = acquire(&root, "device-one").unwrap_err();
+            assert!(error.contains("no automatic stale-lock clearing"));
+            assert!(error.contains(&marker.display().to_string()));
+            assert_safe_recovery_guidance(&error);
+        }
+        assert_eq!(std::fs::read(&marker).unwrap(), before);
+        assert!(is_retained_interlock(
+            &std::io::ErrorKind::AlreadyExists.into()
+        ));
+        assert!(!is_retained_interlock(&std::io::ErrorKind::NotFound.into()));
+        assert_safe_recovery_guidance(&retained_interlock_message(&marker, &"x"));
+        // Test-private fixture directory only; never a user interlock root.
+        std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn two_process_copies_same_device_and_stale_error_preservation() {

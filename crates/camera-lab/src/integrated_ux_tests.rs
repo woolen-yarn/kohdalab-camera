@@ -115,7 +115,13 @@ fn frozen_recipe_equal(path: &std::path::Path, f: &Frame, recipe: Recipe) {
     let meta: serde_json::Value =
         serde_json::from_slice(&std::fs::read(format!("{}.json", path.display())).unwrap())
             .unwrap();
-    assert_eq!(meta["frame"], serde_json::to_value(&f.metadata).unwrap());
+    assert_eq!(
+        meta["frame"],
+        camera_lab::measurement::saved_metadata(&f.metadata).unwrap()
+    );
+    if f.metadata.unix_millis == 0 {
+        assert!(meta["frame"]["unix_millis"].is_null());
+    }
     assert_eq!(
         meta["display_recipe"],
         serde_json::to_value(recipe).unwrap()

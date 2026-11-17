@@ -43,6 +43,7 @@ jobs:
           python3 scripts/update_source_identity.py --check
           cargo +1.99.1 test --locked -p camera-lab --lib image_export::
           cargo +1.99.1 test --locked -p camera-lab --lib measurement::
+          cargo +1.99.1 test --locked -p camera-lab --lib interlock_recovery
           cargo +1.99.1 test --locked -p kohdalab-control-protocol
           cargo +1.99.1 build --release --locked -p camera-lab --bin camera-lab
       - name: Verify GUI observer in Simulation
@@ -104,6 +105,8 @@ jobs:
           if ($LASTEXITCODE) { throw 'Image/raw recording contract tests failed' }
           cargo test --locked --target x86_64-pc-windows-gnu --lib measurement::
           if ($LASTEXITCODE) { throw 'Frame provenance tests failed' }
+          cargo test --locked --target x86_64-pc-windows-gnu --lib interlock_recovery
+          if ($LASTEXITCODE) { throw 'Interlock recovery tests failed' }
           cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab preferences
           if ($LASTEXITCODE) { throw 'Preferences tests failed' }
           cargo test --locked --target x86_64-pc-windows-gnu --bin camera-lab natural_ui -- --test-threads=1

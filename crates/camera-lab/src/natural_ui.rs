@@ -1,5 +1,7 @@
 //! Presentation only. Worker snapshots remain the cleanup/restart authority.
 use super::*;
+/// Visible line whenever reconnection is disabled; full steps are in the scroll.
+pub(super) const RECOVERY_HEADLINE: &str = "Reconnection disabled. A protective device interlock may remain; if one does, do not delete it without the responsible person's confirmation. Follow the safe recovery steps at the top of the technical details below.";
 impl App {
     pub(super) fn refreshed_selection<T: PartialEq>(
         selected: Option<T>,
@@ -183,12 +185,22 @@ impl App {
                         .wrap(),
                     );
                 }
+                let recovery = self.session.restart_disabled;
+                if recovery {
+                    ui.add(egui::Label::new(RECOVERY_HEADLINE).wrap());
+                }
                 ui.small("Technical details (scroll)");
                 let scroll = egui::ScrollArea::vertical()
                     .id_salt("failure-scroll")
                     .auto_shrink([false, false])
                     .max_height((ctx.content_rect().height() * 0.3).clamp(48., 160.))
                     .show(ui, |ui| {
+                        if recovery {
+                            ui.add(
+                                egui::Label::new(camera_lab::coordination::RECOVERY_GUIDANCE)
+                                    .wrap(),
+                            );
+                        }
                         ui.add(
                             egui::Label::new(
                                 self.session
@@ -813,6 +825,62 @@ mod tests {
         );
         app.worker.close();
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn interlock_recovery_steps_shown_only_when_reconnection_disabled() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_exporter_worker(
+            &ctx,
+            |_, _| Ok(()),
+            Worker::with_factory(Fake(Arc::new(AtomicBool::new(true)))),
+        );
+        app.session.first_failure = Some(
+            "Continuous acquisition failed: Startup: Device interlock retained (simulated)".into(),
+        );
+        let painted = |app: &mut App| -> Vec<String> {
+            for _ in 0..3 {
+                let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+                    app.failure_visibility(ui);
+                });
+            }
+            let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+                app.failure_visibility(ui);
+            });
+            out.shapes
+                .iter()
+                .filter_map(|s| match &s.shape {
+                    egui::epaint::Shape::Text(t) => Some(t.galley.text().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let guidance = camera_lab::coordination::RECOVERY_GUIDANCE;
+        // A failure that leaves reconnection enabled shows no interlock steps.
+        let ordinary = painted(&mut app);
+        assert!(
+            !ordinary
+                .iter()
+                .any(|t| t == RECOVERY_HEADLINE || t == guidance)
+        );
+        app.session.restart_disabled = true;
+        let blocked = painted(&mut app);
+        assert!(blocked.iter().any(|t| t == RECOVERY_HEADLINE));
+        assert!(blocked.iter().any(|t| t == guidance));
+        assert!(RECOVERY_HEADLINE.contains("may remain"));
+        assert!(RECOVERY_HEADLINE.contains("do not delete it without the responsible person"));
+        for required in [
+            "does not show that one exists",
+            "[Normal end]",
+            "[Diagnostic evidence]",
+            "[Responsible-person confirmation]",
+            "Never delete a remaining interlock automatically or without that confirmation",
+            "is not proof of cleanup",
+        ] {
+            assert!(guidance.contains(required), "{required}");
+        }
+        // Presentation never re-enables connection.
+        assert!(!app.can_connect());
+        app.worker.close();
     }
     #[test]
     fn v038_worker_summary_precedence() {
@@ -1492,8 +1560,11 @@ mod tests {
                 .unwrap();
         assert_eq!(
             meta["frame"],
-            serde_json::to_value(&frame.metadata).unwrap()
+            camera_lab::measurement::saved_metadata(&frame.metadata).unwrap()
         );
+        if frame.metadata.unix_millis == 0 {
+            assert!(meta["frame"]["unix_millis"].is_null());
+        }
         assert_eq!(
             meta["display_recipe"],
             serde_json::to_value(recipe).unwrap()

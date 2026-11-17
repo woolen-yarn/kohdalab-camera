@@ -640,12 +640,7 @@ fn startup(
                 "continuous-helper.exe is missing. Extract or reinstall the complete application before connecting.",
             ));
         }
-        let legacy = helper.with_file_name("physical-camera.lock");
-        if legacy.try_exists()? {
-            return Err(io::Error::other(
-                "Legacy interlock blocks continuous startup",
-            ));
-        }
+        check_legacy_interlock(&helper.with_file_name("physical-camera.lock"))?;
         std::fs::create_dir_all(&root)?;
         let output = root.join(format!("session-{}", hex(&os::random()?[..12])));
         std::fs::create_dir(&output)?;
@@ -667,7 +662,7 @@ fn startup(
         b.validate(fixture.is_some())?;
         // Same injective legacy device key: old files conservatively block.
         let path = root.join(format!("{}.lock", hex(b.identity.key().as_bytes())));
-        let lock = os::RetainedInterlock::create_new(&path, &b.bytes()?)?;
+        let lock = acquire_session_interlock(&path, &b.bytes()?)?;
         let child = os::launch_helper(&helper, fixture.is_some())?;
         state
             .snapshot
@@ -687,6 +682,31 @@ fn startup(
             Err(e)
         }
     }
+}
+/// A pre-continuous legacy marker conservatively blocks startup. It is only
+/// probed for existence: never opened, renamed or deleted.
+fn check_legacy_interlock(legacy: &Path) -> io::Result<()> {
+    if legacy.try_exists()? {
+        let cause = "Legacy interlock blocks continuous startup";
+        let message = crate::coordination::retained_interlock_message(legacy, &cause);
+        return Err(io::Error::other(message));
+    }
+    Ok(())
+}
+/// Create-new only. A marker left by an abnormal end (crash, kill, power loss,
+/// unproved cleanup) keeps refusing every reconnection with safe recovery
+/// guidance; this function never adopts, rewrites or deletes it.
+fn acquire_session_interlock(path: &Path, generation: &[u8]) -> io::Result<os::RetainedInterlock> {
+    os::RetainedInterlock::create_new(path, generation).map_err(|error| {
+        if crate::coordination::is_retained_interlock(&error) {
+            io::Error::new(
+                error.kind(),
+                crate::coordination::retained_interlock_message(path, &error),
+            )
+        } else {
+            error
+        }
+    })
 }
 impl Drop for ContinuousSession {
     fn drop(&mut self) {
@@ -1966,6 +1986,42 @@ fn physical_outcome(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn interlock_recovery_abnormal_end_marker_blocks_reconnect_until_release() {
+        let root =
+            std::env::temp_dir().join(format!("interlock-recovery-win-{}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("device.lock");
+        {
+            // Abnormal end model: the owner disappears without release_after_proof.
+            let _crashed = acquire_session_interlock(&path, b"crashed-generation").unwrap();
+        }
+        for attempt in [b"reconnect-one".as_slice(), b"reconnect-two".as_slice()] {
+            let error = acquire_session_interlock(&path, attempt).err().unwrap();
+            assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+            let text = error.to_string();
+            assert!(text.contains(&path.display().to_string()));
+            crate::coordination::tests::assert_safe_recovery_guidance(&text);
+            // Never adopted, rewritten or deleted by the refusal.
+            assert_eq!(std::fs::read(&path).unwrap(), b"crashed-generation");
+        }
+        let legacy = root.join("physical-camera.lock");
+        check_legacy_interlock(&legacy).unwrap();
+        std::fs::write(&legacy, b"legacy-marker").unwrap();
+        let text = check_legacy_interlock(&legacy).unwrap_err().to_string();
+        assert!(text.contains("Legacy interlock blocks continuous startup"));
+        crate::coordination::tests::assert_safe_recovery_guidance(&text);
+        assert_eq!(std::fs::read(&legacy).unwrap(), b"legacy-marker");
+        // Normal end: only exact-handle release after proof permits the next owner.
+        let normal = root.join("normal.lock");
+        let mut first = acquire_session_interlock(&normal, b"one").unwrap();
+        assert!(acquire_session_interlock(&normal, b"two").is_err());
+        first.release_after_proof().unwrap();
+        let mut next = acquire_session_interlock(&normal, b"two").unwrap();
+        next.release_after_proof().unwrap();
+        // The retained marker above is a private test fixture, not a user lock.
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn v041_production_orchestration_physical_outcome_projection() {
         for run in crate::physical::v041_tests::unverified_runs() {
