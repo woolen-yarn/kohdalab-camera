@@ -1,5 +1,10 @@
 # Changelog / 変更履歴
 
+## 1.0.5
+
+- Preserve finite acquisition and cancellation errors when diagnostic output also fails, and report the storage failure separately. / 有限取得や停止でエラーが発生した後に診断保存も失敗した場合、元の原因を保持し、保存失敗を別に報告します。
+- Publish cleanup and cancellation receipts only after verified cleanup and a completed write. / 後片付けを確認し、書き込みが完了した時点で完了マーカーを確定します。
+
 ## 1.0.4
 
 - Terminate early GUI API errors with a newline so the Python SDK reports rejected credentials as authentication errors. / GUI API の早期エラーにも改行を付け、Python SDK が認証失敗を正しく報告するようにしました。
