@@ -145,7 +145,7 @@ jobs:
           name: windows-unsigned-${{ github.sha }}
           path: dist/*
           if-no-files-found: error
-          retention-days: 30
+          retention-days: ${{ github.event_name == 'pull_request' && 1 || 7 }}
       - name: Upload future signing inputs
         id: signing
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -153,7 +153,7 @@ jobs:
           name: signpath-inputs-${{ github.sha }}
           path: signing-inputs/*
           if-no-files-found: error
-          retention-days: 30
+          retention-days: ${{ github.event_name == 'pull_request' && 1 || 7 }}
       - name: Link evidence
         shell: pwsh
         env:
