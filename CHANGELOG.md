@@ -1,5 +1,10 @@
 # Changelog / 変更履歴
 
+## 1.0.4
+
+- Terminate early GUI API errors with a newline so the Python SDK reports rejected credentials as authentication errors. / GUI API の早期エラーにも改行を付け、Python SDK が認証失敗を正しく報告するようにしました。
+- Expose draft, requested, and confirmed applied settings in `control.config`. Existing top-level settings continue to show the GUI draft. / `control.config` に編集中・要求済み・適用確認済みの設定を追加しました。従来の最上位項目は引き続き編集中の設定です。
+
 ## 1.0.3
 
 - Export unknown frame timestamps as JSON null and empty CSV fields. / 不明なフレーム時刻は JSON で null、CSV で空欄にします。
