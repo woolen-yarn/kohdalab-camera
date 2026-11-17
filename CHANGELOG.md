@@ -1,5 +1,11 @@
 # Changelog / 変更履歴
 
+## 1.0.3
+
+- Export unknown frame timestamps as JSON null and empty CSV fields. / 不明なフレーム時刻は JSON で null、CSV で空欄にします。
+- Add Windows recovery guidance for retained camera interlocks. / Windows でカメラの保護ロックが残った場合の復旧案内を追加しました。
+- Publish completed Windows images without overwriting or requiring hard links. Improve save destination guidance on macOS and Linux. / Windows の画像保存は上書きを防ぎ、ハードリンクを必要としません。macOS と Linux では保存先の案内を改善しました。
+
 ## 1.0.2
 
 - Clarify OS setup and the read-only external API, and update the common Python SDK. / OS別導入案内と参照専用APIの説明、共通Python SDKを更新しました。
