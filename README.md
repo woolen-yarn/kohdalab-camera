@@ -3,7 +3,7 @@
 # KohdaLab Camera
 
 [![CI](https://github.com/woolen-yarn/kohdalab-camera/actions/workflows/windows-unsigned.yml/badge.svg)](https://github.com/woolen-yarn/kohdalab-camera/actions/workflows/windows-unsigned.yml)
-[![Release](https://img.shields.io/github/v/release/woolen-yarn/kohdalab-camera)](https://github.com/woolen-yarn/kohdalab-camera/releases/latest)
+[![Release](https://img.shields.io/github/v/release/woolen-yarn/kohdalab-camera)](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.5)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Rust desktop application for laboratory camera acquisition, live imaging, and reproducible image export.
@@ -26,7 +26,7 @@ Rust desktop application for laboratory camera acquisition, live imaging, and re
 
 ## Downloads / ダウンロード
 
-[Latest stable release / 最新安定版](https://github.com/woolen-yarn/kohdalab-camera/releases/latest) · [v1.0.5 release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.5)
+[Stable release / 安定版](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.5) · [v1.0.5 release notes / リリースノート](https://github.com/woolen-yarn/kohdalab-camera/releases/tag/v1.0.5)
 
 | OS / 対応環境 | Installer / インストーラー | Portable / ポータブル |
 | --- | --- | --- |
