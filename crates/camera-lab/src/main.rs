@@ -994,7 +994,7 @@ fn physical_adapter_test() -> Result<(), String> {
                 }
             }
             Err(error) if stop_sent => {
-                if !adapter.directory.join("capture/CLEANUP_OK").exists() {
+                if !camera_lab::physical::cleanup_receipt(&adapter.directory.join("capture")) {
                     return Err(error);
                 }
                 println!("Requested stop recovered with verified cleanup");

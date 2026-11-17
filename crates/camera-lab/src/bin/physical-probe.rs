@@ -238,7 +238,7 @@ fn run() -> Result<(), String> {
             &mut session,
             preparation,
         );
-        allow_unlock = std::path::Path::new(&root).join("CLEANUP_OK").is_file();
+        allow_unlock = camera_lab::physical::cleanup_receipt(std::path::Path::new(&root));
         telemetry_root = Some(std::path::PathBuf::from(root));
         outcome = result;
     }

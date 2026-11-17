@@ -172,7 +172,9 @@ impl PhysicalPreview {
     pub fn completion(&mut self) -> Result<Option<bool>, String> {
         if self.child.try_wait().map_err(|e| e.to_string())?.is_some() {
             self.finished = true;
-            Ok(Some(self.directory.join("capture/CLEANUP_OK").is_file()))
+            Ok(Some(crate::physical::cleanup_receipt(
+                &self.directory.join("capture"),
+            )))
         } else {
             Ok(None)
         }

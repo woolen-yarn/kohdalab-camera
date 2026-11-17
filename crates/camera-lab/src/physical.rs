@@ -244,25 +244,62 @@ fn acquire(
             )
         },
     );
-    // Finite filesystem receipts require the actual lifecycle cleanup observation.
-    if cleanup_slot[0].as_ref().and_then(|t| t.cleanup_returned_ok) != Some(true) {
+    if control.is_some() {
         return result;
     }
-    if control.is_none() {
-        std::fs::write(
-            root.join("CLEANUP_OK"),
-            b"Bridge stopped; output disabled/readback; chip ID valid\n",
-        )
-        .map_err(|e| e.to_string())?;
+    finite_receipts(
+        root,
+        cleanup_slot[0].as_ref(),
+        result,
+        &mut std::io::stderr(),
+    )
+}
+/// Old-helper success and lock release are authorized only by this receipt.
+pub fn cleanup_receipt(capture_root: &Path) -> bool {
+    capture_root.join("CLEANUP_OK").is_file()
+}
+/// Atomic receipt: a failed write never leaves a partial marker that could
+/// authorize lock release or old-helper acceptance.
+fn write_receipt(root: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
+    let tmp = root.join(format!("{name}.tmp"));
+    let written = std::fs::write(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, root.join(name)));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&tmp);
     }
-    if control.is_none() && result.as_ref().err().map(String::as_str) == Some(CANCELLED) {
-        std::fs::write(
-            root.join("CANCELLED"),
-            b"Requested cancellation after verified cleanup\n",
-        )
-        .map_err(|e| e.to_string())?;
+    written.map_err(|e| e.to_string())
+}
+/// Finite filesystem receipts require the actual lifecycle cleanup observation.
+/// Same order as before (CLEANUP_OK, then CANCELLED only for exact STOP); a
+/// failed CLEANUP_OK suppresses CANCELLED. Receipt failures follow the finite
+/// persistence precedence: an original error/STOP is preserved and the failure
+/// is reported independently; with a successful result it remains the failure.
+fn finite_receipts(
+    root: &Path,
+    cleanup: Option<&crate::acquisition_telemetry::Telemetry>,
+    result: Result<(), String>,
+    diagnostic: &mut impl Write,
+) -> Result<(), String> {
+    if cleanup.and_then(|t| t.cleanup_returned_ok) != Some(true) {
+        return result;
     }
-    result
+    let cancelled = result.as_ref().err().map(String::as_str) == Some(CANCELLED);
+    let written = write_receipt(
+        root,
+        "CLEANUP_OK",
+        b"Bridge stopped; output disabled/readback; chip ID valid\n",
+    )
+    .and_then(|()| {
+        if cancelled {
+            write_receipt(
+                root,
+                "CANCELLED",
+                b"Requested cancellation after verified cleanup\n",
+            )
+        } else {
+            Ok(())
+        }
+    });
+    finite_outcome(result, written, root, diagnostic)
 }
 /// Minimal injectable production seam. Ownership/drop and finite persistence stay outside.
 pub(crate) trait AcquisitionBackend: crate::acquisition_recipe::Backend {
@@ -567,10 +604,114 @@ fn stream(
     let ep = interface
         .endpoint::<Bulk, In>(0x82)
         .map_err(|e| crate::diagnostic::backend_text("@ST", e.to_string()))?;
-    stream_endpoint(
-        ep, root, bridge, pattern, seconds, settings, slot, control, startup,
+    stream_tag(stream_endpoint(
+        ep,
+        root,
+        bridge,
+        pattern,
+        seconds,
+        settings,
+        slot,
+        control,
+        startup,
+        &mut std::io::stderr(),
+    ))
+}
+/// Stream diagnostic tag. CANCELLED and already-coded backend text stay exact.
+fn stream_tag(result: Result<(), String>) -> Result<(), String> {
+    result.map_err(|e| crate::diagnostic::backend_text("@ST", e))
+}
+pub const DIAGNOSTIC_PERSISTENCE_FAILED: &str = "Finite diagnostic persistence failed";
+/// Finite-only precedence for optional diagnostics and receipts.
+/// An acquisition error, exact STOP or finite frame/pattern check failure is
+/// returned unchanged; a persistence failure is then reported independently
+/// (stderr line plus a best-effort marker, like QUIESCENCE_FAILED). With a
+/// successful result the persistence failure remains the failure, as before.
+fn finite_outcome(
+    result: Result<(), String>,
+    persisted: Result<(), String>,
+    root: &Path,
+    diagnostic: &mut impl Write,
+) -> Result<(), String> {
+    match (result, persisted) {
+        (Err(original), Err(error)) => {
+            let detail =
+                format!("{DIAGNOSTIC_PERSISTENCE_FAILED}: {error}; original result preserved");
+            let _ = writeln!(diagnostic, "{detail}");
+            let _ = std::fs::write(root.join("DIAGNOSTIC_PERSISTENCE_FAILED"), detail);
+            Err(original)
+        }
+        (Ok(()), Err(error)) => Err(error),
+        (result, Ok(())) => result,
+    }
+}
+/// Finite-only optional diagnostics (continuous returns before this point):
+/// metrics/raw/integrity/PNG/TIFF and lossless readback. Same order, content
+/// and first-failure stop as before. It holds no cleanup authority and its
+/// precedence is decided only by finite_outcome.
+fn persist_finite(
+    root: &Path,
+    metrics: &serde_json::Value,
+    first: Option<Vec<u8>>,
+    last: Option<Vec<u8>>,
+    pattern: bool,
+    width: u16,
+    height: u16,
+) -> Result<(), String> {
+    std::fs::write(
+        root.join("metrics.json"),
+        serde_json::to_vec_pretty(metrics).map_err(|e| e.to_string())?,
     )
-    .map_err(|e| crate::diagnostic::backend_text("@ST", e))
+    .map_err(|e| e.to_string())?;
+    if let Some(raw) = last {
+        std::fs::write(root.join("last-raw.bin"), raw).map_err(|e| e.to_string())?;
+    }
+    if let Some(raw) = first {
+        let mut histogram = vec![0u64; 256];
+        for &b in &raw {
+            histogram[b as usize] += 1;
+        }
+        let reference = [raw[0], raw[1]];
+        let mismatches = raw
+            .iter()
+            .enumerate()
+            .filter(|(i, b)| **b != reference[i % 2])
+            .count();
+        let integrity = serde_json::json!({"pattern_enabled":pattern,"first_pair":reference,"period_two_mismatches":mismatches,"histogram":histogram,"interpretation":"Raw USB bytes; pixel mapping and image integrity unvalidated"});
+        println!("first_frame_integrity={integrity}");
+        std::fs::write(
+            root.join("integrity.json"),
+            serde_json::to_vec_pretty(&integrity).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?;
+        std::fs::write(root.join("first-raw.bin"), &raw).map_err(|e| e.to_string())?;
+        // Lossless grayscale rendering of received bytes, not a color reconstruction.
+        for (extension, format) in [
+            ("png", image::ImageFormat::Png),
+            ("tiff", image::ImageFormat::Tiff),
+        ] {
+            let path = root.join(format!("byte-plane.{extension}"));
+            image::save_buffer_with_format(
+                &path,
+                &raw,
+                width.into(),
+                height.into(),
+                image::ColorType::L8,
+                format,
+            )
+            .map_err(|e| e.to_string())?;
+            if image::open(&path)
+                .map_err(|e| e.to_string())?
+                .to_luma8()
+                .as_raw()
+                != &raw
+            {
+                return Err("Lossless output decode equality failed".into());
+            }
+        }
+        println!("lossless_byte_plane=PNG/TIFF decode equality passed; original raw preserved");
+    }
+    Ok(())
 }
 
 trait StreamEndpoint {
@@ -607,6 +748,7 @@ fn stream_endpoint(
     slot: &mut Option<crate::acquisition_telemetry::Telemetry>,
     control: Option<&crate::continuous_runtime::OwnerPort>,
     startup: Option<crate::startup::Binding>,
+    diagnostic: &mut impl Write,
 ) -> Result<(), String> {
     let (width, height) = settings.dimensions();
     // 16 KiB multiple of descriptor's 512 B packet; eight in flight = 128 KiB.
@@ -909,79 +1051,27 @@ fn stream_endpoint(
     }
     let metrics = serde_json::json!({"width":width,"height":height,"elapsed_ms":start.elapsed().as_millis(),"bytes":bytes,"transfers":transfers,"short_transfers":shorts,"accepted_complete_frames":accepted,"periodic_frames":periodic_frames,"pattern_155_frames":expected_155_frames,"pattern_123_frames":expected_123_frames,"zero_ff_frames":expected_zero_frames,"discarded_fragments":discarded,"pending_after_cancel":ep.pending(),"error":result.as_ref().err()});
     println!("metrics={metrics}");
-    if control.is_none() {
-        std::fs::write(
-            root.join("metrics.json"),
-            serde_json::to_vec_pretty(&metrics).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
-        if let Some(raw) = last {
-            std::fs::write(root.join("last-raw.bin"), raw).map_err(|e| e.to_string())?;
+    // Diagnostics are always generated first; the acquisition result and the
+    // unchanged finite frame/known-pattern criteria then outrank their failure.
+    let persisted = persist_finite(root, &metrics, first, last, pattern, width, height);
+    let checked = result.and_then(|()| {
+        if accepted == 0 {
+            return Err("No complete frames; no capture support asserted".into());
         }
-    }
-    if let Some(raw) = first {
-        let mut histogram = vec![0u64; 256];
-        for &b in &raw {
-            histogram[b as usize] += 1;
-        }
-        let reference = [raw[0], raw[1]];
-        let mismatches = raw
-            .iter()
-            .enumerate()
-            .filter(|(i, b)| **b != reference[i % 2])
-            .count();
-        let integrity = serde_json::json!({"pattern_enabled":pattern,"first_pair":reference,"period_two_mismatches":mismatches,"histogram":histogram,"interpretation":"Raw USB bytes; pixel mapping and image integrity unvalidated"});
-        println!("first_frame_integrity={integrity}");
-        if control.is_none() {
-            std::fs::write(
-                root.join("integrity.json"),
-                serde_json::to_vec_pretty(&integrity).map_err(|e| e.to_string())?,
-            )
-            .map_err(|e| e.to_string())?;
-            std::fs::write(root.join("first-raw.bin"), &raw).map_err(|e| e.to_string())?;
-        }
-        // Lossless grayscale rendering of received bytes, not a color reconstruction.
-        for (extension, format) in [
-            ("png", image::ImageFormat::Png),
-            ("tiff", image::ImageFormat::Tiff),
-        ] {
-            let path = root.join(format!("byte-plane.{extension}"));
-            image::save_buffer_with_format(
-                &path,
-                &raw,
-                width.into(),
-                height.into(),
-                image::ColorType::L8,
-                format,
-            )
-            .map_err(|e| e.to_string())?;
-            if image::open(&path)
-                .map_err(|e| e.to_string())?
-                .to_luma8()
-                .as_raw()
-                != &raw
-            {
-                return Err("Lossless output decode equality failed".into());
+        if pattern {
+            let matched = match root.file_name().and_then(|n| n.to_str()) {
+                Some("pattern-155") => expected_155_frames,
+                Some("pattern-123") => expected_123_frames,
+                Some("pattern-zero") => expected_zero_frames,
+                _ => 0,
+            };
+            if matched != accepted {
+                return Err("Known-pattern assertion failed; live preview disabled".into());
             }
         }
-        println!("lossless_byte_plane=PNG/TIFF decode equality passed; original raw preserved");
-    }
-    result?;
-    if accepted == 0 {
-        return Err("No complete frames; no capture support asserted".into());
-    }
-    if pattern {
-        let matched = match root.file_name().and_then(|n| n.to_str()) {
-            Some("pattern-155") => expected_155_frames,
-            Some("pattern-123") => expected_123_frames,
-            Some("pattern-zero") => expected_zero_frames,
-            _ => 0,
-        };
-        if matched != accepted {
-            return Err("Known-pattern assertion failed; live preview disabled".into());
-        }
-    }
-    Ok(())
+        Ok(())
+    });
+    finite_outcome(checked, persisted, root, diagnostic)
 }
 
 #[cfg(test)]
@@ -1110,6 +1200,7 @@ mod repair_tests {
                 order: order.clone(),
             };
             let mut telemetry = None;
+            let mut diagnostic = Vec::new();
             // Deliberately unusable output: continuous stream must do no path IO.
             let result = with_resource_owners(
                 FakeResource("interface drop", order.clone()),
@@ -1125,6 +1216,7 @@ mod repair_tests {
                         &mut telemetry,
                         Some(&owner),
                         None,
+                        &mut diagnostic,
                     );
                     if !quiescence_unproved(std::slice::from_ref(&telemetry)) {
                         order
@@ -1146,6 +1238,8 @@ mod repair_tests {
                 })
             );
             assert_eq!(quiescence_unproved(std::slice::from_ref(&telemetry)), stuck);
+            // Continuous never reaches finite diagnostic persistence/reporting.
+            assert!(diagnostic.is_empty());
             #[cfg(windows)]
             crate::continuous_session::assert_dual_failure_mapping(
                 result.clone(),
@@ -1198,6 +1292,291 @@ mod repair_tests {
             assert!(exporter.join().unwrap().is_err());
             assert_eq!(result, original);
         }
+    }
+    /// How the fake finite endpoint ends after one complete 0x55/0xaa frame.
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub(super) enum Finish {
+        Error,
+        Stop,
+        Success,
+        /// Duration completes with only ZLPs: no complete frame.
+        NoFrame,
+        /// 0x55/0xaa frame under `pattern-123`: known-pattern criterion fails.
+        PatternMismatch,
+        /// 0x55/0xaa frame under `pattern-155`: known-pattern criterion passes.
+        PatternMatch,
+    }
+    struct FiniteEndpoint {
+        remaining: usize,
+        synced: bool,
+        pending: usize,
+        finish: Finish,
+        root: std::path::PathBuf,
+    }
+    impl StreamEndpoint for FiniteEndpoint {
+        fn allocate(&self, n: usize) -> nusb::transfer::Buffer {
+            nusb::transfer::Buffer::new(n)
+        }
+        fn submit(&mut self, _: nusb::transfer::Buffer) {
+            self.pending += 1;
+        }
+        fn pending(&self) -> usize {
+            self.pending
+        }
+        fn cancel_all(&mut self) {
+            self.pending = 0;
+        }
+        fn wait_next_complete(&mut self, _: Duration) -> Option<nusb::transfer::Completion> {
+            self.pending = self.pending.saturating_sub(1);
+            let (data, status) = if !self.synced {
+                self.synced = true;
+                (vec![], Ok(()))
+            } else if self.remaining > 0 {
+                let n = self.remaining.min(16384);
+                self.remaining -= n;
+                if self.remaining == 0 && self.finish == Finish::Stop {
+                    // Operator STOP lands while the final short transfer completes.
+                    std::fs::write(self.root.join("STOP"), b"stop").unwrap();
+                }
+                (
+                    (0..n)
+                        .map(|i| if i % 2 == 0 { 0x55 } else { 0xaa })
+                        .collect(),
+                    Ok(()),
+                )
+            } else if self.finish == Finish::Error {
+                (vec![], Err(nusb::transfer::TransferError::Disconnected))
+            } else {
+                std::thread::sleep(Duration::from_millis(20));
+                (vec![], Ok(()))
+            };
+            let actual_len = data.len();
+            Some(nusb::transfer::Completion {
+                buffer: data.into(),
+                actual_len,
+                status,
+            })
+        }
+    }
+    /// Production finite persistence order.
+    pub(super) const ARTIFACTS: [&str; 6] = [
+        "metrics.json",
+        "last-raw.bin",
+        "integrity.json",
+        "first-raw.bin",
+        "byte-plane.png",
+        "byte-plane.tiff",
+    ];
+    pub(super) struct FiniteRun {
+        pub result: Result<(), String>,
+        pub diagnostic: String,
+        pub base: std::path::PathBuf,
+        pub root: std::path::PathBuf,
+        pub telemetry: crate::acquisition_telemetry::Telemetry,
+    }
+    /// Runs the actual finite stream_endpoint (control=None) with a fake
+    /// endpoint. `blocked` pre-creates a directory at that artifact path so
+    /// the real filesystem write/encode fails there.
+    pub(super) fn finite_run(label: &str, finish: Finish, blocked: Option<&str>) -> FiniteRun {
+        QUIET.set(true); // stdout/stderr noise only; the diagnostic sink is independent
+        let settings = crate::controls::Settings {
+            mode: crate::controls::Mode::Preview,
+            ..Default::default()
+        };
+        let (w, h) = settings.dimensions();
+        let base = std::env::temp_dir().join(format!(
+            "finite-p2-{label}-{}-{finish:?}-{}",
+            std::process::id(),
+            blocked.unwrap_or("none")
+        ));
+        let _ = std::fs::remove_dir_all(&base);
+        let root = base.join(match finish {
+            Finish::PatternMismatch => "pattern-123",
+            Finish::PatternMatch => "pattern-155",
+            _ => "live",
+        });
+        std::fs::create_dir_all(&root).unwrap();
+        if let Some(name) = blocked {
+            std::fs::create_dir(root.join(name)).unwrap();
+        }
+        let ep = FiniteEndpoint {
+            remaining: if finish == Finish::NoFrame {
+                0
+            } else {
+                w as usize * h as usize
+            },
+            synced: false,
+            pending: 0,
+            finish,
+            root: root.clone(),
+        };
+        let mut telemetry = None;
+        let mut diagnostic = Vec::new();
+        let result = stream_endpoint(
+            ep,
+            &root,
+            &|_| Ok(()),
+            matches!(finish, Finish::PatternMismatch | Finish::PatternMatch),
+            if matches!(finish, Finish::Error | Finish::Stop) {
+                5
+            } else {
+                1
+            },
+            settings,
+            &mut telemetry,
+            None,
+            None,
+            &mut diagnostic,
+        );
+        FiniteRun {
+            result,
+            diagnostic: String::from_utf8(diagnostic).unwrap(),
+            base,
+            root,
+            telemetry: telemetry.unwrap(),
+        }
+    }
+    fn assert_preserved_with_diagnostic(r: &FiniteRun, blocked: Option<&str>) {
+        let marker = r.root.join("DIAGNOSTIC_PERSISTENCE_FAILED");
+        assert_eq!(r.telemetry.accepted_frames, 1);
+        assert_eq!(r.telemetry.drain_returned_ok, Some(true));
+        let Some(name) = blocked else {
+            assert!(r.diagnostic.is_empty(), "{}", r.diagnostic);
+            assert!(!marker.exists());
+            assert!(ARTIFACTS.iter().all(|a| r.root.join(a).is_file()));
+            return;
+        };
+        // Exactly one independent CLI-visible diagnostic line plus marker.
+        assert_eq!(r.diagnostic.lines().count(), 1, "{}", r.diagnostic);
+        assert!(
+            r.diagnostic
+                .starts_with(&format!("{DIAGNOSTIC_PERSISTENCE_FAILED}: ")),
+            "{}",
+            r.diagnostic
+        );
+        assert!(
+            r.diagnostic
+                .trim_end()
+                .ends_with("; original result preserved")
+        );
+        assert_eq!(
+            std::fs::read_to_string(&marker).unwrap(),
+            r.diagnostic.trim_end()
+        );
+        // Persistence before the injected failure happened, in production order.
+        let at = ARTIFACTS.iter().position(|a| *a == name).unwrap();
+        assert!(ARTIFACTS[..at].iter().all(|a| r.root.join(a).is_file()));
+        assert!(r.root.join(name).is_dir());
+        assert!(ARTIFACTS[at + 1..].iter().all(|a| !r.root.join(a).exists()));
+    }
+    #[test]
+    fn finite_acquisition_error_survives_diagnostic_persistence_failure() {
+        for blocked in std::iter::once(None).chain(ARTIFACTS.map(Some)) {
+            let r = finite_run("stream", Finish::Error, blocked);
+            assert_eq!(
+                r.result.as_ref().map_err(String::as_str),
+                Err("device disconnected")
+            );
+            // Production stream tag still applies to the original cause.
+            assert_eq!(
+                stream_tag(r.result.clone()).unwrap_err(),
+                "@ST device disconnected"
+            );
+            assert_eq!(r.telemetry.acquisition_exit, Some("error"));
+            assert_preserved_with_diagnostic(&r, blocked);
+            std::fs::remove_dir_all(&r.base).unwrap();
+        }
+    }
+    #[test]
+    fn finite_stop_survives_diagnostic_persistence_failure() {
+        for blocked in std::iter::once(None).chain(ARTIFACTS.map(Some)) {
+            let r = finite_run("stream", Finish::Stop, blocked);
+            // Exact CANCELLED is the meaningful STOP identity downstream.
+            assert_eq!(r.result.as_ref().map_err(String::as_str), Err(CANCELLED));
+            assert_eq!(stream_tag(r.result.clone()).unwrap_err(), CANCELLED);
+            assert_eq!(r.telemetry.acquisition_exit, Some("cancelled"));
+            assert_preserved_with_diagnostic(&r, blocked);
+            std::fs::remove_dir_all(&r.base).unwrap();
+        }
+    }
+    #[test]
+    fn finite_success_with_only_persistence_failure_keeps_current_failure() {
+        let r = finite_run("stream", Finish::Success, None);
+        assert_eq!(r.result, Ok(()));
+        assert_eq!(r.telemetry.acquisition_exit, Some("duration_complete"));
+        assert_preserved_with_diagnostic(&r, None);
+        std::fs::remove_dir_all(&r.base).unwrap();
+        for blocked in ARTIFACTS {
+            let r = finite_run("stream", Finish::Success, Some(blocked));
+            assert_eq!(r.telemetry.acquisition_exit, Some("duration_complete"));
+            // Unchanged: the persistence failure itself is the returned failure,
+            // tagged @ST, with no separate diagnostic report or marker.
+            let error = r.result.clone().unwrap_err();
+            assert_ne!(error, CANCELLED);
+            assert_ne!(error, "device disconnected");
+            assert!(
+                stream_tag(r.result.clone())
+                    .unwrap_err()
+                    .starts_with("@ST ")
+            );
+            assert!(r.diagnostic.is_empty(), "{}", r.diagnostic);
+            assert!(!r.root.join("DIAGNOSTIC_PERSISTENCE_FAILED").exists());
+            let at = ARTIFACTS.iter().position(|a| *a == blocked).unwrap();
+            assert!(ARTIFACTS[..at].iter().all(|a| r.root.join(a).is_file()));
+            assert!(ARTIFACTS[at + 1..].iter().all(|a| !r.root.join(a).exists()));
+            std::fs::remove_dir_all(&r.base).unwrap();
+        }
+    }
+    #[test]
+    fn finite_frame_and_pattern_checks_outrank_persistence_failure() {
+        const NO_FRAMES: &str = "No complete frames; no capture support asserted";
+        const PATTERN: &str = "Known-pattern assertion failed; live preview disabled";
+        // No complete frame: only metrics.json is generated (no raw frame).
+        for blocked in [None, Some("metrics.json")] {
+            let r = finite_run("checks", Finish::NoFrame, blocked);
+            assert_eq!(r.result.as_ref().map_err(String::as_str), Err(NO_FRAMES));
+            assert_eq!(
+                stream_tag(r.result.clone()).unwrap_err(),
+                format!("@ST {NO_FRAMES}")
+            );
+            assert_eq!(r.telemetry.accepted_frames, 0);
+            assert_eq!(r.telemetry.acquisition_exit, Some("duration_complete"));
+            let marker = r.root.join("DIAGNOSTIC_PERSISTENCE_FAILED");
+            if blocked.is_some() {
+                assert_eq!(r.diagnostic.lines().count(), 1, "{}", r.diagnostic);
+                assert!(r.diagnostic.starts_with(DIAGNOSTIC_PERSISTENCE_FAILED));
+                assert_eq!(
+                    std::fs::read_to_string(&marker).unwrap(),
+                    r.diagnostic.trim_end()
+                );
+            } else {
+                assert!(r.diagnostic.is_empty(), "{}", r.diagnostic);
+                assert!(!marker.exists());
+                assert!(r.root.join("metrics.json").is_file());
+            }
+            assert!(ARTIFACTS[1..].iter().all(|a| !r.root.join(a).exists()));
+            std::fs::remove_dir_all(&r.base).unwrap();
+        }
+        // Known-pattern mismatch: diagnostics still generated in full order.
+        for blocked in std::iter::once(None).chain(ARTIFACTS.map(Some)) {
+            let r = finite_run("checks", Finish::PatternMismatch, blocked);
+            assert_eq!(r.result.as_ref().map_err(String::as_str), Err(PATTERN));
+            assert_eq!(r.telemetry.acquisition_exit, Some("duration_complete"));
+            assert_preserved_with_diagnostic(&r, blocked);
+            std::fs::remove_dir_all(&r.base).unwrap();
+        }
+        // The meaningful criterion is unchanged: a matching pattern passes, and
+        // a persistence-only failure there keeps the current failure handling.
+        let r = finite_run("checks", Finish::PatternMatch, None);
+        assert_eq!(r.result, Ok(()));
+        assert_preserved_with_diagnostic(&r, None);
+        std::fs::remove_dir_all(&r.base).unwrap();
+        let r = finite_run("checks", Finish::PatternMatch, Some("byte-plane.tiff"));
+        let error = r.result.clone().unwrap_err();
+        assert_ne!(error, PATTERN);
+        assert!(r.diagnostic.is_empty(), "{}", r.diagnostic);
+        assert!(!r.root.join("DIAGNOSTIC_PERSISTENCE_FAILED").exists());
+        std::fs::remove_dir_all(&r.base).unwrap();
     }
     #[test]
     fn telemetry_partial_overflow_short_zlp_fixture() {
@@ -1990,5 +2369,140 @@ pub(crate) mod v041_tests {
     #[test]
     fn v041_verified_orchestration_live_cleanup_and_quiescence() {
         assert_eq!(verified_runs().len(), 8);
+    }
+    /// The actual finite stream outcome (error/STOP + persistence failure)
+    /// feeds finite orchestration; STOP vs cleanup-failure precedence is unchanged.
+    #[test]
+    fn finite_stream_persistence_failure_keeps_stop_and_cleanup_priority() {
+        use super::repair_tests::{Finish, finite_run};
+        for finish in [Finish::Error, Finish::Stop] {
+            let stream = finite_run("orchestrate", finish, Some("metrics.json"));
+            assert!(stream.diagnostic.starts_with(DIAGNOSTIC_PERSISTENCE_FAILED));
+            let live = stream_tag(stream.result.clone()).unwrap_err();
+            for cleanup_error in [false, true] {
+                let r = run(
+                    Recording {
+                        live_error: Some(live.clone()),
+                        cleanup_error,
+                        ..Default::default()
+                    },
+                    false,
+                    Intent::Diagnostics,
+                    CallerPreparation {
+                        bridge_attempts: 3,
+                        bridge_completed: 3,
+                        ..Default::default()
+                    },
+                );
+                let expected = match (finish, cleanup_error) {
+                    (Finish::Stop, false) => CANCELLED,
+                    (Finish::Stop, true) => SF::ReadbackMismatch.text(),
+                    _ => "@ST device disconnected",
+                };
+                assert_eq!(r.result.as_ref().unwrap_err(), expected);
+                let t = r.session.records[4].as_ref().unwrap();
+                assert_eq!(t.cleanup_returned_ok, Some(!cleanup_error));
+                let mut tail = vec!["B1".to_string(), "disable7/readback".into()];
+                if !cleanup_error {
+                    tail.push("R0".into());
+                }
+                assert!(r.ops.ends_with(&tail), "{:?}", r.ops);
+            }
+            std::fs::remove_dir_all(&stream.base).unwrap();
+        }
+    }
+    /// Actual finite stream outcome -> finite orchestration -> production
+    /// receipt writer, with CLEANUP_OK/CANCELLED writes made to fail on disk.
+    #[test]
+    fn finite_receipt_failure_preserves_original_and_withholds_authority() {
+        use super::repair_tests::{Finish, finite_run};
+        use crate::physical_preview::{accepted_exit, helper_error_exit};
+        for finish in [Finish::Error, Finish::Stop, Finish::Success] {
+            let stream = finite_run("receipt", finish, None);
+            let stop = finish == Finish::Stop;
+            for cleanup_error in [false, true] {
+                for blocked in [None, Some("CLEANUP_OK"), Some("CANCELLED")] {
+                    let r = run(
+                        Recording {
+                            live_error: stream_tag(stream.result.clone()).err(),
+                            cleanup_error,
+                            ..Default::default()
+                        },
+                        false,
+                        Intent::Diagnostics,
+                        CallerPreparation {
+                            bridge_attempts: 3,
+                            bridge_completed: 3,
+                            ..Default::default()
+                        },
+                    );
+                    let proved = !cleanup_error;
+                    let original = r.result.clone();
+                    if proved {
+                        assert_eq!(
+                            original.as_ref().map(|_| ()).map_err(String::as_str),
+                            match finish {
+                                Finish::Stop => Err(CANCELLED),
+                                Finish::Error => Err("@ST device disconnected"),
+                                _ => Ok(()),
+                            }
+                        );
+                    }
+                    // Old-helper layout: <dir>/STOP plus <dir>/capture receipts.
+                    let helper = stream.base.join(format!(
+                        "helper-{cleanup_error}-{}",
+                        blocked.unwrap_or("none")
+                    ));
+                    let capture = helper.join("capture");
+                    std::fs::create_dir_all(&capture).unwrap();
+                    if stop {
+                        std::fs::write(helper.join("STOP"), b"stop").unwrap();
+                    }
+                    if let Some(name) = blocked {
+                        std::fs::create_dir(capture.join(format!("{name}.tmp"))).unwrap();
+                    }
+                    let mut sink = Vec::new();
+                    let result = finite_receipts(
+                        &capture,
+                        r.session.records[4].as_ref(),
+                        r.result,
+                        &mut sink,
+                    );
+                    let diagnostic = String::from_utf8(sink).unwrap();
+                    let cleanup_fails = proved && blocked == Some("CLEANUP_OK");
+                    let cancel_fails = proved && stop && blocked == Some("CANCELLED");
+                    let failed = cleanup_fails || cancel_fails;
+                    if failed && original.is_ok() {
+                        // Unchanged: a success-only receipt failure is the failure.
+                        assert!(result.is_err());
+                        assert!(diagnostic.is_empty(), "{diagnostic}");
+                    } else {
+                        assert_eq!(result, original);
+                        assert_eq!(diagnostic.lines().count(), usize::from(failed));
+                        assert!(!failed || diagnostic.starts_with(DIAGNOSTIC_PERSISTENCE_FAILED));
+                    }
+                    // Receipts only after proved cleanup; failed CLEANUP_OK
+                    // suppresses CANCELLED; no partial marker ever appears.
+                    assert_eq!(cleanup_receipt(&capture), proved && !cleanup_fails);
+                    assert_eq!(
+                        capture.join("CANCELLED").exists(),
+                        proved && stop && blocked.is_none()
+                    );
+                    assert!(!capture.join("CLEANUP_OK.tmp").is_file());
+                    assert!(!capture.join("CANCELLED.tmp").is_file());
+                    // Old helper acceptance is never granted without the markers.
+                    let code = result.as_ref().err().map_or(0, |e| helper_error_exit(e));
+                    assert_eq!(
+                        accepted_exit(Some(code), code == 0, &helper),
+                        match finish {
+                            Finish::Stop => proved && blocked.is_none(),
+                            Finish::Success => proved && !cleanup_fails,
+                            _ => false,
+                        }
+                    );
+                }
+            }
+            std::fs::remove_dir_all(&stream.base).unwrap();
+        }
     }
 }
