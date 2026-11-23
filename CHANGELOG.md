@@ -1,6 +1,6 @@
 # Changelog / 変更履歴
 
-## Unreleased
+## 1.0.6
 
 - Add leased GUI control through the common API: Live start/stop and current-ROI/full-sensor capture to a new path. These use the same actions and checks as the window, and the window gains Stop and Take control. / 共通 API にリース付き GUI 操作を追加しました。Live の開始・停止と、新しいパスへの現在 ROI・全画素撮影を、窓と同じ処理と判定で行います。窓には「Stop」「Take control」を追加しました。
 
