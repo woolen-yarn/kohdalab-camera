@@ -178,7 +178,7 @@ Project code is [MIT licensed](LICENSE). Native helpers and redistributed depend
 
 ## Common GUI control / 共通GUI制御
 
-[Control Protocol 1 and Python/Notebook examples / 共通APIとPython・Notebook](docs/reference/common-control-api.md). The existing application API remains supported; operation payloads and safety policy are app-specific. Camera is read-only. / 既存APIは維持し、操作引数と安全方針は各アプリに従います。Cameraは読み取り専用です。
+[Control Protocol 1 and Python/Notebook examples / 共通APIとPython・Notebook](docs/reference/common-control-api.md). The existing application API remains supported; operation payloads and safety policy are app-specific. Camera offers leased Live start/stop and capture through the same window actions. / 既存APIは維持し、操作引数と安全方針は各アプリに従います。Cameraはリース付きで、窓と同じ処理による Live の開始・停止と撮影に対応します。
 
 See [Measurement output bundles / 測定データの保存セット](docs/reference/measurement-output.md) for common file roles and unit conventions.
 

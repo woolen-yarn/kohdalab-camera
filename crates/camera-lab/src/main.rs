@@ -13,6 +13,7 @@ use kohdalab_control_protocol::{
     is_common, prepare as prepare_common, response as common_response,
 };
 use nusb::MaybeFuture;
+mod control_gui;
 mod image_view;
 mod natural_ui;
 mod parity_ui;
@@ -22,12 +23,20 @@ use std::{
     sync::mpsc::{self, Receiver, SyncSender},
     time::Duration,
 };
+#[cfg(test)]
+mod control_gui_tests;
 #[cfg(all(test, windows))]
 mod gui_continuous_tests;
 #[cfg(test)]
 mod integrated_ux_tests;
 #[cfg(test)]
 mod parity_tests;
+#[derive(Clone, Copy)]
+enum SaveOrigin {
+    Window,
+    External,
+}
+
 struct App {
     preferences_path: Option<PathBuf>,
     saved_preferences: preferences::Preferences,
@@ -68,7 +77,7 @@ struct App {
     intent: camera_lab::startup::Intent,
     requested_intent: camera_lab::startup::Intent,
     product: camera_lab::product::Controller,
-    full_destination: Option<PathBuf>,
+    full_destination: Option<(PathBuf, SaveOrigin)>,
     save_result: String,
     export_full: bool,
     control_error: Option<String>,
@@ -87,6 +96,10 @@ struct App {
     close_started: Option<std::time::Instant>,
     scan_rx: Option<Receiver<Result<Vec<nusb::DeviceInfo>, String>>>,
     control_api: Option<camera_lab::control_api::Server>,
+    /// Common-protocol lease and receipts; actions still use the GUI paths.
+    external: camera_lab::external_control::Controller,
+    /// Last acquisition owner kind, kept for cleanup evidence after Stop.
+    last_source: Option<camera_lab::external_control::SourceKind>,
 }
 impl App {
     fn new(ctx: &egui::Context) -> Self {
@@ -98,6 +111,9 @@ impl App {
         if std::env::args().nth(1).as_deref() == Some("--continuous-fake-gui") {
             app.fake_only = true;
             app.picker = false;
+            // Physical transport is refused in this window; preselect the only
+            // permitted picker source, as the input-diagnostics build does.
+            app.picker_simulation = true;
             app.fake_until = Some(std::time::Instant::now() + Duration::from_secs(65));
             #[cfg(windows)]
             if let Some(root) = std::env::args()
@@ -262,6 +278,8 @@ impl App {
             } else {
                 None
             },
+            external: Default::default(),
+            last_source: None,
         }
     }
     fn process_control_api(&mut self) {
@@ -272,6 +290,7 @@ impl App {
             .unwrap_or_default();
         for request in requests {
             let original = request.body.clone();
+            // Expired requests are refused before dispatch: no action starts.
             let value = if request.deadline < std::time::Instant::now() {
                 common_response(
                     &original,
@@ -285,32 +304,9 @@ impl App {
                             .get("_control_method")
                             .and_then(serde_json::Value::as_str)
                             .unwrap_or("");
-                        let result = match method {
-                            "describe" => {
-                                serde_json::json!({"ok":true,"result":{"protocol":"kohdalab-control","control_protocol":1,"application":"kohdalab-camera","application_version":env!("CARGO_PKG_VERSION"),"api_version":1,"methods":["control.describe","control.status","control.config"],"safety":{"supports_ownership":false,"exclusive_control":false,"physical_auto_connect":false,"simulation_required_for_tests":true},"native":{"gui_owned":true}}})
-                            }
-                            "status" => {
-                                let s = &self.session;
-                                let phase = match s.state {
-                                    camera_lab::session::State::Disconnected => "disconnected",
-                                    camera_lab::session::State::Connecting => "initializing",
-                                    camera_lab::session::State::Streaming => "running",
-                                    camera_lab::session::State::SettingsPending => "initializing",
-                                    camera_lab::session::State::Stopping => "stopping",
-                                    camera_lab::session::State::Error => "error",
-                                };
-                                let cleanup_unproved =
-                                    s.lifecycle.as_ref().is_some_and(|l| l.unproved);
-                                serde_json::json!({"ok":true,"result":{"phase":phase,"busy":s.active,"ownership":{"owned":false},"cleanup":if cleanup_unproved || phase=="error" {"unknown"}else if phase=="stopping" {"pending"}else{"not_required"},"native":{"active":s.active,"message":s.message,"source_selected":self.source.is_some()}}})
-                            }
-                            "config" => {
-                                // Draft plus applied state from this tick's Worker snapshot only.
-                                serde_json::json!({"ok":true,"result":camera_lab::control_api::config(self.settings, &self.session)})
-                            }
-                            _ => {
-                                serde_json::json!({"ok":false,"error_code":"unsupported","error":"This Camera adapter exposes read-only control.* methods; use the GUI for device operations"})
-                            }
-                        };
+                        // Reads use this tick's Worker snapshot; mutations go
+                        // through the same App actions as the window controls.
+                        let result = self.control_dispatch(method, &native);
                         if is_common(&original) {
                             common_response(&original, result)
                         } else {
@@ -435,6 +431,8 @@ impl App {
             || self.scan_rx.is_some()
             || self.estimate_rx.is_some()
             || self.fake_until.is_some()
+            // Lease expiry and receipts are evaluated even while idle.
+            || self.external.needs_updates()
     }
     fn current_preferences(&self) -> preferences::Preferences {
         preferences::Preferences {
@@ -500,11 +498,15 @@ impl App {
         if let Some(f) = self.frame.clone()
             && let Some(p) = self.save_dialog(false).save_file()
         {
-            self.export_full = false;
-            self.save_with_recipe(f, p, recipe);
+            self.capture_to(f, p, recipe, SaveOrigin::Window);
         } else {
             self.save_result = "Save cancelled".into();
         }
+    }
+    /// The step after the Capture image dialog, shared with `control.capture`.
+    fn capture_to(&mut self, f: Frame, p: PathBuf, recipe: Recipe, origin: SaveOrigin) {
+        self.export_full = false;
+        self.save_with_recipe(f, p, recipe, origin);
     }
     fn save_frozen(&mut self, f: Frame, p: PathBuf) {
         if self.busy || self.closing {
@@ -512,17 +514,19 @@ impl App {
             return;
         }
         self.export_full = false;
-        self.save_with_recipe(f, p, self.displayed_recipe);
+        self.save_with_recipe(f, p, self.displayed_recipe, SaveOrigin::Window);
     }
-    fn save_with_recipe(&mut self, f: Frame, p: PathBuf, recipe: Recipe) {
+    fn save_with_recipe(&mut self, f: Frame, p: PathBuf, recipe: Recipe, origin: SaveOrigin) {
         if self.busy || self.closing {
             return;
         }
         let folder = p.parent().map(std::path::Path::to_path_buf);
         match self.tx.try_send((f, p, recipe)) {
             Ok(()) => {
-                self.save_folder = folder;
-                self.save_sequence = self.save_sequence.saturating_add(1);
+                if let SaveOrigin::Window = origin {
+                    self.save_folder = folder;
+                    self.save_sequence = self.save_sequence.saturating_add(1);
+                }
                 self.busy = true;
                 self.save_result = "Saving frozen RAW + software recipe…".into();
             }
@@ -545,6 +549,10 @@ impl App {
         }
     }
     fn begin_full(&mut self, path: PathBuf) {
+        self.begin_full_with_origin(path, SaveOrigin::Window);
+    }
+
+    fn begin_full_with_origin(&mut self, path: PathBuf, origin: SaveOrigin) {
         if self.closing || self.busy {
             return;
         }
@@ -558,7 +566,7 @@ impl App {
                 {
                     self.save_result.clear();
                 }
-                self.full_destination = Some(path);
+                self.full_destination = Some((path, origin));
                 if self
                     .product
                     .applied
@@ -646,15 +654,18 @@ impl App {
         match self.rx.try_recv() {
             Ok(r) => {
                 self.busy = false;
+                let saved = r.is_ok();
                 self.save_result = r.unwrap_or_else(|e| format!("Save failed: {e}"));
                 if !self.save_result.starts_with("Saved image") {
                     self.outcome_fault = Some(self.save_result.clone());
                 }
+                self.external_export_finished(saved);
             }
             Err(mpsc::TryRecvError::Disconnected) if self.busy => {
                 self.busy = false;
                 self.save_result = "Export worker disconnected; file completion unproved".into();
                 self.outcome_fault = Some(self.save_result.clone());
+                self.external_export_finished(false);
             }
             _ => {}
         }
@@ -664,6 +675,8 @@ impl App {
             && !self.closing
         {
             self.closing = true;
+            self.external
+                .revoke(camera_lab::external_control::Revocation::Closing);
             self.product.stop();
             self.full_destination = None;
             self.preview_generation = None;
@@ -673,6 +686,8 @@ impl App {
             self.worker.close();
         }
         self.session = self.worker.snapshot();
+        // Expire a silent lease before serving queued requests, conservatively.
+        self.expire_external_lease(now);
         // Status reads this tick's snapshot without consuming its pending frame.
         self.process_control_api();
         if self.session.restart_disabled || self.session.state == camera_lab::session::State::Error
@@ -701,10 +716,10 @@ impl App {
                     self.product
                         .observe(&f, id, generation.settings, intent, now)
                 {
-                    if let (Some(path), Some(held)) =
+                    if let (Some((path, origin)), Some(held)) =
                         (self.full_destination.take(), self.product.held.clone())
                     {
-                        self.save_with_recipe(held, path, self.full_recipe);
+                        self.save_with_recipe(held, path, self.full_recipe, origin);
                     }
                     // An already-Full capture needs another sequence, not another owner.
                     if generation.settings != restore.settings {
@@ -754,6 +769,8 @@ impl App {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             }
         }
+        // Receipts become terminal only from this tick's Worker/export evidence.
+        self.evaluate_external_jobs();
         self.persist_preferences(self.closing);
         if self.needs_periodic_updates() {
             ctx.request_repaint_after(Duration::from_millis(100));

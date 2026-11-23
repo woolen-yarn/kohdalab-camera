@@ -531,9 +531,10 @@ fn authenticated_unsupported_operation_and_config_are_answered_by_the_gui() {
         writeln!(peer, "{body}").unwrap();
         peer
     };
+    // Recording has no reusable lifecycle in Camera, so it stays unsupported.
     let capture = send(serde_json::json!({
         "control_protocol": 1,
-        "method": "control.capture",
+        "method": "control.record",
         "token": descriptor["token"],
         "request_id": "capture-request",
     }));
@@ -577,7 +578,7 @@ fn authenticated_unsupported_operation_and_config_are_answered_by_the_gui() {
 }
 
 #[test]
-fn read_only_external_control_indicator_only_in_opt_in_mode() {
+fn external_control_indicator_stop_and_take_control_only_in_opt_in_mode() {
     use super::*;
     fn texts(app: &mut App, ctx: &egui::Context) -> Vec<String> {
         let output = ctx.run_ui(
@@ -606,7 +607,7 @@ fn read_only_external_control_indicator_only_in_opt_in_mode() {
         app.picker = picker;
         let shown = texts(&mut app, &ctx);
         assert!(
-            !shown.iter().any(|t| t == parity_ui::EXTERNAL_CONTROL),
+            !shown.iter().any(|t| t.starts_with("External control")),
             "standalone shows the indicator (picker {picker})"
         );
     }
@@ -616,10 +617,25 @@ fn read_only_external_control_indicator_only_in_opt_in_mode() {
         app.picker = picker;
         let shown = texts(&mut app, &ctx);
         assert!(
-            shown.iter().any(|t| t == parity_ui::EXTERNAL_CONTROL),
+            shown.iter().any(|t| t == control_gui::EXTERNAL_IDLE),
             "opt-in indicator missing (picker {picker}): {shown:?}"
         );
-        // No writer lease exists, so there is nothing to take or stop.
-        assert!(!shown.iter().any(|t| t.contains("Take control")));
+        // Without a lease there is nothing to take or stop.
+        assert!(!shown.iter().any(|t| t == "Take control"));
     }
+    let client = uuid::Uuid::new_v4().to_string();
+    app.external
+        .acquire(&client, None, std::time::Instant::now())
+        .unwrap();
+    for picker in [true, false] {
+        app.picker = picker;
+        let shown = texts(&mut app, &ctx);
+        for label in [control_gui::EXTERNAL_ACTIVE, "Stop", "Take control"] {
+            assert!(
+                shown.iter().any(|t| t == label),
+                "{label} missing while leased (picker {picker}): {shown:?}"
+            );
+        }
+    }
+    assert!(app.manual_locked());
 }

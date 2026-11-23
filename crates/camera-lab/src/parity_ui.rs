@@ -31,14 +31,6 @@ pub fn force_dark(ctx: &egui::Context) {
     v.widgets.inactive.weak_bg_fill = egui::Color32::from_rgb(38, 43, 52);
     ctx.set_visuals_of(egui::Theme::Dark, v);
 }
-pub(super) const EXTERNAL_CONTROL: &str = "External control · Read only";
-/// Restrained `--gui-api` indicator, matching KohdaLab SLM. There is no
-/// take-control or stop affordance: the adapter has no writer lease.
-pub(super) fn external_control_indicator(ui: &mut egui::Ui) {
-    ui.weak(EXTERNAL_CONTROL).on_hover_text(
-        "Started with --gui-api. Local clients can read describe, status and config. They cannot connect, capture or change settings; this window keeps full control.",
-    );
-}
 pub(super) fn primary_action(ui: &mut egui::Ui, enabled: bool, label: &str) -> egui::Response {
     let mut button = egui::Button::new(label).min_size(egui::vec2(120., 28.));
     if enabled && ui.is_enabled() {
@@ -153,7 +145,7 @@ impl App {
                         ui.weak(concat!("KohdaLab Camera v", env!("CARGO_PKG_VERSION")));
                         if self.control_api.is_some() {
                             ui.weak("·");
-                            external_control_indicator(ui);
+                            self.external_control_ui(ui);
                         }
                     });
                 });
@@ -337,13 +329,20 @@ impl App {
                     self.request(None);
                 }
             } else if ui
-                .add_enabled(!self.closing, egui::Button::new("Reconnect"))
+                .add_enabled(
+                    !self.closing && !self.manual_locked(),
+                    egui::Button::new("Reconnect"),
+                )
                 .clicked()
             {
                 self.change_camera();
             }
+            // Disconnect above stays available while an external lease is held.
             if ui
-                .add_enabled(!self.closing, egui::Button::new("Change camera"))
+                .add_enabled(
+                    !self.closing && !self.manual_locked(),
+                    egui::Button::new("Change camera"),
+                )
                 .clicked()
             {
                 self.change_camera();
@@ -366,7 +365,7 @@ impl App {
         }
     }
     fn acquisition_settings(&mut self, ui: &mut egui::Ui) {
-        ui.add_enabled_ui(!self.closing, |ui| {
+        ui.add_enabled_ui(!self.closing && !self.manual_locked(), |ui| {
             let mut full = self.settings.mode == Mode::Full;
             if ui
                 .checkbox(&mut full, "Full sensor live mode · 3.1 MP")
@@ -433,6 +432,11 @@ impl App {
             }
         });
         ui.separator();
+        // The software recipe is saved with captures: locked while leased.
+        // Fit and zoom above only change the view.
+        ui.add_enabled_ui(!self.manual_locked(), |ui| self.image_recipe_settings(ui));
+    }
+    fn image_recipe_settings(&mut self, ui: &mut egui::Ui) {
         ui.spacing_mut().slider_width = (ui.available_width() - 60.).max(80.);
         ui.label("Brightness ×");
         let mut brightness = self.recipe.brightness();
@@ -506,22 +510,12 @@ impl App {
         });
     }
     fn export_settings(&mut self, ui: &mut egui::Ui) {
-        if primary_action(
-            ui,
-            self.frame.is_some()
-                && (self.source.is_none() && !self.session.active
-                    || self.matching_revision == Some(self.revision)
-                        && self.displayed_revision == Some(self.revision))
-                && !self.busy
-                && !self.closing
-                && !self.product.busy(),
-            "Capture image…",
-        )
-        .clicked()
-        {
+        // Same readiness as control.capture/capture_full; locked while leased.
+        let locked = self.manual_locked();
+        if primary_action(ui, self.capture_ready() && !locked, "Capture image…").clicked() {
             self.capture();
         }
-        if ui.add_enabled(self.product.applied.is_some()&&!self.busy&&!self.closing&&!self.product.busy(),egui::Button::new("Capture full sensor image… · 3.1 MP")).on_hover_text("Captures a new Full frame, then automatically returns to the applied Live settings.").clicked() {self.capture_full();}
+        if ui.add_enabled(self.capture_full_ready()&&!locked,egui::Button::new("Capture full sensor image… · 3.1 MP")).on_hover_text("Captures a new Full frame, then automatically returns to the applied Live settings.").clicked() {self.capture_full();}
         ui.weak("Save as PNG or TIFF.").on_hover_text("The selected frame is held while the save dialog is open. Original sensor TIFF (Bayer sources), RAW and metadata are saved alongside it. Existing files are never overwritten; incomplete saves are reported.");
         if self.busy || self.product.busy() {
             if ui.button("Stop / Disconnect").clicked() {
@@ -531,8 +525,12 @@ impl App {
     }
     fn advanced_settings(&mut self, ui: &mut egui::Ui, now: std::time::Instant) {
         ui.label(concat!("KohdaLab Camera · ", env!("CARGO_PKG_VERSION")));
+        let locked = self.manual_locked();
         for (i, c) in ["Red WB", "Green WB", "Blue WB"].iter().enumerate() {
-            ui.add(egui::Slider::new(&mut self.recipe.wb[i], 0.25..=4.).text(*c));
+            ui.add_enabled(
+                !locked,
+                egui::Slider::new(&mut self.recipe.wb[i], 0.25..=4.).text(*c),
+            );
         }
         if let Some(f) = &self.frame {
             let detail = camera_lab::measurement::timestamp_semantics(&f.metadata);
@@ -548,7 +546,7 @@ impl App {
             };
             ui.weak(short).on_hover_text(detail);
         }
-        if ui.button("Reset all settings").on_hover_text("Restore defaults, save numbering and window size. Apply camera settings to change active acquisition.").clicked(){self.reset_preferences(ui.ctx());}
+        if ui.add_enabled(!locked,egui::Button::new("Reset all settings")).on_hover_text("Restore defaults, save numbering and window size. Apply camera settings to change active acquisition.").clicked(){self.reset_preferences(ui.ctx());}
         ui.collapsing("Diagnostics",|ui| {
         if let Some(t)=&self.frame_received {ui.label(format!("Texture update age: {:.1} s",t.age_at(now).as_secs_f64()));}
         if let Some(f)=&self.frame {
@@ -557,7 +555,7 @@ impl App {
         if let Some(d)=self.selected.and_then(|i|self.devices.get(i)) {ui.label(format!("{:04x}:{:04x} serial={:?} bus={} ports={:?}",d.vendor_id(),d.product_id(),d.serial_number(),d.bus_id(),d.port_chain()));}
 
         ui.small("Color and optical calibration are not available.");
-        ui.horizontal(|ui| {ui.selectable_value(&mut self.intent,camera_lab::startup::Intent::Normal,"Normal startup");ui.selectable_value(&mut self.intent,camera_lab::startup::Intent::Diagnostics,"Long Diagnostics");});
+        ui.add_enabled_ui(!locked,|ui| ui.horizontal(|ui| {ui.selectable_value(&mut self.intent,camera_lab::startup::Intent::Normal,"Normal startup");ui.selectable_value(&mut self.intent,camera_lab::startup::Intent::Diagnostics,"Long Diagnostics");}));
         ui.label("Diagnostics intentionally runs the unchanged three-pattern checks. Select then Apply acquisition settings.");
         ui.label(format!("{:?}: {}",self.session.state,self.session.message));ui.label(&self.status);ui.label(self.outcome_detail());
         if let Some(p)=&self.preview {ui.label(format!("Bounded pipeline: {:?}",p.counters()));}

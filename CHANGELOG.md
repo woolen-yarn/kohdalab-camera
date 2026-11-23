@@ -1,5 +1,9 @@
 # Changelog / 変更履歴
 
+## Unreleased
+
+- Add leased GUI control through the common API: Live start/stop and current-ROI/full-sensor capture to a new path. These use the same actions and checks as the window, and the window gains Stop and Take control. / 共通 API にリース付き GUI 操作を追加しました。Live の開始・停止と、新しいパスへの現在 ROI・全画素撮影を、窓と同じ処理と判定で行います。窓には「Stop」「Take control」を追加しました。
+
 ## 1.0.5
 
 - Preserve finite acquisition and cancellation errors when diagnostic output also fails, and report the storage failure separately. / 有限取得や停止でエラーが発生した後に診断保存も失敗した場合、元の原因を保持し、保存失敗を別に報告します。
