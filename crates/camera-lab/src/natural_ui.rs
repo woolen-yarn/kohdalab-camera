@@ -308,7 +308,12 @@ impl App {
     pub(super) fn selector_ui(&mut self, root: &mut egui::Ui) {
         let panel_fill = root.ctx().global_style().visuals.panel_fill;
         egui::CentralPanel::default().frame(egui::Frame::new().fill(panel_fill).inner_margin(8.)).show_inside(root,|ui| {
-            ui.heading("Select a camera");
+            ui.horizontal(|ui| {
+                ui.heading("Select a camera");
+                if self.control_api.is_some() {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), parity_ui::external_control_indicator);
+                }
+            });
             ui.label("Select a camera, then load it.");
             ui.separator();
             ui.horizontal(|ui| {

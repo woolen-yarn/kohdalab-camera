@@ -575,3 +575,51 @@ fn authenticated_unsupported_operation_and_config_are_answered_by_the_gui() {
     assert_eq!(result["applied_generation"], serde_json::Value::Null);
     assert_eq!(result["apply_state"], "none");
 }
+
+#[test]
+fn read_only_external_control_indicator_only_in_opt_in_mode() {
+    use super::*;
+    fn texts(app: &mut App, ctx: &egui::Context) -> Vec<String> {
+        let output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1100., 750.),
+                )),
+                ..Default::default()
+            },
+            |ui| app.render(ui),
+        );
+        output
+            .shapes
+            .iter()
+            .filter_map(|s| match &s.shape {
+                egui::epaint::Shape::Text(t) => Some(t.galley.text().to_owned()),
+                _ => None,
+            })
+            .collect()
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = egui::Context::default();
+    let mut app = App::with_exporter(&ctx, |_, _| Ok(()));
+    for picker in [true, false] {
+        app.picker = picker;
+        let shown = texts(&mut app, &ctx);
+        assert!(
+            !shown.iter().any(|t| t == parity_ui::EXTERNAL_CONTROL),
+            "standalone shows the indicator (picker {picker})"
+        );
+    }
+    app.control_api =
+        Some(camera_lab::control_api::Server::start(Some(dir.path().join("control"))).unwrap());
+    for picker in [true, false] {
+        app.picker = picker;
+        let shown = texts(&mut app, &ctx);
+        assert!(
+            shown.iter().any(|t| t == parity_ui::EXTERNAL_CONTROL),
+            "opt-in indicator missing (picker {picker}): {shown:?}"
+        );
+        // No writer lease exists, so there is nothing to take or stop.
+        assert!(!shown.iter().any(|t| t.contains("Take control")));
+    }
+}

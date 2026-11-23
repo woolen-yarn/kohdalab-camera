@@ -35,6 +35,15 @@ Windows の保存ダイアログを開いている間は、GUI が2秒の期限�
 `control.status` を処理できない場合があります。ダイアログを閉じてから
 状態を再取得してください。
 
+When started with `--gui-api`, the toolbar and the camera picker show
+**External control · Read only**. KohdaLab SLM uses the same wording. There
+is no Take control or Stop button because the adapter has no writer lease.
+The window keeps full control.
+
+`--gui-api` で起動すると、ツールバーとカメラ選択画面に **External control · Read only**
+を表示します（SLM と同じ表記）。書き込み用のリースがないため、「制御を取得」や
+「停止」ボタンはありません。
+
 ### Camera `control.config`
 
 The top-level `mode`, `exposure_rows` and `gain_eighths` keep their earlier

@@ -31,6 +31,14 @@ pub fn force_dark(ctx: &egui::Context) {
     v.widgets.inactive.weak_bg_fill = egui::Color32::from_rgb(38, 43, 52);
     ctx.set_visuals_of(egui::Theme::Dark, v);
 }
+pub(super) const EXTERNAL_CONTROL: &str = "External control · Read only";
+/// Restrained `--gui-api` indicator, matching KohdaLab SLM. There is no
+/// take-control or stop affordance: the adapter has no writer lease.
+pub(super) fn external_control_indicator(ui: &mut egui::Ui) {
+    ui.weak(EXTERNAL_CONTROL).on_hover_text(
+        "Started with --gui-api. Local clients can read describe, status and config. They cannot connect, capture or change settings; this window keeps full control.",
+    );
+}
 pub(super) fn primary_action(ui: &mut egui::Ui, enabled: bool, label: &str) -> egui::Response {
     let mut button = egui::Button::new(label).min_size(egui::vec2(120., 28.));
     if enabled && ui.is_enabled() {
@@ -143,6 +151,10 @@ impl App {
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.weak(concat!("KohdaLab Camera v", env!("CARGO_PKG_VERSION")));
+                        if self.control_api.is_some() {
+                            ui.weak("·");
+                            external_control_indicator(ui);
+                        }
                     });
                 });
             })
