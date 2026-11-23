@@ -11,6 +11,7 @@ pub mod control_api;
 pub mod controls;
 pub mod device_catalog;
 pub mod driver_policy;
+pub mod external_control;
 pub mod image_export;
 pub mod measurement;
 pub mod physical;

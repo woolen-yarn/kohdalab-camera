@@ -8,6 +8,11 @@ mkdir -p "$out"
 out=$(cd "$out" && pwd)
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
+copy_sdk() {
+    local destination="$1/bindings/control"
+    mkdir -p "$destination"
+    cp bindings/control/{LICENSE,README.md,kohdalab_control.py,pyproject.toml} "$destination/"
+}
 case "$(uname -s):$(uname -m)" in
   Darwin:arm64)
     name="kohdalab-camera-$version-macos-arm64"
@@ -15,6 +20,7 @@ case "$(uname -s):$(uname -m)" in
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
     install -m 755 "$binary" "$app/Contents/MacOS/camera-lab"
     cp -R LICENSE THIRD_PARTY_NOTICES.md third-party-licenses "$app/Contents/Resources/"
+    copy_sdk "$app/Contents/Resources"
     cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -40,11 +46,13 @@ PLIST
     mkdir -p "$root"
     install -m 755 "$binary" "$root/kohdalab-camera"
     cp -R LICENSE THIRD_PARTY_NOTICES.md third-party-licenses "$root/"
+    copy_sdk "$root"
     tar -C "$scratch" -czf "$out/$name-portable.tar.gz" "$name"
     pkg="$scratch/deb"
     mkdir -p "$pkg/DEBIAN" "$pkg/usr/bin" "$pkg/usr/share/doc/kohdalab-camera" "$pkg/usr/share/applications"
     install -m 755 "$binary" "$pkg/usr/bin/kohdalab-camera"
     cp -R LICENSE THIRD_PARTY_NOTICES.md third-party-licenses "$pkg/usr/share/doc/kohdalab-camera/"
+    copy_sdk "$pkg/usr/share/doc/kohdalab-camera"
     cat > "$pkg/DEBIAN/control" <<CONTROL
 Package: kohdalab-camera
 Version: $version

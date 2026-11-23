@@ -26,7 +26,8 @@ impl App {
         self.selected.and_then(|index| self.devices.get(index))
     }
 
-    fn picker_connect_ready(&self) -> bool {
+    /// Admits both Load camera and `control.start_live`.
+    pub(super) fn picker_connect_ready(&self) -> bool {
         self.can_connect()
             && (self.picker_simulation
                 || (self.scan_rx.is_none()
@@ -35,7 +36,7 @@ impl App {
                     })))
     }
 
-    fn connect_picker(&mut self) {
+    pub(super) fn connect_picker(&mut self) {
         if self.picker_connect_ready() {
             if self.picker_simulation {
                 self.request(Some(Source::Simulation));
@@ -308,12 +309,21 @@ impl App {
     pub(super) fn selector_ui(&mut self, root: &mut egui::Ui) {
         let panel_fill = root.ctx().global_style().visuals.panel_fill;
         egui::CentralPanel::default().frame(egui::Frame::new().fill(panel_fill).inner_margin(8.)).show_inside(root,|ui| {
-            ui.heading("Select a camera");
+            ui.horizontal(|ui| {
+                ui.heading("Select a camera");
+                if self.control_api.is_some() {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| self.external_control_ui(ui));
+                }
+            });
             ui.label("Select a camera, then load it.");
             ui.separator();
+            // Source selection is a manual mutation: locked while leased.
+            let locked=self.manual_locked();
             ui.horizontal(|ui| {
-                ui.radio_value(&mut self.picker_simulation,false,"USB camera");
-                ui.radio_value(&mut self.picker_simulation,true,"Simulation / demo");
+                ui.add_enabled_ui(!locked,|ui| {
+                    ui.radio_value(&mut self.picker_simulation,false,"USB camera");
+                    ui.radio_value(&mut self.picker_simulation,true,"Simulation / demo");
+                });
                 if ui.add_enabled(!self.closing && self.scan_rx.is_none(),egui::Button::new("Refresh")).clicked() {self.scan();}
             });
             if !self.picker_simulation {
@@ -321,7 +331,7 @@ impl App {
                     if self.devices.is_empty() {ui.label(if self.scan_rx.is_some() {"Looking for cameras…"} else {"No eligible camera found"});}
                     for (i,d) in self.devices.iter().enumerate() {
                         let text=format!("{} · {:04x}:{:04x}",d.product_string().unwrap_or("Supported camera"),d.vendor_id(),d.product_id());
-                        if ui.add_enabled(!self.closing,egui::Button::new(text).selected(self.selected==Some(i)).min_size(egui::vec2(ui.available_width(),34.))).on_hover_text(format!("{d:?}")).clicked() {self.selected=Some(i);}
+                        if ui.add_enabled(!self.closing && !locked,egui::Button::new(text).selected(self.selected==Some(i)).min_size(egui::vec2(ui.available_width(),34.))).on_hover_text(format!("{d:?}")).clicked() {self.selected=Some(i);}
                     }
                     ui.collapsing("Other USB devices",|ui| {for d in &self.other_devices {ui.label(format!("{} · {:04x}:{:04x} (unsupported)",d.product_string().unwrap_or("USB device"),d.vendor_id(),d.product_id())).on_hover_text(format!("{d:?}"));}});
                 });
@@ -333,8 +343,9 @@ impl App {
             }}
             ui.separator();
             let ready=self.can_connect();
-            if parity_ui::primary_action(ui,self.picker_connect_ready(),"Load camera").clicked() {self.connect_picker();}
+            if parity_ui::primary_action(ui,self.picker_connect_ready() && !locked,"Load camera").clicked() {self.connect_picker();}
             ui.separator();
+            if locked {ui.small("External control is active. Use Take control to choose or load a camera here.");}
             if !ready {ui.label(if self.connection_fault || self.session.restart_disabled || self.session.state==camera_lab::session::State::Error {"Camera operation failed. Reconnection is disabled; see the error below."} else if self.busy {"Waiting for the image save to finish…"} else {"Stopping the previous camera…"});}
             else if !self.picker_simulation && self.selected.is_none() {ui.small("Select a supported camera to connect.");}
             if let Some(e)=&self.scan_error {ui.colored_label(egui::Color32::LIGHT_RED,e);}

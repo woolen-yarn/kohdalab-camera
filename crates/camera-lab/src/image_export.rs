@@ -24,6 +24,19 @@ pub(crate) fn standard_sidecars(path: &Path) -> [PathBuf; 4] {
     ]
 }
 
+/// Every file `save_recipe` may create for `path`. Any existing one refuses
+/// the save, so callers can check a destination before changing acquisition.
+pub fn outputs(path: &Path) -> Vec<PathBuf> {
+    let mut all = vec![
+        path.to_path_buf(),
+        suffix(path, ".raw"),
+        suffix(path, ".json"),
+        suffix(path, ".original-RAW.tiff"),
+    ];
+    all.extend(standard_sidecars(path));
+    all
+}
+
 pub(crate) fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -352,11 +365,7 @@ pub(crate) fn save_recipe_with(
     let metadata = suffix(path, ".json");
     let original = suffix(path, ".original-RAW.tiff");
     let sidecars = standard_sidecars(path);
-    if std::iter::once(path)
-        .chain([raw.as_path(), metadata.as_path(), original.as_path()])
-        .chain(sidecars.iter().map(PathBuf::as_path))
-        .any(|p| p.exists())
-    {
+    if outputs(path).iter().any(|p| p.exists()) {
         return Err("Existing image or sidecars: choose a new name; overwrite is disabled".into());
     }
     let (width, height, pixels) = recipe.render(f, None)?;
