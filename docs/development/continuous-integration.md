@@ -9,6 +9,9 @@ not sign, create a GitHub release, install drivers, or use a physical camera.
 
 - Rust 1.99.1 and the Windows GNU target are selected explicitly. The hosted
   image's GNU linker/resource compiler versions are recorded in the run log.
+  The release build toolchain (1.99.1) is distinct from the declared workspace
+  MSRV `1.92` in `Cargo.toml`, which the separate `Rust 1.92 workspace check`
+  job in `test.yml` verifies with `cargo +1.92 check --locked --workspace`.
 - Cargo uses the committed lockfile. First-party Actions use fixed commit SHAs;
   checkout credentials are not retained and the workflow token is read-only.
 - `.gitattributes` keeps source checkout line endings consistent. Source identity
@@ -69,7 +72,7 @@ human enrollment steps and provider-dependent signed-installer work.
 
 ## 入力と確認 / Inputs and checks
 
-Rust **1.99.1** と Windows GNU target を明示選択し、hosted image の GNU linker/resource compiler version を run log に記録します。Cargo は committed lockfile、first-party Actions は fixed commit SHA を使い、checkout credential は保持せず workflow token は read-only です。`.gitattributes` は checkout line ending を揃え、source identity は platform-independent relative-path order を用いて verification のみ行い CI が書換えません。stale marker は build を停止します。camera driver-policy/headless GUI unit test は hardware なしで実行し、両 first-party executable は root package version/product name を埋込みます。NSIS **3.12** archive は hash-verify 後に extract し、Setup は machine-wide で acquisition を始めません。compiler は Setup を実行せず exact unsigned uninstaller を export します。disposable install は 4 executable type の metadata/unsigned status、runtime hash、exported/installed uninstaller equality、startup report、same-version update、normal uninstall、unrelated-file preservation を確認します。installer が作る shortcut/HKLM entry は runner の normal uninstall で除去し、この script を user の既存 installation に対して実行してはいけません。
+Rust **1.99.1** と Windows GNU target を明示選択し、hosted image の GNU linker/resource compiler version を run log に記録します。release build の toolchain（1.99.1）は、`Cargo.toml` が宣言する workspace MSRV **1.92** とは別物で、MSRV は `test.yml` の別ジョブ `Rust 1.92 workspace check` が `cargo +1.92 check --locked --workspace` で検証します。Cargo は committed lockfile、first-party Actions は fixed commit SHA を使い、checkout credential は保持せず workflow token は read-only です。`.gitattributes` は checkout line ending を揃え、source identity は platform-independent relative-path order を用いて verification のみ行い CI が書換えません。stale marker は build を停止します。camera driver-policy/headless GUI unit test は hardware なしで実行し、両 first-party executable は root package version/product name を埋込みます。NSIS **3.12** archive は hash-verify 後に extract し、Setup は machine-wide で acquisition を始めません。compiler は Setup を実行せず exact unsigned uninstaller を export します。disposable install は 4 executable type の metadata/unsigned status、runtime hash、exported/installed uninstaller equality、startup report、same-version update、normal uninstall、unrelated-file preservation を確認します。installer が作る shortcut/HKLM entry は runner の normal uninstall で除去し、この script を user の既存 installation に対して実行してはいけません。
 
 ## Artifact と根拠 / Artifacts and evidence
 
