@@ -1,5 +1,10 @@
 # Changelog / 変更履歴
 
+## 1.0.7
+
+- Enforce Rust Clippy and Python SDK style checks in CI, and separate session regression tests into dedicated files. / CI で Rust の Clippy と Python SDK のコードスタイルを検査し、セッションの回帰テストを別ファイルに分離しました。
+- Document the Rust toolchain and validation provenance, check documented Rust versions against build configuration, and catalog explicit panic paths in the session code. / Rust のツールチェーンと検証記録の来歴を明記し、文書の Rust バージョンをビルド設定と照合します。セッションの明示的な panic 経路も整理しました。
+
 ## 1.0.6
 
 - Add leased GUI control through the common API: Live start/stop and current-ROI/full-sensor capture to a new path. These use the same actions and checks as the window, and the window gains Stop and Take control. / 共通 API にリース付き GUI 操作を追加しました。Live の開始・停止と、新しいパスへの現在 ROI・全画素撮影を、窓と同じ処理と判定で行います。窓には「Stop」「Take control」を追加しました。
