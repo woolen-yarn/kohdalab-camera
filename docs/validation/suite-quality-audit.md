@@ -4,6 +4,15 @@
 
 Base / 基点: `88e738c788b1cba9942f7cc652b3771e9537ebbe`. This records source and software checks, not hardware qualification or a published release. / ソースとソフトウェア検証の記録であり、実機認定や公開済みリリースの記録ではありません。
 
+> **Provenance / 来歴**
+> This is a point-in-time measurement snapshot; counts below are not comparable
+> across records. / これは特定時点の測定スナップショットで、各記録間で件数を比
+> 較できません。
+> - Date / 日付: 2026-11-05
+> - Commit·branch / コミット・ブランチ: `88e738c788b1cba9942f7cc652b3771e9537ebbe`, branch `codex/suite-quality-audit`
+> - Platform / 環境: macOS (see "Limits / 未確認範囲") / macOS（「Limits / 未確認範囲」を参照）
+> - Command / コマンド: see "Reproducing checks / 検証方法" below / 下記「Reproducing checks / 検証方法」を参照
+
 ## Corrections / 修正
 
 The common client changes trigger Windows CI. Rust sources are formatted using the suite toolchain; the source identity is regenerated from actual inputs. Camera acquisition, image rendering, and export algorithms are unchanged.
