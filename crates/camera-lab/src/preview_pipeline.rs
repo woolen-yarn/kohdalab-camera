@@ -66,12 +66,20 @@ impl Pipeline {
                 .render_color_image(frame, Some(1024))
         })
     }
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "converter injection is used only by tests")
+    )]
     fn with_converter(
         wake_gui: impl Fn() + Send + 'static,
         convert: impl Fn(&Frame) -> Result<egui::ColorImage, String> + Send + 'static,
     ) -> Result<Self, String> {
         Self::with_recipe_converter(wake_gui, move |f, _| convert(f))
     }
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "converter injection is used only by tests")
+    )]
     fn with_recipe_converter(
         wake_gui: impl Fn() + Send + 'static,
         convert: impl Fn(&Frame, crate::display_recipe::Recipe) -> Result<egui::ColorImage, String>

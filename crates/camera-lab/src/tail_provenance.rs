@@ -12,28 +12,6 @@ pub struct TailProvenance {
     pub saturated: bool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn v020_saturation_and_invalid_provenance_fail_closed() {
-        let mut p = TailProvenance {
-            intervening_boundary: u16::MAX,
-            ..Default::default()
-        };
-        p.assembly(true, false, 1);
-        assert!(p.saturated);
-        assert_eq!(p.intervening_boundary, u16::MAX);
-        p.finish(3145729, 3145728, false);
-        assert!(p.saturated);
-        assert!(!p.valid());
-        p.tail_bytes = 0;
-        p.tail_state = 2;
-        assert!(!p.valid());
-        p.tail_state = 7;
-        assert!(!p.valid());
-    }
-}
 impl TailProvenance {
     fn increment(n: &mut u16, saturated: &mut bool) {
         let (next, overflow) = n.overflowing_add(1);
@@ -77,5 +55,28 @@ impl TailProvenance {
                 1..=3 => self.tail_bytes > 0,
                 _ => false,
             }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn v020_saturation_and_invalid_provenance_fail_closed() {
+        let mut p = TailProvenance {
+            intervening_boundary: u16::MAX,
+            ..Default::default()
+        };
+        p.assembly(true, false, 1);
+        assert!(p.saturated);
+        assert_eq!(p.intervening_boundary, u16::MAX);
+        p.finish(3145729, 3145728, false);
+        assert!(p.saturated);
+        assert!(!p.valid());
+        p.tail_bytes = 0;
+        p.tail_state = 2;
+        assert!(!p.valid());
+        p.tail_state = 7;
+        assert!(!p.valid());
     }
 }

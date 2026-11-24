@@ -18,6 +18,13 @@ pub const QUIESCENCE_FAILED: &str =
     "Transfer quiescence unproved; evidence review and physical recovery required";
 /// Physical backend receipt construction and any optional persistence must live
 /// outside this ownership scope. Both success and error drop interface first.
+#[cfg_attr(
+    all(not(test), not(windows)),
+    expect(
+        dead_code,
+        reason = "production caller is the Windows continuous session; tests use it everywhere"
+    )
+)]
 pub(crate) fn with_resource_owners<I, D, T>(
     interface: I,
     device: D,
@@ -141,6 +148,10 @@ fn checked(interface: &Interface, address: u16, value: u16) -> Result<(), String
     }
     Ok(())
 }
+#[expect(
+    clippy::too_many_arguments,
+    reason = "existing acquisition entry point; grouping parameters would change its contract"
+)]
 pub fn trial(
     interface: &Interface,
     width: u16,
@@ -168,6 +179,17 @@ pub fn trial(
 /// Continuous acquisition requires a live independent supervisor capability.
 /// It does not use the legacy duration as a natural end. The caller remains
 /// responsible for startup IPC, lock ownership, handle release, receipt and reap.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "existing acquisition entry point; grouping parameters would change its contract"
+)]
+#[cfg_attr(
+    not(windows),
+    expect(
+        dead_code,
+        reason = "only the Windows continuous session calls continuous acquisition"
+    )
+)]
 pub(crate) fn continuous_acquire(
     interface: &Interface,
     width: u16,
@@ -195,6 +217,10 @@ pub(crate) fn continuous_acquire(
     )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "shared acquisition core; grouping parameters would restructure ownership"
+)]
 fn acquire(
     interface: &Interface,
     width: u16,
@@ -587,6 +613,10 @@ mod tail_v020_tests {
         assert_eq!(h.tail().tail_state, 0);
     }
 }
+#[expect(
+    clippy::too_many_arguments,
+    reason = "stream setup forwards each acquisition input; grouping would restructure ownership"
+)]
 fn stream(
     interface: &Interface,
     root: &Path,
@@ -738,6 +768,18 @@ impl StreamEndpoint for nusb::Endpoint<Bulk, In> {
         self.cancel_all()
     }
 }
+#[expect(
+    clippy::too_many_arguments,
+    reason = "endpoint loop borrows each acquisition input; grouping would restructure ownership"
+)]
+#[expect(
+    clippy::collapsible_if,
+    reason = "acquisition loop control flow and error paths are kept literally unchanged"
+)]
+#[expect(
+    clippy::unnecessary_unwrap,
+    reason = "frame publication path is kept literally unchanged"
+)]
 fn stream_endpoint(
     mut ep: impl StreamEndpoint,
     root: &Path,

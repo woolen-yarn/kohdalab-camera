@@ -141,6 +141,13 @@ impl OwnerPort {
 #[derive(Clone)]
 pub struct Monitor(Arc<Shared>);
 impl Monitor {
+    #[cfg_attr(
+        not(windows),
+        expect(
+            dead_code,
+            reason = "only the Windows continuous session reports owner faults"
+        )
+    )]
     pub(crate) fn fault(&self, fault: Fault) {
         self.0.fail(fault);
     }
@@ -219,6 +226,10 @@ impl LeasePort {
             SupervisorCommand::PipeLost => self.pipe_lost(),
         }
     }
+    #[expect(
+        clippy::collapsible_if,
+        reason = "supervisor enable/fault control flow is kept literally unchanged"
+    )]
     pub fn tick(&mut self) {
         let reports = self.shared.reports.lock();
         match reports {
@@ -378,6 +389,10 @@ pub fn ipc_mailbox() -> (SupervisorInput, SupervisorInbox) {
     (SupervisorInput(tx), SupervisorInbox(rx))
 }
 impl SupervisorInput {
+    #[expect(
+        clippy::result_large_err,
+        reason = "mirrors std TrySendError so the rejected command is returned unchanged"
+    )]
     pub fn try_send(
         &self,
         command: SupervisorCommand,

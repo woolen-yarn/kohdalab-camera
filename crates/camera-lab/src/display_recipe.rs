@@ -484,6 +484,10 @@ mod tests {
         );
     }
     #[test]
+    #[expect(
+        clippy::chunks_exact_to_as_chunks,
+        reason = "test assertion code is kept unchanged; slice chunks are the compared shape"
+    )]
     fn independent_rotation_grid_and_estimate_refusal() {
         let mut f = Frame {
             raw: std::sync::Arc::new(vec![1, 0, 0, 2, 0, 0, 3, 0, 0, 4, 0, 0, 5, 0, 0, 6, 0, 0]),
@@ -675,6 +679,10 @@ mod quality_v2 {
         );
     }
     #[test]
+    #[expect(
+        clippy::manual_is_multiple_of,
+        reason = "test fixture arithmetic is kept unchanged"
+    )]
     fn independent_planes_ramp_diagonal_checker_and_immutability() {
         for kind in 0..3 {
             let plane = |x: u32, y: u32, c: usize| -> u8 {
@@ -794,6 +802,10 @@ mod quality_v2 {
         }
     }
     #[test]
+    #[expect(
+        clippy::chunks_exact_to_as_chunks,
+        reason = "test assertion code is kept unchanged; it converts slice chunks with try_into"
+    )]
     fn v2_lut_matches_pixel_and_rgb_metadata_truthful() {
         let f = frame(
             256,

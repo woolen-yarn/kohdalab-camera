@@ -102,6 +102,10 @@ struct App {
     last_source: Option<camera_lab::external_control::SourceKind>,
 }
 impl App {
+    #[expect(
+        dead_code,
+        reason = "retained constructor; main uses new_with_worker with its own Worker"
+    )]
     fn new(ctx: &egui::Context) -> Self {
         Self::new_with_worker(ctx, Worker::new())
     }
@@ -508,6 +512,13 @@ impl App {
         self.export_full = false;
         self.save_with_recipe(f, p, recipe, origin);
     }
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "frozen-save entry point is exercised only by GUI tests"
+        )
+    )]
     fn save_frozen(&mut self, f: Frame, p: PathBuf) {
         if self.busy || self.closing {
             self.save_result = "Save unavailable while saving or closing".into();
@@ -702,59 +713,54 @@ impl App {
         if let Some((id, f)) = self.session.frame.take()
             && id == self.revision
             && !self.closing
+            && let Some(generation) = self.preview_generation
         {
-            if let Some(generation) = self.preview_generation {
-                if f.validate().is_ok()
-                    && (f.metadata.simulated || self.session.applied_revision == Some(id))
+            if f.validate().is_ok()
+                && (f.metadata.simulated || self.session.applied_revision == Some(id))
+            {
+                self.matching_revision = Some(id);
+                self.status.clear();
+            }
+            self.measurement.receive(&f, clock());
+            let intent = self.requested_intent;
+            if let Some(restore) = self
+                .product
+                .observe(&f, id, generation.settings, intent, now)
+            {
+                if let (Some((path, origin)), Some(held)) =
+                    (self.full_destination.take(), self.product.held.clone())
                 {
-                    self.matching_revision = Some(id);
-                    self.status.clear();
+                    self.save_with_recipe(held, path, self.full_recipe, origin);
                 }
-                self.measurement.receive(&f, clock());
-                let intent = self.requested_intent;
-                if let Some(restore) =
-                    self.product
-                        .observe(&f, id, generation.settings, intent, now)
-                {
-                    if let (Some((path, origin)), Some(held)) =
-                        (self.full_destination.take(), self.product.held.clone())
-                    {
-                        self.save_with_recipe(held, path, self.full_recipe, origin);
+                // An already-Full capture needs another sequence, not another owner.
+                if generation.settings != restore.settings {
+                    self.request_settings(self.source.clone(), restore.settings, restore.intent);
+                    if let Some(e) = self.control_error.clone() {
+                        self.product.fail(&e);
                     }
-                    // An already-Full capture needs another sequence, not another owner.
-                    if generation.settings != restore.settings {
-                        self.request_settings(
-                            self.source.clone(),
-                            restore.settings,
-                            restore.intent,
-                        );
-                        if let Some(e) = self.control_error.clone() {
-                            self.product.fail(&e);
-                        }
-                    }
-                }
-                if !self.paused
-                    && let Some(preview) = &self.preview
-                {
-                    preview.submit(
-                        camera_lab::preview_pipeline::Key {
-                            generation,
-                            sequence: f.metadata.sequence,
-                        },
-                        f,
-                    );
                 }
             }
+            if !self.paused
+                && let Some(preview) = &self.preview
+            {
+                preview.submit(
+                    camera_lab::preview_pipeline::Key {
+                        generation,
+                        sequence: f.metadata.sequence,
+                    },
+                    f,
+                );
+            }
         }
-        if let Some(preview) = &self.preview {
-            if let Some(e) = preview.error() {
-                if preview.terminal_failure() {
-                    self.terminal_preview_failure = Some(format!(
-                        "{e}. Reopen the application to restore preview; automatic restart is disabled."
-                    ));
-                } else {
-                    self.status = e;
-                }
+        if let Some(preview) = &self.preview
+            && let Some(e) = preview.error()
+        {
+            if preview.terminal_failure() {
+                self.terminal_preview_failure = Some(format!(
+                    "{e}. Reopen the application to restore preview; automatic restart is disabled."
+                ));
+            } else {
+                self.status = e;
             }
         }
         if self.closing {
@@ -787,23 +793,24 @@ impl App {
         let ctx = root.ctx().clone();
         #[cfg(feature = "input-diagnostics")]
         input_diagnostics::events(&ctx);
-        if (!self.paused || self.recipe != self.displayed_recipe) && !self.closing {
-            if let Some(image) = self.preview.as_ref().and_then(|p| p.take()) {
-                let matches = if image.held {
-                    self.frame.as_ref().is_some_and(|f| {
-                        f.metadata == image.raw.metadata
-                            && std::sync::Arc::ptr_eq(&f.raw, &image.raw.raw)
-                    })
-                } else {
-                    Some(image.key.generation) == self.preview_generation
-                };
-                if matches && image.recipe == self.recipe {
-                    if !image.held {
-                        self.displayed_revision = Some(image.key.generation.revision);
-                    }
-                    self.displayed_recipe = image.recipe;
-                    self.upload_frame(&ctx, image.raw, image.image, clock());
+        if (!self.paused || self.recipe != self.displayed_recipe)
+            && !self.closing
+            && let Some(image) = self.preview.as_ref().and_then(|p| p.take())
+        {
+            let matches = if image.held {
+                self.frame.as_ref().is_some_and(|f| {
+                    f.metadata == image.raw.metadata
+                        && std::sync::Arc::ptr_eq(&f.raw, &image.raw.raw)
+                })
+            } else {
+                Some(image.key.generation) == self.preview_generation
+            };
+            if matches && image.recipe == self.recipe {
+                if !image.held {
+                    self.displayed_revision = Some(image.key.generation.revision);
                 }
+                self.displayed_recipe = image.recipe;
+                self.upload_frame(&ctx, image.raw, image.image, clock());
             }
         }
         // Observe after upload: an entry timestamp precedes the submitted frame and

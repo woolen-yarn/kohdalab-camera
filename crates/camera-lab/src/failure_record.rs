@@ -85,6 +85,10 @@ pub struct Recorder {
     final_sent: bool,
 }
 impl Recorder {
+    #[expect(
+        clippy::new_without_default,
+        reason = "construction resolves app paths and spawns the recorder thread; not a Default"
+    )]
     pub fn new() -> Self {
         // Fixed candidate namespace under the app-owned logs directory. No export or lock paths.
         let root = kohdalab_control_protocol::paths::AppPaths::for_app("camera")
@@ -142,6 +146,10 @@ impl Recorder {
             Err(_) => Self::unavailable("recorder thread unavailable; no writes"),
         }
     }
+    #[expect(
+        clippy::collapsible_if,
+        reason = "failure persistence error path is kept literally unchanged"
+    )]
     pub fn observe(&mut self, s: &mut Snapshot) {
         if s.first_failure.is_some() {
             let kind = if !self.first {
@@ -163,6 +171,10 @@ impl Recorder {
         }
     }
     // Called on acquisition thread after collection, never on UI; drain two writes.
+    #[expect(
+        clippy::collapsible_if,
+        reason = "recorder shutdown and panic reporting are kept literally unchanged"
+    )]
     pub fn finish(&mut self, s: &mut Snapshot) {
         self.observe(s);
         self.tx.take();
@@ -189,6 +201,10 @@ mod tests {
         assert!(value["first_failure"].is_null());
     }
     #[test]
+    #[expect(
+        clippy::field_reassign_with_default,
+        reason = "test fixture setup is kept unchanged"
+    )]
     fn first_survives_cleanup_and_bounds_and_write_failure() {
         let root = std::env::temp_dir().join(format!("v035-recorder-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();

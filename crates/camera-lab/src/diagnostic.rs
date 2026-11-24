@@ -512,6 +512,10 @@ mod v037_tests {
 mod v039_tests {
     use super::*;
     #[test]
+    #[expect(
+        clippy::field_reassign_with_default,
+        reason = "test fixture setup is kept unchanged"
+    )]
     fn v039_sensor_terminal_classifier_record() {
         use SensorFailure::*;
         for (i, kind) in [

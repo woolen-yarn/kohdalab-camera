@@ -130,6 +130,10 @@ impl Default for Snapshot {
     }
 }
 /// Done is reported only after the process exits and its handle has been reaped.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "frames move by value on the worker path; boxing would add a per-frame allocation"
+)]
 pub enum Event {
     Waiting,
     Lifecycle { message: String, unproved: bool },
@@ -630,6 +634,13 @@ impl Factory for RealFactory {
     fn open(&mut self, request: &Request) -> Result<Box<dyn Transport>, String> {
         self.open_generation(request, 1)
     }
+    #[cfg_attr(
+        not(windows),
+        expect(
+            unused_variables,
+            reason = "generation binds only Windows continuous sessions and fixtures"
+        )
+    )]
     fn open_generation(
         &mut self,
         request: &Request,
@@ -2316,6 +2327,10 @@ mod v036_tests {
         }
     }
     #[test]
+    #[expect(
+        clippy::field_reassign_with_default,
+        reason = "test fixture setup is kept unchanged"
+    )]
     fn v036_all_terminal_facts_to_collection() {
         for (index, (terminal, exit, proof, release, deleted)) in [
             (Terminal::CleanCancellation, 0, 15, true, true),
