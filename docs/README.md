@@ -22,6 +22,7 @@
 - [Improvement tasks / 品質改善タスク](development/improvement-tasks.md)
 - [Extensibility / 拡張方法](development/extensibility.md)
 - [Interface design / 画面設計](development/interface-design.md)
+- [Panic-path review / panic 経路点検](development/panic-paths-review.md)
 - [Repository layout / 構成](development/repository-layout.md)
 - [SignPath application / SignPath申請](development/signpath-application.md)
 
