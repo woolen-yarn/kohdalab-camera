@@ -1,0 +1,37 @@
+name: Python binding style
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bindings/control/**'
+      - '.github/workflows/python-binding-style.yml'
+  pull_request:
+    paths:
+      - 'bindings/control/**'
+      - '.github/workflows/python-binding-style.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ruff:
+    name: Ruff check and format (bindings/control only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # Keep in sync with required-version in bindings/control/pyproject.toml.
+      RUFF_VERSION: '0.13.0'
+    defaults:
+      run:
+        working-directory: bindings/control
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Ruff lint
+        run: pipx run --spec "ruff==${RUFF_VERSION}" ruff check --no-cache --output-format=github .
+      - name: Ruff format check
+        if: ${{ !cancelled() }}
+        run: pipx run --spec "ruff==${RUFF_VERSION}" ruff format --no-cache --check --diff .
+      - name: SDK unit tests (style edits must not change behavior)
+        if: ${{ !cancelled() }}
+        run: python3 -m unittest discover -s . -p "test_*.py" -v

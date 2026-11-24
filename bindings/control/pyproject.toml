@@ -15,7 +15,13 @@ authors = [{name = "KohdaLab"}]
 py-modules = ["kohdalab_control"]
 
 [tool.ruff]
+# Keep in sync with RUFF_VERSION in .github/workflows/python-binding-style.yml.
+required-version = "==0.13.0"
 line-length = 88
+target-version = "py310"
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "W", "B", "PIE", "S"]
