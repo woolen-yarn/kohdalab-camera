@@ -15,3 +15,5 @@ jobs:
           persist-credentials: false
       - name: Check local documentation links
         run: python3 scripts/check_docs.py
+      - name: Check CI documentation Rust versions
+        run: python3 scripts/check_rust_versions.py
