@@ -19,6 +19,7 @@
 - [Architecture / 設計](development/architecture.md)
 - [Build layout / ビルド構成](development/build-layout.md)
 - [Continuous integration / 継続的インテグレーション](development/continuous-integration.md)
+- [Improvement tasks / 品質改善タスク](development/improvement-tasks.md)
 - [Extensibility / 拡張方法](development/extensibility.md)
 - [Interface design / 画面設計](development/interface-design.md)
 - [Repository layout / 構成](development/repository-layout.md)
