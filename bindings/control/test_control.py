@@ -384,10 +384,18 @@ class BoundaryTests(unittest.TestCase):
     def test_stop_and_wait_targets_explicit_job_receipt_not_global_status(self):
         client = ControlClient(endpoint=self.endpoint())
         receipts = [
-            {"job_id": "run", "terminal": False, "status": "running",
-             "cleanup": "pending"},
-            {"job_id": "run", "terminal": True, "status": "stopped",
-             "cleanup": "verified"},
+            {
+                "job_id": "run",
+                "terminal": False,
+                "status": "running",
+                "cleanup": "pending",
+            },
+            {
+                "job_id": "run",
+                "terminal": True,
+                "status": "stopped",
+                "cleanup": "verified",
+            },
         ]
         with (
             patch.object(client, "stop", return_value={"requested": True}) as stop,
@@ -413,8 +421,12 @@ class BoundaryTests(unittest.TestCase):
             sent.append((method, payload))
             if method == "stop":
                 return {"requested": False, "job_id": "run", "cleanup": "verified"}
-            return {"job_id": "run", "terminal": True, "status": "completed",
-                    "cleanup": "verified"}
+            return {
+                "job_id": "run",
+                "terminal": True,
+                "status": "completed",
+                "cleanup": "verified",
+            }
 
         with patch("kohdalab_control._exchange", side_effect=exchange):
             self.assertTrue(client.stop_and_wait("run")["terminal"])
@@ -427,14 +439,42 @@ class BoundaryTests(unittest.TestCase):
     def test_stop_and_wait_job_rejects_unconfirmed_mismatched_or_late_receipts(self):
         client = ControlClient(endpoint=self.endpoint())
         cases = [
-            ({"job_id": "run", "terminal": True, "status": "error",
-              "cleanup": "unknown"}, "cleanup_unconfirmed"),
-            ({"job_id": "run", "terminal": True, "status": "stopped",
-              "cleanup": "pending"}, "cleanup_unconfirmed"),
-            ({"job_id": "other", "terminal": True, "status": "stopped",
-              "cleanup": "verified"}, "validation"),
-            ({"job_id": "run", "terminal": False, "status": "running",
-              "cleanup": "pending"}, "timeout"),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": True,
+                    "status": "error",
+                    "cleanup": "unknown",
+                },
+                "cleanup_unconfirmed",
+            ),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": True,
+                    "status": "stopped",
+                    "cleanup": "pending",
+                },
+                "cleanup_unconfirmed",
+            ),
+            (
+                {
+                    "job_id": "other",
+                    "terminal": True,
+                    "status": "stopped",
+                    "cleanup": "verified",
+                },
+                "validation",
+            ),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": False,
+                    "status": "running",
+                    "cleanup": "pending",
+                },
+                "timeout",
+            ),
         ]
         for receipt, code in cases:
             with (
@@ -449,14 +489,27 @@ class BoundaryTests(unittest.TestCase):
 
     def test_stop_and_wait_completed_start_ack_follows_link_to_acquisition(self):
         client = ControlClient(endpoint=self.endpoint())
-        ack = {"job_id": "start", "terminal": True, "status": "completed",
-               "cleanup": "verified", "linked_job_id": "acq"}
+        ack = {
+            "job_id": "start",
+            "terminal": True,
+            "status": "completed",
+            "cleanup": "verified",
+            "linked_job_id": "acq",
+        }
         receipts = [
             ack,
-            {"job_id": "acq", "terminal": False, "status": "running",
-             "cleanup": "pending"},
-            {"job_id": "acq", "terminal": True, "status": "stopped",
-             "cleanup": "verified"},
+            {
+                "job_id": "acq",
+                "terminal": False,
+                "status": "running",
+                "cleanup": "pending",
+            },
+            {
+                "job_id": "acq",
+                "terminal": True,
+                "status": "stopped",
+                "cleanup": "verified",
+            },
         ]
         with (
             patch.object(client, "stop", return_value={"requested": True}) as stop,
@@ -476,21 +529,61 @@ class BoundaryTests(unittest.TestCase):
 
     def test_stop_and_wait_start_ack_alone_never_proves_cleanup(self):
         client = ControlClient(endpoint=self.endpoint())
-        ack = {"job_id": "start", "terminal": True, "status": "completed",
-               "cleanup": "verified", "linked_job_id": "acq"}
-        pending = {"job_id": "acq", "terminal": False, "status": "running",
-                   "cleanup": "pending"}
+        ack = {
+            "job_id": "start",
+            "terminal": True,
+            "status": "completed",
+            "cleanup": "verified",
+            "linked_job_id": "acq",
+        }
+        pending = {
+            "job_id": "acq",
+            "terminal": False,
+            "status": "running",
+            "cleanup": "pending",
+        }
         cases = [
             ([ack], pending, "timeout", "acq"),
-            ([ack], {"job_id": "other", "terminal": True, "status": "stopped",
-                     "cleanup": "verified"}, "validation", "acq"),
-            ([ack], {"terminal": True, "status": "stopped",
-                     "cleanup": "verified"}, "validation", "acq"),
-            ([ack], {"job_id": "acq", "terminal": True, "status": "stopped",
-                     "cleanup": "pending"}, "cleanup_unconfirmed", "acq"),
-            ([ack], {"job_id": "acq", "terminal": True, "status": "completed",
-                     "cleanup": "verified", "linked_job_id": "start"},
-             "validation", "acq"),
+            (
+                [ack],
+                {
+                    "job_id": "other",
+                    "terminal": True,
+                    "status": "stopped",
+                    "cleanup": "verified",
+                },
+                "validation",
+                "acq",
+            ),
+            (
+                [ack],
+                {"terminal": True, "status": "stopped", "cleanup": "verified"},
+                "validation",
+                "acq",
+            ),
+            (
+                [ack],
+                {
+                    "job_id": "acq",
+                    "terminal": True,
+                    "status": "stopped",
+                    "cleanup": "pending",
+                },
+                "cleanup_unconfirmed",
+                "acq",
+            ),
+            (
+                [ack],
+                {
+                    "job_id": "acq",
+                    "terminal": True,
+                    "status": "completed",
+                    "cleanup": "verified",
+                    "linked_job_id": "start",
+                },
+                "validation",
+                "acq",
+            ),
             ([dict(ack, linked_job_id=7)], pending, "validation", "start"),
         ]
         for first, then, code, rid in cases:
@@ -498,8 +591,13 @@ class BoundaryTests(unittest.TestCase):
             with (
                 self.subTest(code=code, then=then),
                 patch.object(client, "stop", return_value={"requested": True}) as stop,
-                patch.object(client, "result",
-                             side_effect=lambda _j, queue=receipts, fallback=then: next(queue, fallback)),
+                patch.object(
+                    client,
+                    "result",
+                    side_effect=lambda _j, queue=receipts, fallback=then: next(
+                        queue, fallback
+                    ),
+                ),
                 patch.object(client, "_call") as call,
             ):
                 with self.assertRaises(ControlError) as caught:
@@ -514,10 +612,15 @@ class BoundaryTests(unittest.TestCase):
         with (
             patch.object(client, "stop", return_value={"requested": True}) as stop,
             patch.object(
-                client, "result",
-                side_effect=lambda j: {"job_id": j, "terminal": True,
-                                       "status": "completed", "cleanup": "verified",
-                                       "linked_job_id": j + "x"},
+                client,
+                "result",
+                side_effect=lambda j: {
+                    "job_id": j,
+                    "terminal": True,
+                    "status": "completed",
+                    "cleanup": "verified",
+                    "linked_job_id": j + "x",
+                },
             ) as result,
         ):
             with self.assertRaises(ControlError) as caught:
@@ -542,12 +645,24 @@ class BoundaryTests(unittest.TestCase):
         client = ControlClient(endpoint=self.endpoint())
         client._lease = "opaque-test-lease"
         states = [
-            {"ownership": {"owned": False}, "busy": False, "phase": "stopping",
-             "cleanup": "pending"},
-            {"ownership": {"owned": False}, "busy": True, "phase": "ready",
-             "cleanup": "verified"},
-            {"ownership": {"owned": False}, "busy": False, "phase": "ready",
-             "cleanup": "verified"},
+            {
+                "ownership": {"owned": False},
+                "busy": False,
+                "phase": "stopping",
+                "cleanup": "pending",
+            },
+            {
+                "ownership": {"owned": False},
+                "busy": True,
+                "phase": "ready",
+                "cleanup": "verified",
+            },
+            {
+                "ownership": {"owned": False},
+                "busy": False,
+                "phase": "ready",
+                "cleanup": "verified",
+            },
         ]
         with (
             patch.object(
@@ -563,10 +678,19 @@ class BoundaryTests(unittest.TestCase):
     def test_release_of_intentionally_continuing_job_returns_without_waiting(self):
         client = ControlClient(endpoint=self.endpoint())
         client._lease = "opaque-test-lease"
-        job = {"job_id": "run", "terminal": False, "status": "running",
-               "cleanup": "pending"}
-        ack = {"released": True, "cleanup": "not_required", "continuing": True,
-               "job_id": "run", "job": job}
+        job = {
+            "job_id": "run",
+            "terminal": False,
+            "status": "running",
+            "cleanup": "pending",
+        }
+        ack = {
+            "released": True,
+            "cleanup": "not_required",
+            "continuing": True,
+            "job_id": "run",
+            "job": job,
+        }
         with (
             patch.object(client, "_call", return_value=ack) as call,
             patch.object(client, "status") as status,
@@ -585,10 +709,19 @@ class BoundaryTests(unittest.TestCase):
             self.assertTrue(client._heartbeat_stop.is_set())
 
     def test_continuing_release_evidence_is_validated_not_false_success(self):
-        job = {"job_id": "run", "terminal": False, "status": "running",
-               "cleanup": "pending"}
-        good = {"released": True, "cleanup": "not_required", "continuing": True,
-                "job_id": "run", "job": job}
+        job = {
+            "job_id": "run",
+            "terminal": False,
+            "status": "running",
+            "cleanup": "pending",
+        }
+        good = {
+            "released": True,
+            "cleanup": "not_required",
+            "continuing": True,
+            "job_id": "run",
+            "job": job,
+        }
         cases = [
             dict(good, cleanup="pending"),
             dict(good, cleanup="verified"),
@@ -598,8 +731,10 @@ class BoundaryTests(unittest.TestCase):
             {k: v for k, v in good.items() if k != "job"},
             dict(good, job="run"),
             dict(good, job=dict(job, job_id="other")),
-            dict(good, job=dict(job, terminal=True, status="completed",
-                                cleanup="verified")),
+            dict(
+                good,
+                job=dict(job, terminal=True, status="completed", cleanup="verified"),
+            ),
         ]
         for ack in cases:
             client = ControlClient(endpoint=self.endpoint())
@@ -620,11 +755,18 @@ class BoundaryTests(unittest.TestCase):
         client = ControlClient(endpoint=self.endpoint())
         client._lease = "opaque-test-lease"
         with (
-            patch.object(client, "_call",
-                         return_value={"released": False, "continuing": True}),
-            patch.object(client, "status", return_value={
-                "ownership": {"owned": True}, "phase": "running",
-                "cleanup": "not_required"}),
+            patch.object(
+                client, "_call", return_value={"released": False, "continuing": True}
+            ),
+            patch.object(
+                client,
+                "status",
+                return_value={
+                    "ownership": {"owned": True},
+                    "phase": "running",
+                    "cleanup": "not_required",
+                },
+            ),
         ):
             with self.assertRaises(ControlError) as caught:
                 client.release(timeout=0.01)
@@ -632,23 +774,77 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(client._lease, "opaque-test-lease")
 
     def test_release_that_stops_a_job_checks_that_jobs_receipt(self):
-        ack = {"released": True, "cleanup": "pending", "continuing": False,
-               "stop_requested": True, "job_id": "run"}
+        ack = {
+            "released": True,
+            "cleanup": "pending",
+            "continuing": False,
+            "stop_requested": True,
+            "job_id": "run",
+        }
         cases = [
-            ({"job_id": "run", "terminal": True, "status": "stopped",
-              "cleanup": "verified"}, None),
-            ({"job_id": "run", "terminal": True, "status": "completed",
-              "cleanup": "not_required"}, None),
-            ({"job_id": "run", "terminal": True, "status": "error",
-              "cleanup": "unknown"}, "cleanup_unconfirmed"),
-            ({"job_id": "run", "terminal": True, "status": "error",
-              "cleanup": "verified"}, "cleanup_unconfirmed"),
-            ({"job_id": "run", "terminal": True, "status": "stopped",
-              "cleanup": "pending"}, "cleanup_unconfirmed"),
-            ({"job_id": "other", "terminal": True, "status": "stopped",
-              "cleanup": "verified"}, "validation"),
-            ({"job_id": "run", "terminal": False, "status": "running",
-              "cleanup": "pending"}, "timeout"),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": True,
+                    "status": "stopped",
+                    "cleanup": "verified",
+                },
+                None,
+            ),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": True,
+                    "status": "completed",
+                    "cleanup": "not_required",
+                },
+                None,
+            ),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": True,
+                    "status": "error",
+                    "cleanup": "unknown",
+                },
+                "cleanup_unconfirmed",
+            ),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": True,
+                    "status": "error",
+                    "cleanup": "verified",
+                },
+                "cleanup_unconfirmed",
+            ),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": True,
+                    "status": "stopped",
+                    "cleanup": "pending",
+                },
+                "cleanup_unconfirmed",
+            ),
+            (
+                {
+                    "job_id": "other",
+                    "terminal": True,
+                    "status": "stopped",
+                    "cleanup": "verified",
+                },
+                "validation",
+            ),
+            (
+                {
+                    "job_id": "run",
+                    "terminal": False,
+                    "status": "running",
+                    "cleanup": "pending",
+                },
+                "timeout",
+            ),
         ]
         for receipt, code in cases:
             client = ControlClient(endpoint=self.endpoint())
@@ -677,15 +873,33 @@ class BoundaryTests(unittest.TestCase):
                 self.assertIsNone(client._lease)
 
     def test_release_job_polls_until_stopped_and_follows_bounded_links(self):
-        ack = {"released": True, "cleanup": "pending", "continuing": False,
-               "stop_requested": True, "job_id": "start"}
+        ack = {
+            "released": True,
+            "cleanup": "pending",
+            "continuing": False,
+            "stop_requested": True,
+            "job_id": "start",
+        }
         receipts = [
-            {"job_id": "start", "terminal": True, "status": "completed",
-             "cleanup": "verified", "linked_job_id": "run"},
-            {"job_id": "run", "terminal": False, "status": "running",
-             "cleanup": "pending"},
-            {"job_id": "run", "terminal": True, "status": "stopped",
-             "cleanup": "verified"},
+            {
+                "job_id": "start",
+                "terminal": True,
+                "status": "completed",
+                "cleanup": "verified",
+                "linked_job_id": "run",
+            },
+            {
+                "job_id": "run",
+                "terminal": False,
+                "status": "running",
+                "cleanup": "pending",
+            },
+            {
+                "job_id": "run",
+                "terminal": True,
+                "status": "stopped",
+                "cleanup": "verified",
+            },
         ]
         client = ControlClient(endpoint=self.endpoint())
         client._lease = "opaque-test-lease"
@@ -710,10 +924,15 @@ class BoundaryTests(unittest.TestCase):
         with (
             patch.object(client, "_call", return_value=dict(ack, job_id="j")),
             patch.object(
-                client, "result",
-                side_effect=lambda j: {"job_id": j, "terminal": True,
-                                       "status": "completed", "cleanup": "verified",
-                                       "linked_job_id": j + "x"},
+                client,
+                "result",
+                side_effect=lambda j: {
+                    "job_id": j,
+                    "terminal": True,
+                    "status": "completed",
+                    "cleanup": "verified",
+                    "linked_job_id": j + "x",
+                },
             ) as result,
         ):
             with self.assertRaises(ControlError) as caught:
@@ -731,12 +950,26 @@ class BoundaryTests(unittest.TestCase):
             with (
                 self.subTest(ack=ack),
                 patch.object(client, "_call", return_value=ack),
-                patch.object(client, "status", return_value={
-                    "ownership": {"owned": False}, "busy": False,
-                    "phase": "ready", "cleanup": "verified"}),
-                patch.object(client, "result", return_value={
-                    "job_id": "run", "terminal": True, "status": "stopped",
-                    "cleanup": "verified"}),
+                patch.object(
+                    client,
+                    "status",
+                    return_value={
+                        "ownership": {"owned": False},
+                        "busy": False,
+                        "phase": "ready",
+                        "cleanup": "verified",
+                    },
+                ),
+                patch.object(
+                    client,
+                    "result",
+                    return_value={
+                        "job_id": "run",
+                        "terminal": True,
+                        "status": "stopped",
+                        "cleanup": "verified",
+                    },
+                ),
             ):
                 with self.assertRaises(ControlError) as caught:
                     client.release(timeout=0.01)
@@ -766,8 +999,15 @@ class BoundaryTests(unittest.TestCase):
             call.assert_not_called()
 
     def test_context_sends_error_reason_only_where_stop_on_error_exists(self):
-        trkr = {"methods": [], "safety": {"stop_policy_defaults": {
-            "stop_on_disconnect": False, "stop_on_error": False}}}
+        trkr = {
+            "methods": [],
+            "safety": {
+                "stop_policy_defaults": {
+                    "stop_on_disconnect": False,
+                    "stop_on_error": False,
+                },
+            },
+        }
         other = {"methods": [], "safety": {"stop_requires_lease": True}}
         cases = [
             (trkr, ValueError, "python_error"),
@@ -780,9 +1020,11 @@ class BoundaryTests(unittest.TestCase):
             client._lease = "opaque-test-lease"
             with (
                 self.subTest(description=description, exc_type=exc_type),
-                patch.object(client, "_call",
-                             return_value={"released": True, "cleanup": "verified"}
-                             ) as call,
+                patch.object(
+                    client,
+                    "_call",
+                    return_value={"released": True, "cleanup": "verified"},
+                ) as call,
             ):
                 exc = exc_type("Experiment failed") if exc_type else None
                 # The original exception is never suppressed.
@@ -794,27 +1036,45 @@ class BoundaryTests(unittest.TestCase):
         client = ControlClient(endpoint=self.endpoint())
         client._lease = "opaque-test-lease"
         with (
-            patch.object(client, "describe",
-                         side_effect=ControlError("down", code="transport")),
-            patch.object(client, "_call",
-                         return_value={"released": True, "cleanup": "verified"}
-                         ) as call,
+            patch.object(
+                client, "describe", side_effect=ControlError("down", code="transport")
+            ),
+            patch.object(
+                client, "_call", return_value={"released": True, "cleanup": "verified"}
+            ) as call,
         ):
             self.assertFalse(client.__exit__(ValueError, ValueError("x"), None))
         call.assert_called_once_with("release")
 
     def test_context_preserves_original_exception_with_trkr_stop_on_error(self):
         client = ControlClient(endpoint=self.endpoint())
-        client._description = {"methods": [], "safety": {
-            "stop_policy_defaults": {"stop_on_error": True}}}
+        client._description = {
+            "methods": [],
+            "safety": {"stop_policy_defaults": {"stop_on_error": True}},
+        }
         with (
             patch.object(client, "acquire"),
-            patch.object(client, "_call", return_value={
-                "released": True, "cleanup": "pending", "continuing": False,
-                "stop_requested": True, "job_id": "run"}) as call,
-            patch.object(client, "result", return_value={
-                "job_id": "run", "terminal": True, "status": "stopped",
-                "cleanup": "verified"}),
+            patch.object(
+                client,
+                "_call",
+                return_value={
+                    "released": True,
+                    "cleanup": "pending",
+                    "continuing": False,
+                    "stop_requested": True,
+                    "job_id": "run",
+                },
+            ) as call,
+            patch.object(
+                client,
+                "result",
+                return_value={
+                    "job_id": "run",
+                    "terminal": True,
+                    "status": "stopped",
+                    "cleanup": "verified",
+                },
+            ),
         ):
             with self.assertRaises(KeyError):
                 with client:
@@ -829,9 +1089,16 @@ class BoundaryTests(unittest.TestCase):
         ack = {"released": True, "cleanup": "pending"}
         with (
             patch.object(client, "_call", return_value=ack),
-            patch.object(client, "status", return_value={
-                "ownership": {"owned": False}, "busy": False, "phase": "ready",
-                "cleanup": "verified"}),
+            patch.object(
+                client,
+                "status",
+                return_value={
+                    "ownership": {"owned": False},
+                    "busy": False,
+                    "phase": "ready",
+                    "cleanup": "verified",
+                },
+            ),
             patch.object(client, "result") as result,
         ):
             released = client.release()
@@ -843,14 +1110,20 @@ class BoundaryTests(unittest.TestCase):
         for busy in (True, None):
             client = ControlClient(endpoint=self.endpoint())
             client._lease = "opaque-test-lease"
-            state = {"ownership": {"owned": False}, "phase": "ready",
-                     "cleanup": "verified"}
+            state = {
+                "ownership": {"owned": False},
+                "phase": "ready",
+                "cleanup": "verified",
+            }
             if busy is not None:
                 state["busy"] = busy
             with (
                 self.subTest(busy=busy),
-                patch.object(client, "_call",
-                             return_value={"released": True, "cleanup": "pending"}),
+                patch.object(
+                    client,
+                    "_call",
+                    return_value={"released": True, "cleanup": "pending"},
+                ),
                 patch.object(client, "status", return_value=state),
             ):
                 with self.assertRaises(ControlError) as caught:
@@ -860,17 +1133,28 @@ class BoundaryTests(unittest.TestCase):
 
     def test_release_still_reports_unconfirmed_cleanup_and_timeout(self):
         for state, code in (
-            ({"ownership": {"owned": True}, "phase": "error", "cleanup": "unknown"},
-             "cleanup_unconfirmed"),
-            ({"ownership": {"owned": True}, "phase": "stopping",
-              "cleanup": "pending"}, "timeout"),
+            (
+                {"ownership": {"owned": True}, "phase": "error", "cleanup": "unknown"},
+                "cleanup_unconfirmed",
+            ),
+            (
+                {
+                    "ownership": {"owned": True},
+                    "phase": "stopping",
+                    "cleanup": "pending",
+                },
+                "timeout",
+            ),
         ):
             client = ControlClient(endpoint=self.endpoint())
             client._lease = "opaque-test-lease"
             with (
                 self.subTest(code=code),
-                patch.object(client, "_call",
-                             return_value={"released": True, "cleanup": "pending"}),
+                patch.object(
+                    client,
+                    "_call",
+                    return_value={"released": True, "cleanup": "pending"},
+                ),
                 patch.object(client, "status", return_value=state),
             ):
                 with self.assertRaises(ControlError) as caught:
