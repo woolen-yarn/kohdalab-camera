@@ -82,13 +82,9 @@ jobs:
         run: rustup component add rustfmt clippy
       - name: Check Rust formatting
         run: cargo fmt --all --check
-      - name: Report Clippy warnings
+      - name: Check Clippy warnings
         if: ${{ !cancelled() && steps.lint-tools.outcome == 'success' }}
-        shell: bash
-        run: |
-          cargo clippy --locked --workspace --all-targets --color never 2>&1 | tee "$RUNNER_TEMP/clippy.log"
-          warnings=$(awk '/^warning: / && !/^warning: `.*`.* generated [0-9]+ warning/ {count++} END {print count+0}' "$RUNNER_TEMP/clippy.log")
-          echo "Clippy run emitted $warnings warnings (including rustc warnings)." | tee -a "$GITHUB_STEP_SUMMARY"
+        run: cargo clippy --locked --workspace --all-targets --color never -- -D warnings
 
   msrv:
     name: Rust 1.92 workspace check

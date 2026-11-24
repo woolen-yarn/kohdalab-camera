@@ -52,13 +52,12 @@ impl App {
     pub(super) fn sync_stage(&mut self, ctx: &egui::Context) {
         // Remember valid Live measurements before the picker resize is requested.
         // Ignore missing/stale picker-sized reports during native transitions.
-        if !self.viewport_picker {
-            if let Some(size) = ctx
+        if !self.viewport_picker
+            && let Some(size) = ctx
                 .input(|i| i.viewport().inner_rect.map(|r| r.size()))
                 .filter(|s| s.x.is_finite() && s.y.is_finite() && s.x >= 900. && s.y >= 620.)
-            {
-                self.live_size = size;
-            }
+        {
+            self.live_size = size;
         }
         if self.viewport_picker == self.picker {
             return;
@@ -153,6 +152,13 @@ impl App {
             if error.len() > 2048 { "…" } else { "" }
         )
     }
+    #[cfg_attr(
+        not(test),
+        expect(
+            unused_variables,
+            reason = "summary label response is read only by test geometry probes"
+        )
+    )]
     pub(super) fn failure_visibility(
         &self,
         root: &mut egui::Ui,

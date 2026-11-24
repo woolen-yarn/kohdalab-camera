@@ -356,6 +356,10 @@ impl Drop for Recorder<'_> {
 mod tests {
     use super::*;
     #[test]
+    #[expect(
+        clippy::field_reassign_with_default,
+        reason = "test fixture setup is kept unchanged"
+    )]
     fn saturated_inputs_are_explicit_and_rates_invalid() {
         let mut slot = None;
         {

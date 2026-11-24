@@ -210,10 +210,9 @@ fn run() -> Result<(), String> {
                 if prepare && capture {
                     preparation.stop_attempted = true; // existing bounded STOP; no second STOP on failure
                     if let Err(error) = preparation.dispatch_bridge(|| bridge_state(&interface, 1))
+                        && !capture
                     {
-                        if !capture {
-                            return Err(error);
-                        }
+                        return Err(error);
                     }
                 }
                 println!("sensor=MT9T001 identity matched; acquisition still disabled");

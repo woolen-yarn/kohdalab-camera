@@ -182,6 +182,10 @@ fn v036_production_terminal_dispatch_worker_recorder_first_cause() {
     }
 }
 #[test]
+#[expect(
+    clippy::field_reassign_with_default,
+    reason = "test fixture setup is kept unchanged"
+)]
 fn v036_all_terminal_facts_to_collection() {
     for (index, (terminal, exit, proof, release, deleted)) in [
         (Terminal::CleanCancellation, 0, 15, true, true),

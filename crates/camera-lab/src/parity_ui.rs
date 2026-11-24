@@ -1,5 +1,9 @@
 use super::*;
 
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "aspect-fit is used only by parity tests")
+)]
 pub fn aspect_fit(area: egui::Rect, size: egui::Vec2) -> egui::Rect {
     let scale = (area.width() / size.x).min(area.height() / size.y).max(0.);
     egui::Rect::from_center_size(area.center(), size * scale)
@@ -75,6 +79,13 @@ impl App {
             }
         }
     }
+    #[cfg_attr(
+        not(test),
+        expect(
+            unused_variables,
+            reason = "cursor label response is read only by test geometry probes"
+        )
+    )]
     pub(super) fn parity_ui(&mut self, root: &mut egui::Ui, now: std::time::Instant) {
         let ctx = root.ctx().clone();
         if let Some(r) = self.estimate_rx.as_ref().and_then(|r| match r.try_recv() {
@@ -204,11 +215,11 @@ impl App {
                     let response = ui.allocate_rect(area, egui::Sense::click_and_drag());
                     if response.hovered() {
                         let wheel = ctx.input(|i| i.smooth_scroll_delta.y);
-                        if wheel != 0. {
-                            if let Some(pos) = ctx.pointer_hover_pos() {
-                                self.view
-                                    .zoom_at(area, source_size, pos, (wheel / 300.).exp());
-                            }
+                        if wheel != 0.
+                            && let Some(pos) = ctx.pointer_hover_pos()
+                        {
+                            self.view
+                                .zoom_at(area, source_size, pos, (wheel / 300.).exp());
                         }
                     }
                     if response.dragged() {
@@ -517,10 +528,8 @@ impl App {
         }
         if ui.add_enabled(self.capture_full_ready()&&!locked,egui::Button::new("Capture full sensor image… · 3.1 MP")).on_hover_text("Captures a new Full frame, then automatically returns to the applied Live settings.").clicked() {self.capture_full();}
         ui.weak("Save as PNG or TIFF.").on_hover_text("The selected frame is held while the save dialog is open. Original sensor TIFF (Bayer sources), RAW and metadata are saved alongside it. Existing files are never overwritten; incomplete saves are reported.");
-        if self.busy || self.product.busy() {
-            if ui.button("Stop / Disconnect").clicked() {
-                self.request(None);
-            }
+        if (self.busy || self.product.busy()) && ui.button("Stop / Disconnect").clicked() {
+            self.request(None);
         }
     }
     fn advanced_settings(&mut self, ui: &mut egui::Ui, now: std::time::Instant) {
@@ -549,9 +558,7 @@ impl App {
         if ui.add_enabled(!locked,egui::Button::new("Reset all settings")).on_hover_text("Restore defaults, save numbering and window size. Apply camera settings to change active acquisition.").clicked(){self.reset_preferences(ui.ctx());}
         ui.collapsing("Diagnostics",|ui| {
         if let Some(t)=&self.frame_received {ui.label(format!("Texture update age: {:.1} s",t.age_at(now).as_secs_f64()));}
-        if let Some(f)=&self.frame {
-            if let Some(m)=&f.metadata.measurement {ui.label(format!("UTC Unix ms {:?}; source accepted total {}; sequence {}; local source sample {} ns; rolling {}/{} ns",m.host_accepted_completion_unix_ms,m.accepted_total,m.sequence,m.source_sample_ns,m.window_frames,m.window_ns));}
-        }
+        if let Some(f)=&self.frame && let Some(m)=&f.metadata.measurement {ui.label(format!("UTC Unix ms {:?}; source accepted total {}; sequence {}; local source sample {} ns; rolling {}/{} ns",m.host_accepted_completion_unix_ms,m.accepted_total,m.sequence,m.source_sample_ns,m.window_frames,m.window_ns));}
         if let Some(d)=self.selected.and_then(|i|self.devices.get(i)) {ui.label(format!("{:04x}:{:04x} serial={:?} bus={} ports={:?}",d.vendor_id(),d.product_id(),d.serial_number(),d.bus_id(),d.port_chain()));}
 
         ui.small("Color and optical calibration are not available.");

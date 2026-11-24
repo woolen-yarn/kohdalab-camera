@@ -63,6 +63,10 @@ impl RgbView<'_> {
     /// mapping have established the layout and bounds. Safe slice indexing is
     /// still used; this never uses unchecked memory access.
     #[inline]
+    #[expect(
+        clippy::manual_div_ceil,
+        reason = "published demosaic rounding formulas are kept literally unchanged"
+    )]
     pub(crate) fn render_rgb(&self, x: usize, y: usize) -> [u8; 3] {
         debug_assert!(x < self.width && y < self.height);
         if self.channels == 3 {
@@ -139,6 +143,10 @@ impl Frame {
         }
     }
     // Constant-time storage checks only: no acquisition-contract work or allocation.
+    #[expect(
+        clippy::manual_is_multiple_of,
+        reason = "image layout validation expression is kept literally unchanged"
+    )]
     fn rgb_layout(&self) -> Option<(usize, usize, usize)> {
         let m = &self.metadata;
         let channels = match m.format.as_str() {
@@ -175,6 +183,10 @@ impl Frame {
     }
     /// Independent bilinear GRBG; reflect101, u16 means rounded half up.
     /// Malformed layouts and out-of-range coordinates return None.
+    #[expect(
+        clippy::manual_div_ceil,
+        reason = "published demosaic rounding formulas are kept literally unchanged"
+    )]
     pub fn rgb(&self, x: u32, y: u32) -> Option<[u8; 3]> {
         let (w, h, channels) = self.rgb_layout()?;
         let (x, y) = (usize::try_from(x).ok()?, usize::try_from(y).ok()?);
