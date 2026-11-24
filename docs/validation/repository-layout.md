@@ -1,5 +1,15 @@
 # Repository-layout validation
 
+> **Provenance / 来歴**
+> This is a point-in-time measurement snapshot; counts below are not comparable
+> across records. The "2 failed" entry is an intentional pre-migration
+> reproduction, not a regression (see "Existing test failures"). / これは特定
+> 時点の測定スナップショットで、各記録間で件数を比較できません。「2 failed」は
+> 移行前からの既知再現であり回帰ではありません（「Existing test failures」参照）。
+> - Platform / 環境: macOS
+> - Command / コマンド: full library suite (`cargo test` library targets) / full library suite（`cargo test` の library target）
+> - Date·commit / 日付・コミット: not recorded in this note / この記録には未記載
+
 The source layout migration keeps package and executable names, dependency
 versions, hardware access rules, and image/acquisition behavior unchanged.
 The root lockfile is unchanged; the stale nested platform lock is removed because

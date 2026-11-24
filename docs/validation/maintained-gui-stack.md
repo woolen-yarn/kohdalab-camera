@@ -1,5 +1,14 @@
 # Maintained GUI stack
 
+> **Provenance / 来歴**
+> This is a point-in-time measurement snapshot; counts below are not comparable
+> across records. / これは特定時点の測定スナップショットで、各記録間で件数を比
+> 較できません。
+> - Toolchain / ツールチェーン: Rust 1.99.1 (declared MSRV 1.92 / 宣言 MSRV は 1.92)
+> - Command / コマンド: `cargo test --workspace --locked -q`
+> - Platform / 環境: not recorded in this note / この記録には未記載
+> - Date·commit / 日付・コミット: not recorded in this note / この記録には未記載
+
 Camera Lab uses `eframe` 0.34.3 (and its matching `egui` 0.34.3 stack).
 The declared Camera Lab MSRV is Rust 1.92, matching the GUI stack's MSRV.
 
